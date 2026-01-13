@@ -20,14 +20,14 @@ class ProductController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        $validated['tenant_id'] = tenant()->id;
+        $validated['tenant_id'] = auth()->user()->tenant_id;
 
         $product = Product::create($validated);
 
         // Initial Stock Movement log if quantity > 0
         if ($validated['stock_quantity'] > 0) {
             StockMovement::create([
-                'tenant_id' => tenant()->id,
+                'tenant_id' => auth()->user()->tenant_id,
                 'product_id' => $product->id,
                 'quantity' => $validated['stock_quantity'],
                 'type' => 'initial',
@@ -58,6 +58,8 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
+        \Illuminate\Support\Facades\Gate::authorize('delete-records');
+
         $product->delete();
 
         return redirect()->route('products-services.index', ['tab' => 'parts'])
@@ -72,6 +74,11 @@ class ProductController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        // Validate removal doesn't exceed available stock
+        if ($validated['type'] === 'remove' && $validated['quantity'] > $product->stock_quantity) {
+            return back()->with('error', 'Cannot remove more stock than available (' . $product->stock_quantity . ' in stock).');
+        }
+
         $qty = $validated['quantity'];
         if ($validated['type'] === 'remove') {
             $qty = -$qty;
@@ -82,7 +89,7 @@ class ProductController extends Controller
             $product->save();
 
             StockMovement::create([
-                'tenant_id' => tenant()->id,
+                'tenant_id' => auth()->user()->tenant_id,
                 'product_id' => $product->id,
                 'quantity' => $qty,
                 'type' => $validated['type'] === 'add' ? 'purchase' : 'correction', // simplistic mapping

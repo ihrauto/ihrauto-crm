@@ -41,7 +41,7 @@ class ManagementController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('perform-admin-actions');
 
         $customers = \App\Models\Customer::all();
-        $filename = 'crm-customers-'.date('Y-m-d').'.csv';
+        $filename = 'crm-customers-' . date('Y-m-d') . '.csv';
 
         $headers = [
             'Content-type' => 'text/csv',
@@ -58,7 +58,7 @@ class ManagementController extends Controller
             foreach ($customers as $customer) {
                 fputcsv($file, [
                     $customer->id,
-                    $customer->first_name.' '.$customer->last_name,
+                    $customer->name,
                     $customer->email,
                     $customer->phone,
                     $customer->created_at,
@@ -135,9 +135,9 @@ class ManagementController extends Controller
 
         // Helper to update features array
         $updateFeature = function ($featureKey, $isEnabled) use (&$features) {
-            if ($isEnabled && ! in_array($featureKey, $features)) {
+            if ($isEnabled && !in_array($featureKey, $features)) {
                 $features[] = $featureKey;
-            } elseif (! $isEnabled && in_array($featureKey, $features)) {
+            } elseif (!$isEnabled && in_array($featureKey, $features)) {
                 $features = array_diff($features, [$featureKey]);
             }
         };
@@ -236,7 +236,7 @@ class ManagementController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'role' => 'required|string|exists:roles,name',
             'password' => 'nullable|string|min:8',
         ]);
@@ -245,7 +245,7 @@ class ManagementController extends Controller
         $user->email = $validated['email'];
         $user->role = $validated['role'];
 
-        if (! empty($validated['password'])) {
+        if (!empty($validated['password'])) {
             $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
         }
 
@@ -302,7 +302,7 @@ class ManagementController extends Controller
             $data['services'] = \App\Models\Service::all();
         }
 
-        $filename = 'crm-backup-'.now()->format('Y-m-d-His').'.json';
+        $filename = 'crm-backup-' . now()->format('Y-m-d-His') . '.json';
 
         return response()->streamDownload(function () use ($data) {
             echo json_encode($data, JSON_PRETTY_PRINT);

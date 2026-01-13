@@ -53,5 +53,6 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Gate::policy(\App\Models\WorkOrder::class, \App\Policies\WorkOrderPolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Tire::class, \App\Policies\TirePolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Product::class, \App\Policies\ProductPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\Appointment::class, \App\Policies\AppointmentPolicy::class);
     }
 }

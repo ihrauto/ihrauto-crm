@@ -21,12 +21,33 @@ class PaymentController extends Controller
             'payment_date' => 'required|date',
             'transaction_reference' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:1000',
+            'idempotency_key' => 'nullable|string|max:64',
         ]);
 
         DB::beginTransaction();
 
         try {
+            // Idempotency: Check for duplicate submission using idempotency key or transaction reference
+            $idempotencyKey = $validated['idempotency_key'] ?? $validated['transaction_reference'] ?? null;
+            if ($idempotencyKey) {
+                $existingPayment = Payment::where('transaction_reference', $idempotencyKey)
+                    ->where('invoice_id', $validated['invoice_id'])
+                    ->first();
+
+                if ($existingPayment) {
+                    DB::rollBack();
+                    return redirect()->route('invoices.show', $validated['invoice_id'])
+                        ->with('info', 'Payment already recorded (duplicate submission prevented).');
+                }
+            }
+
             $invoice = Invoice::findOrFail($validated['invoice_id']);
+
+            // Security: Verify tenant ownership (prevent IDOR)
+            if ($invoice->tenant_id !== auth()->user()->tenant_id) {
+                DB::rollBack();
+                abort(403, 'Unauthorized: Invoice does not belong to your organization.');
+            }
 
             // Security Check: Status
             if (in_array($invoice->status, ['paid', 'cancelled'])) {

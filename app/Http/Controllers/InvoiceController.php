@@ -20,6 +20,8 @@ class InvoiceController extends Controller
      */
     public function show(Invoice $invoice)
     {
+        $this->authorize('view', $invoice);
+
         // "Paper" view
         $invoice->load(['customer', 'items', 'vehicle', 'payments']);
 
@@ -31,6 +33,8 @@ class InvoiceController extends Controller
      */
     public function edit(Invoice $invoice)
     {
+        $this->authorize('update', $invoice);
+
         if (!$invoice->isEditable()) {
             return redirect()->route('invoices.show', $invoice)
                 ->with('error', 'This invoice is locked and cannot be edited.');
@@ -44,6 +48,8 @@ class InvoiceController extends Controller
      */
     public function update(Request $request, Invoice $invoice)
     {
+        $this->authorize('update', $invoice);
+
         $validated = $request->validate([
             'notes' => 'nullable|string',
             'due_date' => 'nullable|date',
@@ -63,6 +69,8 @@ class InvoiceController extends Controller
      */
     public function issue(Invoice $invoice)
     {
+        $this->authorize('issue', $invoice);
+
         try {
             $this->invoiceService->issueInvoice($invoice);
 
@@ -80,6 +88,8 @@ class InvoiceController extends Controller
      */
     public function void(Request $request, Invoice $invoice)
     {
+        $this->authorize('void', $invoice);
+
         $validated = $request->validate([
             'void_reason' => 'required|string|max:500',
         ]);
@@ -99,6 +109,8 @@ class InvoiceController extends Controller
      */
     public function destroy(Invoice $invoice)
     {
+        $this->authorize('delete', $invoice);
+
         try {
             $invoice->delete();
 

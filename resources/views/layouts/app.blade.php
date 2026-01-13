@@ -213,24 +213,25 @@
             
             @if(request()->is('admin*'))
             {{-- ADMIN HEADER: Minimal, control-panel style --}}
-            <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-40">
+            <header class="bg-white border-b border-gray-200 h-20 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-40">
                 {{-- Left: Branding + Navigation --}}
                 <div class="flex items-center space-x-6">
                     {{-- Brand --}}
-                    <div class="flex items-center space-x-4">
-                        <span class="text-sm font-bold text-gray-900 tracking-tight">IHRAUTO</span>
-                        {{-- Vertical Line Separator --}}
-                        <div class="h-5 w-px bg-gray-300"></div>
+                    <div class="flex items-center">
+                        <span class="text-lg font-bold text-indigo-900 tracking-tight">IHRAUTO</span>
                     </div>
+                    
+                    {{-- Vertical Line Separator --}}
+                    <div class="h-8 w-px bg-indigo-200"></div>
                     
                     {{-- Navigation --}}
                     <nav class="flex items-center space-x-6">
                         <a href="{{ route('admin.dashboard') }}" 
-                           class="text-sm {{ request()->routeIs('admin.dashboard') ? 'text-gray-900 font-bold' : 'text-gray-500 hover:text-gray-900 font-medium' }}">
+                           class="text-sm {{ request()->routeIs('admin.dashboard') ? 'text-indigo-600 font-bold' : 'text-indigo-400 hover:text-indigo-600 font-medium' }} transition-colors">
                             Dashboard
                         </a>
                         <a href="{{ route('admin.tenants.index') }}" 
-                           class="text-sm {{ request()->routeIs('admin.tenants.*') ? 'text-gray-900 font-bold' : 'text-gray-500 hover:text-gray-900 font-medium' }}">
+                           class="text-sm {{ request()->routeIs('admin.tenants.*') ? 'text-indigo-600 font-bold' : 'text-indigo-400 hover:text-indigo-600 font-medium' }} transition-colors">
                             Tenants
                         </a>
                     </nav>
@@ -367,7 +368,7 @@
             </header>
             @endif
 
-            <div class="{{ request()->is('admin*') ? 'p-6 mt-14' : 'p-4 lg:p-10 mt-16 lg:mt-20' }}">
+            <div class="{{ request()->is('admin*') ? 'p-6 mt-20' : 'p-4 lg:p-10 mt-16 lg:mt-20' }}">
                  @if(isset($breadcrumbs))
                     <nav class="flex mb-6 lg:mb-8 text-sm text-indigo-400" aria-label="Breadcrumb">
                         <ol class="flex items-center space-x-2 lg:space-x-3 overflow-x-auto">

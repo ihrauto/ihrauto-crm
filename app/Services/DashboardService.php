@@ -120,6 +120,7 @@ class DashboardService
                 'title' => 'New customer registered',
                 'description' => $customer->name,
                 'time' => $customer->created_at->diffForHumans(),
+                'timestamp' => $customer->created_at,
                 'color' => 'bg-[#1A53F2]',
             ];
         }
@@ -137,6 +138,7 @@ class DashboardService
                 'title' => 'Vehicle check-in completed',
                 'description' => $checkin->vehicle->display_name ?? 'Unknown Vehicle',
                 'time' => $checkin->checkin_time->diffForHumans(),
+                'timestamp' => $checkin->checkin_time,
                 'color' => 'bg-[#5274E3]',
             ];
         }
@@ -152,14 +154,14 @@ class DashboardService
                 'type' => 'tire',
                 'icon' => 'building',
                 'title' => 'Tires stored in hotel',
-                'description' => $tire->quantity.'x '.$tire->season.' tires - Customer: '.($tire->customer->name ?? 'Unknown'),
+                'description' => $tire->quantity . 'x ' . $tire->season . ' tires - Customer: ' . ($tire->customer->name ?? 'Unknown'),
                 'time' => $tire->created_at->diffForHumans(),
                 'color' => 'bg-[#6A88E8]',
             ];
         }
 
-        // Sort activities by most recent
-        return collect($activities)->sortByDesc('time')->take(6)->values();
+        // Sort activities by most recent (use actual timestamp for sorting)
+        return collect($activities)->sortByDesc('timestamp')->take(6)->values();
     }
 
     /**
@@ -195,7 +197,7 @@ class DashboardService
 
                 return [
                     'id' => $wo->id,
-                    'title' => ($wo->vehicle->make ?? '').' - '.($wo->customer->name ?? 'Guest'),
+                    'title' => ($wo->vehicle->make ?? '') . ' - ' . ($wo->customer->name ?? 'Guest'),
                     'start' => $date->format('Y-m-d H:i:s'),
                     'bay' => $wo->service_bay,
                     'technician' => $wo->technician->name ?? 'Unassigned',
@@ -230,7 +232,7 @@ class DashboardService
                     'id' => $wo->id,
                     'time' => $time->format('H:i'),
                     'customer' => $wo->customer->name ?? 'Unknown',
-                    'vehicle' => ($wo->vehicle->make ?? '').' '.($wo->vehicle->model ?? ''),
+                    'vehicle' => ($wo->vehicle->make ?? '') . ' ' . ($wo->vehicle->model ?? ''),
                     'technician' => $wo->technician->name ?? 'Unassigned',
                     'bay' => $wo->service_bay,
                     'status' => $wo->status,
@@ -359,7 +361,7 @@ class DashboardService
                 'type' => 'recent_storage',
                 'icon' => 'archive',
                 'title' => 'Recently stored',
-                'description' => ($tire->customer->name ?? 'Unknown').' - '.$tire->full_description,
+                'description' => ($tire->customer->name ?? 'Unknown') . ' - ' . $tire->full_description,
                 'time_info' => $tire->storage_date->diffForHumans(),
                 'location' => $tire->storage_location,
                 'color' => 'bg-green-100 text-green-800',
@@ -379,8 +381,8 @@ class DashboardService
                 'type' => 'ready_pickup',
                 'icon' => 'truck',
                 'title' => 'Ready for pickup',
-                'description' => ($tire->customer->name ?? 'Unknown').' - '.$tire->full_description,
-                'time_info' => 'Updated '.$tire->updated_at->diffForHumans(),
+                'description' => ($tire->customer->name ?? 'Unknown') . ' - ' . $tire->full_description,
+                'time_info' => 'Updated ' . $tire->updated_at->diffForHumans(),
                 'location' => $tire->storage_location,
                 'color' => 'bg-blue-100 text-blue-800',
                 'action_url' => route('tires-hotel'),
@@ -399,8 +401,8 @@ class DashboardService
                 'type' => 'maintenance',
                 'icon' => 'cog',
                 'title' => 'In maintenance',
-                'description' => ($tire->customer->name ?? 'Unknown').' - '.$tire->full_description,
-                'time_info' => 'Started '.$tire->updated_at->diffForHumans(),
+                'description' => ($tire->customer->name ?? 'Unknown') . ' - ' . $tire->full_description,
+                'time_info' => 'Started ' . $tire->updated_at->diffForHumans(),
                 'location' => $tire->storage_location,
                 'color' => 'bg-yellow-100 text-yellow-800',
                 'action_url' => route('tires-hotel'),
@@ -419,7 +421,7 @@ class DashboardService
                     'type' => 'recent_activity',
                     'icon' => 'refresh',
                     'title' => 'Recent activity',
-                    'description' => ($tire->customer->name ?? 'Unknown').' - '.$tire->full_description,
+                    'description' => ($tire->customer->name ?? 'Unknown') . ' - ' . $tire->full_description,
                     'time_info' => $tire->updated_at->diffForHumans(),
                     'location' => $tire->storage_location,
                     'color' => 'bg-gray-100 text-gray-800',

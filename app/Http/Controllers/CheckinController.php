@@ -164,6 +164,11 @@ class CheckinController extends Controller
 
     public function update(Request $request, Checkin $checkin)
     {
+        // Defense in depth: verify ownership even though route model binding scopes by tenant
+        if ($checkin->tenant_id !== auth()->user()->tenant_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $request->validate([
             'status' => 'required|in:pending,in_progress,completed,cancelled,done',
             'assigned_technician' => 'nullable|string|max:100',

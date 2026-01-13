@@ -48,13 +48,28 @@ trait Auditable
             ];
         }
 
-        AuditLog::create([
-            'user_id' => Auth::id() ?? null, // Null if system action or unauthenticated
-            'action' => $action,
-            'model_type' => get_class($model),
-            'model_id' => $model->getKey(),
-            'changes' => $changes,
-            'ip_address' => request()->ip(),
-        ]);
+        // Get user_id safely - verify user exists to prevent FK violations
+        $userId = Auth::id();
+        if ($userId) {
+            // Verify user still exists (may have been deleted)
+            $userExists = \App\Models\User::withoutGlobalScopes()->where('id', $userId)->exists();
+            if (!$userExists) {
+                $userId = null;
+            }
+        }
+
+        try {
+            AuditLog::create([
+                'user_id' => $userId,
+                'action' => $action,
+                'model_type' => get_class($model),
+                'model_id' => $model->getKey(),
+                'changes' => $changes,
+                'ip_address' => request()->ip(),
+            ]);
+        } catch (\Exception $e) {
+            // Don't let audit logging break the main operation
+            \Log::warning('Audit log failed: ' . $e->getMessage());
+        }
     }
 }

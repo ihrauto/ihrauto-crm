@@ -64,7 +64,7 @@ class AppointmentController extends Controller
 
             // Create new customer
             $newCustomer = Customer::create([
-                'tenant_id' => tenant()->id,
+                'tenant_id' => auth()->user()->tenant_id,
                 'name' => $request->new_customer_name,
                 'phone' => $request->new_customer_phone,
             ]);
@@ -83,21 +83,21 @@ class AppointmentController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        if (! $customerId) {
+        if (!$customerId) {
             return redirect()->back()->withErrors(['customer_id' => 'Please select or create a customer.']);
         }
 
-        $startDateTime = Carbon::parse($request->start_date.' '.$request->start_time);
+        $startDateTime = Carbon::parse($request->start_date . ' ' . $request->start_time);
         $endDateTime = $startDateTime->copy()->addMinutes((int) $request->duration);
 
         // Auto-assign first vehicle if not selected (Optional, but helpful)
         $vehicleId = $validated['vehicle_id'] ?? null;
-        if (! $vehicleId && $customer = Customer::find($customerId)) {
+        if (!$vehicleId && $customer = Customer::find($customerId)) {
             $vehicleId = $customer->vehicles()->first()->id ?? null;
         }
 
         Appointment::create([
-            'tenant_id' => tenant()->id,
+            'tenant_id' => auth()->user()->tenant_id,
             'customer_id' => $customerId,
             'vehicle_id' => $vehicleId,
             'title' => $validated['title'] ?? ucfirst(str_replace('_', ' ', $validated['type'])),
@@ -127,7 +127,7 @@ class AppointmentController extends Controller
                 'notes' => 'nullable|string',
             ]);
 
-            $startDateTime = Carbon::parse($request->start_date.' '.$request->start_time);
+            $startDateTime = Carbon::parse($request->start_date . ' ' . $request->start_time);
             $endDateTime = $startDateTime->copy()->addMinutes((int) $request->duration);
 
             $appointment->update([
@@ -151,7 +151,7 @@ class AppointmentController extends Controller
 
             if ($request->status === 'failed' && $request->has('notes')) {
                 // Append failure reason to notes
-                $appointment->notes = ($appointment->notes ? $appointment->notes."\n\n" : '').'FAILED REASON: '.$request->notes;
+                $appointment->notes = ($appointment->notes ? $appointment->notes . "\n\n" : '') . 'FAILED REASON: ' . $request->notes;
             }
 
             $appointment->status = $request->status;
@@ -168,6 +168,8 @@ class AppointmentController extends Controller
      */
     public function destroy(Appointment $appointment)
     {
+        \Illuminate\Support\Facades\Gate::authorize('delete-records');
+
         $appointment->delete();
 
         return redirect()->back()->with('success', 'Appointment cancelled.');

@@ -34,6 +34,8 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'company_name' => ['required', 'string', 'max:255'],
             'plan' => ['nullable', 'string', 'in:basic,standard,custom'],
+        ], [
+            'email.unique' => 'This email already exists. Please use a different email or login to your existing account.',
         ]);
 
         $user = $action->handle([

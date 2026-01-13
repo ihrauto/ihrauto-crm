@@ -80,9 +80,53 @@ class RegisterTenantOwner
         );
         $user->assignRole($adminRole);
 
+        // Seed example products and services for the new tenant
+        $this->seedDemoCatalog($tenant);
+
         // Fire Registered event for email verification
         event(new Registered($user));
 
         return $user;
+    }
+
+    /**
+     * Seed example products and services for a new tenant.
+     */
+    protected function seedDemoCatalog(Tenant $tenant): void
+    {
+        $products = [
+            ['name' => 'Engine Oil 5W-40', 'sku' => 'OIL-5W40', 'price' => 45.00, 'stock_quantity' => 50],
+            ['name' => 'Oil Filter', 'sku' => 'FLT-OIL-001', 'price' => 12.00, 'stock_quantity' => 100],
+            ['name' => 'Air Filter', 'sku' => 'FLT-AIR-001', 'price' => 18.00, 'stock_quantity' => 80],
+            ['name' => 'Brake Pads (Front)', 'sku' => 'BRK-PAD-F', 'price' => 65.00, 'stock_quantity' => 40],
+        ];
+
+        foreach ($products as $product) {
+            \App\Models\Product::create([
+                'tenant_id' => $tenant->id,
+                'name' => $product['name'],
+                'sku' => $product['sku'],
+                'price' => $product['price'],
+                'stock_quantity' => $product['stock_quantity'],
+                'is_template' => true,
+            ]);
+        }
+
+        $services = [
+            ['name' => 'Oil Change', 'price' => 49.00],
+            ['name' => 'Tire Rotation', 'price' => 25.00],
+            ['name' => 'Brake Inspection', 'price' => 35.00],
+            ['name' => 'General Inspection', 'price' => 89.00],
+        ];
+
+        foreach ($services as $service) {
+            \App\Models\Service::create([
+                'tenant_id' => $tenant->id,
+                'name' => $service['name'],
+                'price' => $service['price'],
+                'is_active' => true,
+                'is_template' => true,
+            ]);
+        }
     }
 }

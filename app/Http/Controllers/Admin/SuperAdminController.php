@@ -60,6 +60,30 @@ class SuperAdminController extends Controller
     }
 
     /**
+     * Toggle tenant active status.
+     */
+    public function toggleActive(Tenant $tenant): RedirectResponse
+    {
+        $wasActive = $tenant->is_active;
+
+        if ($wasActive) {
+            $tenant->suspend();
+            $action = 'suspended';
+        } else {
+            $tenant->activate();
+            $action = 'activated';
+        }
+
+        $this->logAction($tenant, 'toggle_active', [
+            'status_from' => $wasActive ? 'active' : 'suspended',
+            'status_to' => $wasActive ? 'suspended' : 'active',
+        ]);
+
+        return redirect()->route('admin.tenants.index')
+            ->with('success', "Tenant has been {$action}.");
+    }
+
+    /**
      * Add bonus days to trial or subscription.
      */
     public function addBonusDays(Request $request, Tenant $tenant): RedirectResponse

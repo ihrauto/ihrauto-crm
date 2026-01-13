@@ -330,7 +330,7 @@ class TireHotelController extends Controller
 
         // Create Work Order
         $workOrder = \App\Models\WorkOrder::create([
-            'tenant_id' => tenant()->id,
+            'tenant_id' => auth()->user()->tenant_id,
             'customer_id' => $tire->customer_id,
             'vehicle_id' => $tire->vehicle_id,
             'technician_id' => $technicianId,

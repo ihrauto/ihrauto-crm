@@ -144,9 +144,12 @@ class WorkOrderController extends Controller
         }
 
         // If no checkin, we are scheduling a new job from scratch
-        // We need customers and vehicles for selection
-        // Ideally these should be fetched via AJAX for performance, but for now pass all for MVP/small shop
-        $customers = \App\Models\Customer::orderBy('name')->get();
+        // Load limited set of customers for initial dropdown - AJAX search available for more
+        $customers = \App\Models\Customer::orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get()
+            ->sortBy('name'); // Sort alphabetically for display
+
         $technicians = \App\Models\User::where('is_active', true)->orderBy('name')->get();
         $busy_technician_ids = $this->getBusyTechnicianIds();
 
