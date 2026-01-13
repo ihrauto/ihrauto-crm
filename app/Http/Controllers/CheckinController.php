@@ -126,7 +126,7 @@ class CheckinController extends Controller
 
             // Automate Work Order Creation
             $workOrder = \App\Models\WorkOrder::create([
-                'tenant_id' => tenant()->id,
+                'tenant_id' => auth()->user()->tenant_id,
                 'checkin_id' => $checkin->id,
                 'customer_id' => $checkin->customer_id,
                 'vehicle_id' => $checkin->vehicle_id,

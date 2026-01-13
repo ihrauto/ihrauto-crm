@@ -32,19 +32,19 @@ class PaymentController extends Controller
             if (in_array($invoice->status, ['paid', 'cancelled'])) {
                 DB::rollBack();
 
-                return back()->with('error', 'Cannot process payment. Invoice is already '.$invoice->status.'.');
+                return back()->with('error', 'Cannot process payment. Invoice is already ' . $invoice->status . '.');
             }
 
             // Security Check: Overpayment
             if ($validated['amount'] > $invoice->balance) {
                 DB::rollBack();
 
-                return back()->with('error', 'Payment amount ('.number_format($validated['amount'], 2).') exceeds remaining balance ('.number_format($invoice->balance, 2).').');
+                return back()->with('error', 'Payment amount (' . number_format($validated['amount'], 2) . ') exceeds remaining balance (' . number_format($invoice->balance, 2) . ').');
             }
 
             // Create Payment
             Payment::create([
-                'tenant_id' => tenant()->id,
+                'tenant_id' => auth()->user()->tenant_id,
                 'invoice_id' => $validated['invoice_id'],
                 'amount' => $validated['amount'],
                 'method' => $validated['method'],
@@ -70,12 +70,12 @@ class PaymentController extends Controller
 
             DB::commit();
 
-            return redirect()->route('invoices.show', $invoice)->with('success', 'Payment registered successfully. Invoice marked as '.strtoupper($invoice->status).'.');
+            return redirect()->route('invoices.show', $invoice)->with('success', 'Payment registered successfully. Invoice marked as ' . strtoupper($invoice->status) . '.');
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return back()->with('error', 'Error registering payment: '.$e->getMessage());
+            return back()->with('error', 'Error registering payment: ' . $e->getMessage());
         }
     }
 }
