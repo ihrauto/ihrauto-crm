@@ -47,6 +47,9 @@ class RegisteredUserController extends Controller
         Auth::login($user);
         session(['tenant_id' => $user->tenant_id]);
 
+        // Track tenant registration event
+        app(\App\Services\EventTracker::class)->track('tenant_registered', $user->tenant_id, $user->id);
+
         // Redirect to onboarding if available, otherwise dashboard
         if (Route::has('subscription.onboarding')) {
             return redirect()->route('subscription.onboarding');

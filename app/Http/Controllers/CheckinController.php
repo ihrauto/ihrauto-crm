@@ -17,7 +17,7 @@ class CheckinController extends Controller
     {
         // Clear any persistent session flash data on fresh page loads
         // This prevents the success notification from appearing when it shouldn't
-        if (! request()->hasHeader('referer') || ! str_contains(request()->header('referer'), 'checkin')) {
+        if (!request()->hasHeader('referer') || !str_contains(request()->header('referer'), 'checkin')) {
             session()->forget(['success', 'error']);
         }
 
@@ -71,7 +71,7 @@ class CheckinController extends Controller
     {
         // Debug logging
         \Log::info('=== CHECK-IN FORM SUBMISSION ===');
-        \Log::info('Form type: '.$request->form_type);
+        \Log::info('Form type: ' . $request->form_type);
 
         try {
             if ($request->form_type === 'active_user') {
@@ -83,7 +83,7 @@ class CheckinController extends Controller
             // Calculate initial tasks from checkin service_type
             $tasks = [];
             $partsUsed = [];
-            if (! empty($checkin->service_type)) {
+            if (!empty($checkin->service_type)) {
                 $serviceNames = explode(',', $checkin->service_type); // assuming comma separated
                 foreach ($serviceNames as $name) {
                     $name = trim($name);
@@ -133,22 +133,25 @@ class CheckinController extends Controller
                 'technician_id' => $technicianId,
                 'status' => 'created', // Same as tire hotel - enables "Start Job" button
                 'priority' => 'normal',
-                'description' => "Auto-created from Check-in #{$checkin->id} - Service: ".($checkin->service_type ?? 'General'),
+                'description' => "Auto-created from Check-in #{$checkin->id} - Service: " . ($checkin->service_type ?? 'General'),
                 'service_tasks' => $tasks, // Successfully populate tasks!
                 'parts_used' => $partsUsed, // Auto-populate from Service BOM
                 'created_by' => auth()->id(),
             ]);
 
+            // Track checkin created event
+            app(\App\Services\EventTracker::class)->trackSimple('checkin_created');
+
             // Redirect to Work Order Show Page (Job Sheet) - same as tire hotel
             return redirect()->route('work-orders.show', $workOrder)
-                ->with('success', 'Check-in completed! Work Order #'.$workOrder->id.' created. You can now start the job.');
+                ->with('success', 'Check-in completed! Work Order #' . $workOrder->id . ' created. You can now start the job.');
 
         } catch (\Exception $e) {
-            \Log::error('Check-in error: '.$e->getMessage());
+            \Log::error('Check-in error: ' . $e->getMessage());
 
             return back()
                 ->withInput()
-                ->with('error', 'Error processing check-in: '.$e->getMessage());
+                ->with('error', 'Error processing check-in: ' . $e->getMessage());
         }
     }
 
@@ -171,7 +174,7 @@ class CheckinController extends Controller
 
         $updates = $request->only(['status', 'assigned_technician', 'technician_notes', 'actual_cost']);
 
-        if ($request->status === 'completed' && ! $checkin->checkout_time) {
+        if ($request->status === 'completed' && !$checkin->checkout_time) {
             $updates['checkout_time'] = now();
         }
 
@@ -183,7 +186,7 @@ class CheckinController extends Controller
         $checkin->update($updates);
 
         if ($request->status === 'done') {
-            return back()->with('success', 'Check-in completed and archived successfully! Service for '.$checkin->vehicle->display_name.' has been finalized.');
+            return back()->with('success', 'Check-in completed and archived successfully! Service for ' . $checkin->vehicle->display_name . ' has been finalized.');
         }
 
         return back()->with('success', 'Check-in updated successfully.');
@@ -208,7 +211,7 @@ class CheckinController extends Controller
         $hours = floor($avg_minutes / 60);
         $minutes = $avg_minutes % 60;
 
-        return $hours > 0 ? $hours.'h '.round($minutes).'m' : round($minutes).'m';
+        return $hours > 0 ? $hours . 'h ' . round($minutes) . 'm' : round($minutes) . 'm';
     }
 
     private function getServiceBayStatus()

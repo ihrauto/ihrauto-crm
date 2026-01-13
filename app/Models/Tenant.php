@@ -83,6 +83,7 @@ class Tenant extends Model
         'api_key',
         'api_rate_limit',
         'last_activity_at',
+        'last_seen_at',
     ];
 
     protected $casts = [
@@ -98,6 +99,7 @@ class Tenant extends Model
         'ip_whitelist' => 'array',
         'audit_logs_enabled' => 'boolean',
         'last_activity_at' => 'datetime',
+        'last_seen_at' => 'datetime',
     ];
 
     /**
@@ -109,22 +111,22 @@ class Tenant extends Model
 
         static::creating(function ($tenant) {
             // Auto-generate slug if not provided
-            if (! $tenant->slug) {
+            if (!$tenant->slug) {
                 $tenant->slug = Str::slug($tenant->name);
             }
 
             // Auto-generate subdomain if not provided
-            if (! $tenant->subdomain) {
+            if (!$tenant->subdomain) {
                 $tenant->subdomain = $tenant->slug;
             }
 
             // Generate API key
-            if (! $tenant->api_key) {
-                $tenant->api_key = 'tk_'.Str::random(32);
+            if (!$tenant->api_key) {
+                $tenant->api_key = 'tk_' . Str::random(32);
             }
 
             // Set trial end date
-            if ($tenant->is_trial && ! $tenant->trial_ends_at) {
+            if ($tenant->is_trial && !$tenant->trial_ends_at) {
                 $tenant->trial_ends_at = now()->addDays(14); // 14-day trial
             }
         });
@@ -203,7 +205,7 @@ class Tenant extends Model
             return "https://{$this->domain}";
         }
 
-        return "https://{$this->subdomain}.".config('app.domain', 'yourapp.com');
+        return "https://{$this->subdomain}." . config('app.domain', 'yourapp.com');
     }
 
     public function getIsExpiredAttribute(): bool
@@ -220,7 +222,7 @@ class Tenant extends Model
         if ($this->is_trial && $this->trial_ends_at) {
             return max(0, $this->trial_ends_at->diffInDays(now(), false));
         }
-        if (! $this->is_trial && $this->subscription_ends_at) {
+        if (!$this->is_trial && $this->subscription_ends_at) {
             return max(0, $this->subscription_ends_at->diffInDays(now(), false));
         }
 
@@ -253,7 +255,7 @@ class Tenant extends Model
     public function enableFeature(string $feature): void
     {
         $features = $this->features ?? [];
-        if (! in_array($feature, $features)) {
+        if (!in_array($feature, $features)) {
             $features[] = $feature;
             $this->update(['features' => $features]);
         }
@@ -262,7 +264,7 @@ class Tenant extends Model
     public function disableFeature(string $feature): void
     {
         $features = $this->features ?? [];
-        $features = array_filter($features, fn ($f) => $f !== $feature);
+        $features = array_filter($features, fn($f) => $f !== $feature);
         $this->update(['features' => array_values($features)]);
     }
 

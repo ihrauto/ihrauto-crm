@@ -37,6 +37,7 @@
              style="display: none;"></div>
 
         <!-- Sidebar -->
+        @if(!request()->is('admin*'))
         <nav :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" 
              class="w-72 bg-navy-custom flex-shrink-0 flex flex-col fixed inset-y-0 z-50 shadow-xl transition-transform duration-300 ease-in-out lg:translate-x-0">
             
@@ -205,10 +206,72 @@
                 </div>
             </div>
         </nav>
+        @endif
 
         <!-- Main Content -->
-        <main class="lg:ml-72 flex-1 flex flex-col min-h-screen">
-            <!-- Top Header -->
+        <main class="{{ request()->is('admin*') ? '' : 'lg:ml-72' }} flex-1 flex flex-col min-h-screen">
+            
+            @if(request()->is('admin*'))
+            {{-- ADMIN HEADER: Minimal, control-panel style --}}
+            <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-40">
+                {{-- Left: Branding + Navigation --}}
+                <div class="flex items-center space-x-6">
+                    {{-- Brand --}}
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm font-bold text-gray-900 tracking-tight">IHRAUTO</span>
+                        {{-- Vertical Line Separator --}}
+                        <div class="h-5 w-px bg-gray-300"></div>
+                    </div>
+                    
+                    {{-- Navigation --}}
+                    <nav class="flex items-center space-x-6">
+                        <a href="{{ route('admin.dashboard') }}" 
+                           class="text-sm {{ request()->routeIs('admin.dashboard') ? 'text-gray-900 font-bold' : 'text-gray-500 hover:text-gray-900 font-medium' }}">
+                            Dashboard
+                        </a>
+                        <a href="{{ route('admin.tenants.index') }}" 
+                           class="text-sm {{ request()->routeIs('admin.tenants.*') ? 'text-gray-900 font-bold' : 'text-gray-500 hover:text-gray-900 font-medium' }}">
+                            Tenants
+                        </a>
+                    </nav>
+                </div>
+                
+                {{-- Right: Profile/Logout --}}
+                <div class="flex items-center">
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" @click.away="open = false" 
+                                class="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-900">
+                            <span>Account</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        
+                        <div x-show="open" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md py-1 z-50" 
+                             style="display: none;">
+                            <div class="px-4 py-2 border-b border-gray-100">
+                                <p class="text-xs text-gray-400">Signed in as</p>
+                                <p class="text-sm font-medium text-gray-900 truncate">{{ auth()->user()->email ?? 'Admin' }}</p>
+                            </div>
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                    Sign Out
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            @else
+            {{-- REGULAR HEADER: Full CRM header with notifications, profile, etc. --}}
             <header class="bg-white/80 border-b border-indigo-100 h-16 lg:h-20 flex items-center justify-between px-4 lg:px-10 fixed top-0 right-0 left-0 lg:left-72 z-40 bg-opacity-95 backdrop-blur-sm">
                 
                 <!-- Mobile Menu Button + Title -->
@@ -224,14 +287,14 @@
                 </div>
                 
                 <div class="flex items-center space-x-3 lg:space-x-5">
-                     @if(app()->environment('local'))
-                         <div class="hidden sm:flex items-center px-3 py-1.5 bg-indigo-50 rounded-full border border-indigo-100">
-                             <div class="w-2 h-2 rounded-full bg-indigo-400 mr-2"></div>
-                             <span class="text-xs font-bold text-indigo-700 uppercase tracking-wide">
-                                 @if(tenant()) {{ tenant()->name }} @else Local @endif
-                             </span>
-                         </div>
-                     @endif
+                    @if(app()->environment('local') && !request()->is('admin*'))
+                        <div class="hidden sm:flex items-center px-3 py-1.5 bg-indigo-50 rounded-full border border-indigo-100">
+                            <div class="w-2 h-2 rounded-full bg-indigo-400 mr-2"></div>
+                            <span class="text-xs font-bold text-indigo-700 uppercase tracking-wide">
+                                @if(tenant()) {{ tenant()->name }} @else Local @endif
+                            </span>
+                        </div>
+                    @endif
                      
                     <div class="hidden sm:block h-8 w-px bg-indigo-100 mx-2"></div>
                      
@@ -302,8 +365,9 @@
                     </div>
                 </div>
             </header>
+            @endif
 
-            <div class="p-4 lg:p-10 mt-16 lg:mt-20">
+            <div class="{{ request()->is('admin*') ? 'p-6 mt-14' : 'p-4 lg:p-10 mt-16 lg:mt-20' }}">
                  @if(isset($breadcrumbs))
                     <nav class="flex mb-6 lg:mb-8 text-sm text-indigo-400" aria-label="Breadcrumb">
                         <ol class="flex items-center space-x-2 lg:space-x-3 overflow-x-auto">
@@ -352,5 +416,6 @@
             @endif
         });
     </script>
+    @stack('scripts')
 </body>
 </html>

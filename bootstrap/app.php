@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register middleware alias for manual usage
         $middleware->alias([
             'tenant' => \App\Http\Middleware\TenantMiddleware::class,
+            'tenant-activity' => \App\Http\Middleware\UpdateTenantLastSeen::class,
             'module' => \App\Http\Middleware\CheckModuleAccess::class,
             'trial' => \App\Http\Middleware\EnsureTenantTrialActive::class,
             'tire-hotel' => \App\Http\Middleware\RequireTireHotelAccess::class,

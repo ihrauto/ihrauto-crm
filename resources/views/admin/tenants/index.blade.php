@@ -1,170 +1,157 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+@extends('layouts.app')
 
-    <title>Admin Panel - {{ config('app.name', 'IHRAUTO CRM') }}</title>
+@section('title', 'Tenant Management')
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="font-sans antialiased">
-    <div class="min-h-screen bg-gray-100">
-        <!-- Navigation -->
-        <nav class="bg-red-700 border-b border-red-800">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex">
-                        <div class="shrink-0 flex items-center">
-                            <span class="text-white font-bold text-xl">Super Admin Panel</span>
-                        </div>
-                        <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
-                            <a href="{{ route('admin.tenants.index') }}" 
-                               class="inline-flex items-center px-1 pt-1 border-b-2 border-white text-sm font-medium leading-5 text-white">
-                                Tenants
-                            </a>
-                        </div>
-                    </div>
-                    <div class="flex items-center">
-                        <span class="text-white text-sm mr-4">{{ auth()->user()->name }}</span>
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            <button type="submit" class="text-white text-sm hover:underline">Logout</button>
-                        </form>
-                    </div>
-                </div>
+@section('content')
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        {{-- Header --}}
+        <div class="flex items-center justify-between border-b border-gray-200 pb-4">
+            <div>
+                <h1 class="text-xl font-bold text-gray-900 tracking-tight">Tenants</h1>
+                <p class="text-xs text-gray-500 mt-1">Platform overview and management</p>
             </div>
-        </nav>
-
-        <!-- Page Content -->
-        <main>
-            <div class="py-12">
-                <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    @if (session('success'))
-                        <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-                            {{ session('success') }}
-                        </div>
-                    @endif
-
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                        <div class="p-6 text-gray-900">
-                            <h2 class="text-2xl font-bold mb-6">All Tenants</h2>
-                            
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Limits</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trial/Sub Ends</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        @forelse ($tenants as $tenant)
-                                            <tr>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $tenant->id }}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $tenant->name }}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $tenant->email }}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                        {{ $tenant->plan === 'custom' ? 'bg-purple-100 text-purple-800' : '' }}
-                                                        {{ $tenant->plan === 'standard' ? 'bg-blue-100 text-blue-800' : '' }}
-                                                        {{ $tenant->plan === 'basic' ? 'bg-green-100 text-green-800' : '' }}">
-                                                        {{ ucfirst($tenant->plan ?? 'basic') }}
-                                                        @if($tenant->is_trial)
-                                                            <span class="ml-1 text-orange-600">(Trial)</span>
-                                                        @endif
-                                                    </span>
-                                                    @if($tenant->plan === 'basic')
-                                                        <div class="text-xs text-gray-400 mt-1">€49/mo</div>
-                                                    @elseif($tenant->plan === 'standard')
-                                                        <div class="text-xs text-gray-400 mt-1">€149/mo</div>
-                                                    @elseif($tenant->plan === 'custom')
-                                                        <div class="text-xs text-gray-400 mt-1">Custom</div>
-                                                    @endif
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                                                    <div>{{ $tenant->users_count ?? 0 }}/{{ $tenant->max_users }} users</div>
-                                                    <div>{{ $tenant->customers_count ?? 0 }}/{{ number_format($tenant->max_customers) }} customers</div>
-                                                    @if($tenant->plan === 'basic' && $tenant->max_work_orders)
-                                                        <div class="text-orange-600">{{ $tenant->max_work_orders }} WO/mo</div>
-                                                    @else
-                                                        <div class="text-green-600">∞ WO</div>
-                                                    @endif
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    @if ($tenant->is_active)
-                                                        @if ($tenant->is_expired)
-                                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                                Expired
-                                                            </span>
-                                                        @else
-                                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                                                Active
-                                                            </span>
-                                                        @endif
-                                                    @else
-                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                                            Suspended
-                                                        </span>
-                                                    @endif
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    @if ($tenant->is_trial && $tenant->trial_ends_at)
-                                                        {{ $tenant->trial_ends_at->format('M d, Y') }}
-                                                        <span class="text-xs text-gray-400">(trial)</span>
-                                                    @elseif ($tenant->subscription_ends_at)
-                                                        {{ $tenant->subscription_ends_at->format('M d, Y') }}
-                                                    @else
-                                                        —
-                                                    @endif
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {{ $tenant->created_at->format('M d, Y') }}
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <form action="{{ route('admin.tenants.toggle', $tenant) }}" method="POST" class="inline">
-                                                        @csrf
-                                                        @if ($tenant->is_active)
-                                                            <button type="submit" 
-                                                                    class="text-red-600 hover:text-red-900"
-                                                                    onclick="return confirm('Are you sure you want to suspend this tenant?')">
-                                                                Suspend
-                                                            </button>
-                                                        @else
-                                                            <button type="submit" class="text-green-600 hover:text-green-900">
-                                                                Activate
-                                                            </button>
-                                                        @endif
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="9" class="px-6 py-4 text-center text-gray-500">
-                                                    No tenants found.
-                                                </td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div class="mt-4">
-                                {{ $tenants->links() }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div>
+                {{-- Add Tenant button could go here if needed --}}
             </div>
-        </main>
+        </div>
+
+        {{-- Operational Tenant Table --}}
+        <div class="bg-white border border-gray-200 rounded-md shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50/50">
+                        <tr>
+                            <th
+                                class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-12">
+                                ID</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Tenant / Email</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Plan</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Usage / Limit</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Status</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Next Renewal</th>
+                            <th class="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 bg-white">
+                        @forelse ($tenants as $tenant)
+                            <tr class="hover:bg-gray-50/50 transition-colors">
+                                {{-- ID --}}
+                                <td class="px-4 py-2.5 text-xs text-gray-400 font-mono">
+                                    #{{ $tenant->id }}
+                                </td>
+
+                                {{-- Tenant Name & Email --}}
+                                <td class="px-4 py-2.5">
+                                    <div class="flex flex-col">
+                                        <a href="{{ route('admin.tenants.show', $tenant) }}"
+                                            class="text-sm font-bold text-gray-900 leading-tight hover:text-indigo-600 hover:underline">{{ $tenant->name }}</a>
+                                        <span class="text-xs text-gray-400 font-mono mt-0.5">{{ $tenant->email }}</span>
+                                    </div>
+                                </td>
+
+                                {{-- Plan --}}
+                                <td class="px-4 py-2.5 whitespace-nowrap">
+                                    <span class="text-sm font-medium text-gray-700">
+                                        {{ ucfirst($tenant->plan ?? 'basic') }}
+                                    </span>
+                                    @if($tenant->is_trial)
+                                        <span class="text-xs text-amber-600 font-bold ml-1">(Trial)</span>
+                                    @endif
+                                    <div class="text-[10px] text-gray-400">
+                                        @if($tenant->plan === 'basic') €49/mo
+                                        @elseif($tenant->plan === 'standard') €149/mo
+                                        @else Custom
+                                        @endif
+                                    </div>
+                                </td>
+
+                                {{-- Usage Limits --}}
+                                <td class="px-4 py-2.5 whitespace-nowrap">
+                                    <div class="flex flex-col space-y-0.5">
+                                        <div class="text-xs text-gray-600">
+                                            <span class="font-medium text-gray-900">{{ $tenant->users_count ?? 0 }}</span>
+                                            <span class="text-gray-400">/{{ $tenant->max_users }} users</span>
+                                        </div>
+                                        <div class="text-xs text-gray-600">
+                                            <span class="font-medium text-gray-900">{{ $tenant->customers_count ?? 0 }}</span>
+                                            <span class="text-gray-400">/{{ $tenant->max_customers }} clients</span>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                {{-- Status --}}
+                                <td class="px-4 py-2.5 whitespace-nowrap">
+                                    @if (!$tenant->is_active)
+                                        <span class="text-xs font-bold text-red-600 flex items-center">
+                                            <div class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></div>
+                                            Suspended
+                                        </span>
+                                    @elseif ($tenant->is_expired)
+                                        <span class="text-xs font-bold text-amber-600 flex items-center">
+                                            <div class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></div>
+                                            Expired
+                                        </span>
+                                    @else
+                                        <span class="text-xs font-bold text-green-700 flex items-center">
+                                            <div class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></div>
+                                            Active
+                                        </span>
+                                    @endif
+                                </td>
+
+                                {{-- Renewal Date --}}
+                                <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-600">
+                                    @if ($tenant->is_trial && $tenant->trial_ends_at)
+                                        {{ $tenant->trial_ends_at->format('M d, Y') }}
+                                    @elseif ($tenant->subscription_ends_at)
+                                        {{ $tenant->subscription_ends_at->format('M d, Y') }}
+                                    @else
+                                        <span class="text-gray-400">—</span>
+                                    @endif
+                                </td>
+
+                                {{-- Actions --}}
+                                <td class="px-4 py-2.5 whitespace-nowrap text-right text-xs font-medium">
+                                    <form action="{{ route('admin.tenants.toggle', $tenant) }}" method="POST" class="inline">
+                                        @csrf
+                                        @if ($tenant->is_active)
+                                            <button type="submit"
+                                                class="text-red-600 hover:text-red-900 underline decoration-red-200 underline-offset-2"
+                                                onclick="return confirm('Suspend {{ $tenant->name }}?')">
+                                                Suspend
+                                            </button>
+                                        @else
+                                            <button type="submit"
+                                                class="text-green-600 hover:text-green-900 underline decoration-green-200 underline-offset-2">
+                                                Activate
+                                            </button>
+                                        @endif
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500">
+                                    No tenants found.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if($tenants->hasPages())
+                <div class="bg-gray-50 px-4 py-3 border-t border-gray-200">
+                    {{ $tenants->links() }}
+                </div>
+            @endif
+        </div>
     </div>
-</body>
-</html>
+@endsection

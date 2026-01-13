@@ -15,6 +15,11 @@ class DashboardController extends Controller
 
     public function index()
     {
+        // Redirect super-admin to admin dashboard
+        if (auth()->user()?->hasRole('super-admin')) {
+            return redirect()->route('admin.dashboard');
+        }
+
         $stats = $this->dashboardService->getStats();
         $recent_activities = $this->dashboardService->getRecentActivities();
         $system_status = $this->dashboardService->getSystemStatus();

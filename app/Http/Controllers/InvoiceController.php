@@ -31,7 +31,7 @@ class InvoiceController extends Controller
      */
     public function edit(Invoice $invoice)
     {
-        if (! $invoice->isEditable()) {
+        if (!$invoice->isEditable()) {
             return redirect()->route('invoices.show', $invoice)
                 ->with('error', 'This invoice is locked and cannot be edited.');
         }
@@ -65,6 +65,9 @@ class InvoiceController extends Controller
     {
         try {
             $this->invoiceService->issueInvoice($invoice);
+
+            // Track invoice issued event
+            app(\App\Services\EventTracker::class)->trackSimple('invoice_issued');
 
             return back()->with('success', "Invoice #{$invoice->invoice_number} has been issued.");
         } catch (\App\Exceptions\InvoiceImmutableException $e) {

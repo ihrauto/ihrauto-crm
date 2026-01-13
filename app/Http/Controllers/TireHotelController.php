@@ -98,6 +98,9 @@ class TireHotelController extends Controller
             // Auto-Generate Work Order with technician assignment
             $workOrder = $this->createTireWorkOrder($result['tire'], 'New Customer Storage', $technicianId);
 
+            // Track tire hotel created event
+            app(\App\Services\EventTracker::class)->trackSimple('tirehotel_created');
+
             DB::commit();
 
             return redirect()->route('work-orders.show', $workOrder)->with(
@@ -107,9 +110,9 @@ class TireHotelController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error storing tires: '.$e->getMessage());
+            \Log::error('Error storing tires: ' . $e->getMessage());
 
-            return back()->withInput()->with('error', 'Error: '.$e->getMessage());
+            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
@@ -153,14 +156,14 @@ class TireHotelController extends Controller
             foreach ($tires as $tire) {
                 $tire->update([
                     'status' => 'ready_pickup',
-                    'notes' => $tire->notes."\n[Changed Season]",
+                    'notes' => $tire->notes . "\n[Changed Season]",
                 ]);
             }
 
             return back()->with('success', 'Season change recorded successfully.');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Error: '.$e->getMessage());
+            return back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
@@ -194,7 +197,7 @@ class TireHotelController extends Controller
                 ->first();
         }
 
-        if (! $vehicle) {
+        if (!$vehicle) {
             return response()->json(['success' => false, 'message' => 'Not found']);
         }
 
@@ -298,7 +301,7 @@ class TireHotelController extends Controller
                 ->with('success', "Work Order #{$workOrder->id} created for tire job.");
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to generate work order: '.$e->getMessage());
+            return back()->with('error', 'Failed to generate work order: ' . $e->getMessage());
         }
     }
 

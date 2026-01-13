@@ -297,6 +297,7 @@ class TenantMiddleware
 
         // Auth routes should always be accessible without tenant
         $authRoutes = [
+            'health',
             'login',
             'register',
             'logout',

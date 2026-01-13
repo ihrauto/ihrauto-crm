@@ -119,7 +119,7 @@ class SubscriptionController extends Controller
     public function onboarding()
     {
         // Ensure we have a tenant selected
-        if (! tenant()) {
+        if (!tenant()) {
             return redirect()->route('dev.tenant-switch');
         }
 
@@ -133,7 +133,7 @@ class SubscriptionController extends Controller
     {
         $tenant = tenant();
 
-        if (! $tenant) {
+        if (!$tenant) {
             return response()->json(['error' => 'No active tenant'], 404);
         }
 
@@ -172,6 +172,9 @@ class SubscriptionController extends Controller
 
         // Clear cache so next request sees updated settings
         \Illuminate\Support\Facades\Cache::forget("tenant.id.{$tenant->id}");
+
+        // Track onboarding completion event
+        app(\App\Services\EventTracker::class)->track('onboarding_completed', $tenant->id, auth()->id());
 
         return response()->json(['success' => true]);
     }

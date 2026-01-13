@@ -28,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'role',
         'is_active',
         'email_verified_at',
+        'last_login_at',
     ];
 
     /**
@@ -51,6 +52,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'last_login_at' => 'datetime',
         ];
     }
 
@@ -75,7 +77,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canPerformAction(string $action): bool
     {
-        if (! $this->tenant) {
+        if (!$this->tenant) {
             return false;
         }
 

@@ -41,7 +41,7 @@ class WorkOrderController extends Controller
                 ->with('success', 'Invoice generated from Work Order.');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to generate invoice: '.$e->getMessage());
+            return back()->with('error', 'Failed to generate invoice: ' . $e->getMessage());
         }
     }
 
@@ -54,7 +54,7 @@ class WorkOrderController extends Controller
             ->latest();
 
         // Filter by ownership if user cannot view all work orders
-        if (! $user->can('view all work-orders')) {
+        if (!$user->can('view all work-orders')) {
             $query->where('technician_id', $user->id);
         }
 
@@ -70,7 +70,7 @@ class WorkOrderController extends Controller
             ->limit(50);
 
         // Also filter completed orders by ownership
-        if (! $user->can('view all work-orders')) {
+        if (!$user->can('view all work-orders')) {
             $completedQuery->where('technician_id', $user->id);
         }
 
@@ -167,7 +167,7 @@ class WorkOrderController extends Controller
         ]);
 
         // Check technician availability before assigning
-        if (! empty($validated['technician_id']) && $this->isTechnicianBusy($validated['technician_id'])) {
+        if (!empty($validated['technician_id']) && $this->isTechnicianBusy($validated['technician_id'])) {
             return back()->withInput()->with('error', 'Selected technician is currently busy with another job.');
         }
 
@@ -183,6 +183,9 @@ class WorkOrderController extends Controller
             'customer_issues' => $validated['service_description'],
             'technician_id' => $validated['technician_id'],
         ]);
+
+        // Track workorder created event
+        app(\App\Services\EventTracker::class)->trackSimple('workorder_created');
 
         return redirect()->route('dashboard')
             ->with('success', 'Work Order scheduled successfully.');
@@ -302,11 +305,11 @@ class WorkOrderController extends Controller
         if ($request->has('status')) {
             $workOrder->status = $request->status;
 
-            if ($request->status === 'in_progress' && ! $workOrder->started_at) {
+            if ($request->status === 'in_progress' && !$workOrder->started_at) {
                 $workOrder->started_at = now();
             }
 
-            if ($request->status === 'completed' && ! $workOrder->completed_at) {
+            if ($request->status === 'completed' && !$workOrder->completed_at) {
                 return $this->completeWorkOrder($workOrder);
             }
         }

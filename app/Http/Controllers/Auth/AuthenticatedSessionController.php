@@ -28,6 +28,14 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Track last login time
+        auth()->user()->update(['last_login_at' => now()]);
+
+        // Owner/super-admin redirect to admin dashboard
+        if (auth()->user()->hasRole('super-admin')) {
+            return redirect()->route('admin.dashboard');
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
