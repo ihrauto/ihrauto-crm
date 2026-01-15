@@ -16,8 +16,14 @@ Route::get('/health', [\App\Http\Controllers\HealthController::class, 'check'])-
 // Google OAuth routes (public)
 Route::get('/auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
-Route::get('/auth/create-company', [SocialAuthController::class, 'showCreateCompany'])->name('auth.create-company');
-Route::post('/auth/create-company', [SocialAuthController::class, 'storeCompany'])->name('auth.create-company.store');
+
+// Company creation (requires auth)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/auth/create-company', [SocialAuthController::class, 'showCreateCompany'])
+        ->name('auth.create-company');
+    Route::post('/auth/create-company', [SocialAuthController::class, 'storeCompany'])
+        ->name('auth.create-company.store');
+});
 
 // Development routes (only available in local environment)
 if (app()->environment('local')) {
@@ -36,11 +42,9 @@ if (app()->environment('local')) {
     Route::post('/subscription/tour-complete', [\App\Http\Controllers\SubscriptionController::class, 'markTourComplete'])->name('subscription.tour-complete');
 }
 
-// Root route: send guests to login, authenticated users to dashboard
+// Root route: serve pricing/landing page (public)
 Route::get('/', function () {
-    return auth()->check()
-        ? redirect()->route('dashboard')
-        : redirect()->route('login');
+    return view('pricing');
 });
 
 // Protected CRM routes
