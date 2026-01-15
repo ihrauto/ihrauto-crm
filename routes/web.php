@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', [\App\Http\Controllers\HealthController::class, 'check'])->name('health.check');
 
 // One-time setup route for production (seed super admin)
-// Access: /setup-admin?key=YOUR_APP_KEY
+// Access: /setup-admin?key=ihrauto2026
 Route::get('/setup-admin', function () {
     $key = request('key');
-    if ($key !== config('app.key')) {
+    if ($key !== 'ihrauto2026') {
         abort(403, 'Invalid key');
     }
 
@@ -41,7 +41,7 @@ Route::get('/setup-admin', function () {
 // Debug route to test dashboard (temporary)
 Route::get('/debug-dashboard', function () {
     $key = request('key');
-    if ($key !== config('app.key')) {
+    if ($key !== 'ihrauto2026') {
         abort(403, 'Invalid key');
     }
 
