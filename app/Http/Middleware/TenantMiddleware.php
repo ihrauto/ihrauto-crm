@@ -260,8 +260,8 @@ class TenantMiddleware
             return redirect()->route('dev.tenant-switch')->with('error', 'Please select a tenant to continue.');
         }
 
-        // In production, redirect to main site or show 404
-        return redirect()->to(config('app.url'));
+        // In production, redirect to login page
+        return redirect()->route('login');
     }
 
     /**
