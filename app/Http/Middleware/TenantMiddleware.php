@@ -260,7 +260,14 @@ class TenantMiddleware
             return redirect()->route('dev.tenant-switch')->with('error', 'Please select a tenant to continue.');
         }
 
-        // In production, redirect to login page
+        // In production:
+        // If user is logged in but tenant cannot be resolved, send them to company creation/selection
+        if (Auth::check()) {
+            return redirect()->route('auth.create-company')
+                ->with('error', 'No company/tenant selected. Please create or select a company to continue.');
+        }
+
+        // Guest -> login
         return redirect()->route('login');
     }
 
@@ -316,6 +323,7 @@ class TenantMiddleware
             'confirm-password',
             'auth/google',
             'auth/google/callback',
+            'auth/create-company',
         ];
 
         foreach ($authRoutes as $authRoute) {
