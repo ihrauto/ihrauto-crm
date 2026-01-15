@@ -27,8 +27,12 @@ class TenantMiddleware
         }
 
         // Superadmins bypass tenant middleware entirely
-        if (Auth::check() && Auth::user()->hasRole('super-admin')) {
-            return $next($request);
+        try {
+            if (Auth::check() && Auth::user()->hasRole('super-admin')) {
+                return $next($request);
+            }
+        } catch (\Exception $e) {
+            // Roles table may not exist yet - continue with normal flow
         }
 
         $tenant = $this->resolveTenant($request);
