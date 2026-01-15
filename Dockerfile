@@ -45,4 +45,11 @@ RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions sto
 EXPOSE 80
 
 # Render Free: run migrations on container start (no Pre-Deploy command available)
-CMD ["sh", "-c", "php artisan config:clear && php artisan migrate --force && apache2-foreground"]
+CMD ["sh", "-lc", "\
+php artisan optimize:clear; \
+until php -r 'try{$pdo=new PDO(\"pgsql:host=\".getenv(\"DB_HOST\").\";port=\".getenv(\"DB_PORT\").\";dbname=\".getenv(\"DB_DATABASE\"), getenv(\"DB_USERNAME\"), getenv(\"DB_PASSWORD\"));}catch(Exception $e){exit(1);}'; \
+do echo 'Waiting for Postgres...'; sleep 2; done; \
+php artisan migrate --force; \
+apache2-foreground \
+"]
+
