@@ -1,19 +1,37 @@
 <x-guest-layout>
     <div class="mb-4 text-sm text-gray-600">
-        {{ __('Welcome! You\'re signing up with Google. Please provide your company name to complete registration.') }}
+        @if($googleUser)
+            {{ __('Welcome! You\'re signing up with Google. Please provide your company name to complete registration.') }}
+        @else
+            {{ __('Welcome! Please create your company to get started.') }}
+        @endif
     </div>
 
-    <div class="mb-4 p-4 bg-gray-50 rounded-lg">
-        <div class="flex items-center">
-            @if(!empty($googleUser['avatar']))
-                <img src="{{ $googleUser['avatar'] }}" alt="Profile" class="w-10 h-10 rounded-full mr-3">
-            @endif
-            <div>
-                <div class="font-medium text-gray-900">{{ $googleUser['name'] }}</div>
-                <div class="text-sm text-gray-500">{{ $googleUser['email'] }}</div>
+    @if($googleUser)
+        <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+            <div class="flex items-center">
+                @if(!empty($googleUser['avatar']))
+                    <img src="{{ $googleUser['avatar'] }}" alt="Profile" class="w-10 h-10 rounded-full mr-3">
+                @endif
+                <div>
+                    <div class="font-medium text-gray-900">{{ $googleUser['name'] }}</div>
+                    <div class="text-sm text-gray-500">{{ $googleUser['email'] }}</div>
+                </div>
             </div>
         </div>
-    </div>
+    @elseif(isset($user))
+        <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+            <div class="flex items-center">
+                <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center mr-3">
+                    <span class="text-white font-bold">{{ substr($user->name, 0, 1) }}</span>
+                </div>
+                <div>
+                    <div class="font-medium text-gray-900">{{ $user->name }}</div>
+                    <div class="text-sm text-gray-500">{{ $user->email }}</div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <form method="POST" action="{{ route('auth.create-company.store') }}">
         @csrf
@@ -38,7 +56,7 @@
             </a>
 
             <x-primary-button class="ms-4">
-                {{ __('Create Account') }}
+                {{ __('Create Company') }}
             </x-primary-button>
         </div>
     </form>
