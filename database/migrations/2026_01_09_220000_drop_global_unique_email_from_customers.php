@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      *
@@ -14,11 +13,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('customers', function (Blueprint $table) {
-            // Drop the global unique constraint that was created in the initial migration
-            // Default name is usually customers_email_unique
-            $table->dropUnique(['email']);
-        });
+        // Only drop if the constraint exists (it may have been removed already)
+        try {
+            Schema::table('customers', function (Blueprint $table) {
+                // Drop the global unique constraint that was created in the initial migration
+                // Default name is usually customers_email_unique
+                $table->dropUnique(['email']);
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Constraint doesn't exist, which is fine
+        }
     }
 
     /**

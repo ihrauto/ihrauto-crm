@@ -227,9 +227,17 @@ class TenantMiddleware
         $databaseName = $tenant->database_name;
 
         Config::set('database.connections.tenant', [
-            'driver' => 'sqlite',
-            'database' => database_path("tenants/{$databaseName}.sqlite"),
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => $databaseName,
+            'username' => env('DB_USERNAME', 'postgres'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => 'utf8',
             'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
         ]);
 
         Config::set('database.default', 'tenant');

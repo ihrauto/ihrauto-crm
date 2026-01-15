@@ -215,6 +215,7 @@
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',
                             'Accept': 'application/json'
                         },
+                        credentials: 'same-origin',
                         body: formData
                     });
 
@@ -231,13 +232,24 @@
 
                     } else {
                         const err = await response.json();
-                        alert('Error: ' + (err.message || 'Failed to save settings'));
+                        let errorMessage = 'Failed to save settings';
+                        
+                        if (err.message) {
+                            errorMessage = err.message;
+                        } else if (err.error) {
+                            errorMessage = err.error;
+                        } else if (err.errors) {
+                            // Validation errors
+                            errorMessage = Object.values(err.errors).flat().join('\n');
+                        }
+                        
+                        alert('Error: ' + errorMessage);
                         btn.innerHTML = originalText;
                         btn.disabled = false;
                     }
                 } catch (error) {
-                    console.error(error);
-                    alert('Connection error');
+                    console.error('Setup error:', error);
+                    alert('Connection error: ' + (error.message || 'Please check your internet connection and try again.'));
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                 }
