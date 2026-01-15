@@ -17,4 +17,4 @@ services:
       - key: LOG_CHANNEL
         value: stderr
       - key: STARTUP_COMMAND
-        value: php artisan migrate --force && php artisan db:seed --class=RolesAndPermissionsSeeder --force && php artisan db:seed --class=SuperAdminSeeder --force && apache2-foreground
+        value: php artisan migrate --force && apache2-foreground
