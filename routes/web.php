@@ -13,6 +13,23 @@ use Illuminate\Support\Facades\Route;
 // Health check endpoint (public, no auth)
 Route::get('/health', [\App\Http\Controllers\HealthController::class, 'check'])->name('health.check');
 
+// One-time setup route for production (seed super admin)
+// Access: /setup-admin?key=YOUR_APP_KEY
+Route::get('/setup-admin', function () {
+    $key = request('key');
+    if ($key !== config('app.key')) {
+        abort(403, 'Invalid key');
+    }
+
+    \Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
+    \Artisan::call('db:seed', ['--class' => 'SuperAdminSeeder', '--force' => true]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Super admin seeded successfully',
+    ]);
+});
+
 // Google OAuth routes (public)
 Route::get('/auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
