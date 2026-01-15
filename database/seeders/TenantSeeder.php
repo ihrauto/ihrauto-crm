@@ -123,40 +123,52 @@ class TenantSeeder extends Seeder
         ];
 
         foreach ($tenants as $tenantData) {
-            $tenant = Tenant::create($tenantData);
+            $slug = $tenantData['slug'];
+            unset($tenantData['slug']); // Remove slug from data array for updateOrCreate
+
+            $tenant = Tenant::updateOrCreate(
+                ['slug' => $slug],
+                $tenantData
+            );
 
             // Create admin user for each tenant
-            $adminUser = User::create([
-                'tenant_id' => $tenant->id,
-                'name' => 'Admin User',
-                'email' => 'admin@'.$tenant->subdomain.'.com',
-                'password' => Hash::make('password'),
-                'role' => 'admin',
-                'is_active' => true,
-                'email_verified_at' => now(),
-            ]);
+            $adminUser = User::updateOrCreate(
+                ['email' => 'admin@' . $tenant->subdomain . '.com'],
+                [
+                    'tenant_id' => $tenant->id,
+                    'name' => 'Admin User',
+                    'password' => Hash::make('password'),
+                    'role' => 'admin',
+                    'is_active' => true,
+                    'email_verified_at' => now(),
+                ]
+            );
 
             // Create additional users for standard and custom plans
             if (in_array($tenant->plan, ['standard', 'custom'])) {
-                User::create([
-                    'tenant_id' => $tenant->id,
-                    'name' => 'Manager User',
-                    'email' => 'manager@'.$tenant->subdomain.'.com',
-                    'password' => Hash::make('password'),
-                    'role' => 'manager',
-                    'is_active' => true,
-                    'email_verified_at' => now(),
-                ]);
+                User::updateOrCreate(
+                    ['email' => 'manager@' . $tenant->subdomain . '.com'],
+                    [
+                        'tenant_id' => $tenant->id,
+                        'name' => 'Manager User',
+                        'password' => Hash::make('password'),
+                        'role' => 'manager',
+                        'is_active' => true,
+                        'email_verified_at' => now(),
+                    ]
+                );
 
-                User::create([
-                    'tenant_id' => $tenant->id,
-                    'name' => 'Technician User',
-                    'email' => 'tech@'.$tenant->subdomain.'.com',
-                    'password' => Hash::make('password'),
-                    'role' => 'technician',
-                    'is_active' => true,
-                    'email_verified_at' => now(),
-                ]);
+                User::updateOrCreate(
+                    ['email' => 'tech@' . $tenant->subdomain . '.com'],
+                    [
+                        'tenant_id' => $tenant->id,
+                        'name' => 'Technician User',
+                        'password' => Hash::make('password'),
+                        'role' => 'technician',
+                        'is_active' => true,
+                        'email_verified_at' => now(),
+                    ]
+                );
             }
 
             // Sample data creation removed for clean install
@@ -168,7 +180,7 @@ class TenantSeeder extends Seeder
         $letters = ['PR', 'PE', 'PZ', 'MI', 'GJ', 'FE', 'DJ'];
         $region = $letters[array_rand($letters)];
         $numbers = str_pad(rand(100, 999), 3, '0', STR_PAD_LEFT);
-        $suffix = chr(rand(65, 90)).chr(rand(65, 90));
+        $suffix = chr(rand(65, 90)) . chr(rand(65, 90));
 
         return "{$region} {$numbers} {$suffix}";
     }
