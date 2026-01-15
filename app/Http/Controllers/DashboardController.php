@@ -16,8 +16,12 @@ class DashboardController extends Controller
     public function index()
     {
         // Redirect super-admin to admin dashboard
-        if (auth()->user()?->hasRole('super-admin')) {
-            return redirect()->route('admin.dashboard');
+        try {
+            if (auth()->user()?->hasRole('super-admin')) {
+                return redirect()->route('admin.dashboard');
+            }
+        } catch (\Exception $e) {
+            // Roles not set up yet - continue as regular user
         }
 
         $stats = $this->dashboardService->getStats();
