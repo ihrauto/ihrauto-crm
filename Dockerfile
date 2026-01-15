@@ -47,12 +47,23 @@ EXPOSE 80
 
 # Render Free: run migrations on container start (no Pre-Deploy command available)
 CMD ["sh", "-lc", "\
+echo \"BOOT: Docker CMD started\"; \
+echo \"BOOT: RUN_SEED=$RUN_SEED\"; \
 php artisan optimize:clear; \
+echo \"BOOT: waiting for Postgres\"; \
 until php -r 'try{$pdo=new PDO(\"pgsql:host=\".getenv(\"DB_HOST\").\";port=\".getenv(\"DB_PORT\").\";dbname=\".getenv(\"DB_DATABASE\"), getenv(\"DB_USERNAME\"), getenv(\"DB_PASSWORD\"));}catch(Exception $e){exit(1);}'; \
 do echo 'Waiting for Postgres...'; sleep 2; done; \
+echo \"BOOT: running migrate\"; \
 php artisan migrate --force; \
-if [ \"$RUN_SEED\" = \"true\" ]; then php artisan db:seed --force; fi; \
+echo \"BOOT: migrate finished with exit=$?\"; \
+if [ \"$RUN_SEED\" = \"true\" ]; then \
+  echo \"BOOT: running seed\"; \
+  php artisan db:seed --force; \
+  echo \"BOOT: seed finished with exit=$?\"; \
+fi; \
+echo \"BOOT: starting Apache\"; \
 apache2-foreground \
 "]
+
 
 
