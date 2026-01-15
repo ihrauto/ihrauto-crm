@@ -22,9 +22,9 @@ class SuperAdminSeeder extends Seeder
         );
 
         // Get superadmin credentials from env or use defaults
-        $email = env('SUPERADMIN_EMAIL', 'admin@ihrauto.com');
-        $name = env('SUPERADMIN_NAME', 'Super Admin');
-        $password = env('SUPERADMIN_PASSWORD', 'password');
+        $email = env('INITIAL_ADMIN_EMAIL', 'admin@ihrauto.com');
+        $name = env('INITIAL_ADMIN_NAME', 'Super Admin');
+        $password = env('INITIAL_ADMIN_PASSWORD', 'password');
 
         // Check if superadmin already exists
         $existingAdmin = User::withoutGlobalScopes()
@@ -33,7 +33,7 @@ class SuperAdminSeeder extends Seeder
 
         if ($existingAdmin) {
             // Ensure they have the role
-            if (! $existingAdmin->hasRole('super-admin')) {
+            if (!$existingAdmin->hasRole('super-admin')) {
                 $existingAdmin->assignRole($superAdminRole);
             }
             $this->command->info("Superadmin already exists: {$email}");
