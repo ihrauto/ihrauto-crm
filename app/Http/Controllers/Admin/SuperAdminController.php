@@ -37,7 +37,7 @@ class SuperAdminController extends Controller
             'checkins_count' => $tenant->checkins()->count(),
             'workorders_count' => $tenant->workOrders()->count(),
             'invoices_count' => $tenant->hasMany(\App\Models\Invoice::class)->count(),
-            'total_paid' => $tenant->hasMany(\App\Models\Invoice::class)->where('status', 'paid')->sum('total_amount'),
+            'total_paid' => $tenant->hasMany(\App\Models\Invoice::class)->where('status', 'paid')->sum('total'),
         ];
 
         // Owner Actions (excluding notes)

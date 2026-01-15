@@ -6,22 +6,22 @@
         <div class="absolute inset-0 bg-black/50 transition-opacity duration-500 pointer-events-auto"
             x-transition:enter="opacity-0" x-transition:enter-end="opacity-100" x-show="step > 0"></div>
 
-        <!-- Spotlight Element (Hole punch effect via high z-index stacking context or just absolute positioning of tooltip) -->
-        <!-- We'll keep it simple: Just tooltips near target elements -->
-
         <!-- Tooltip Container -->
-        <div class="absolute transition-all duration-500 ease-in-out pointer-events-auto" :style="tooltipStyle">
+        <div class="absolute transition-all duration-300 ease-out pointer-events-auto" :style="tooltipStyle">
 
             <div class="bg-white rounded-2xl shadow-2xl p-6 w-80 relative">
-                <!-- Arrow -->
+                <!-- Arrow pointing LEFT (tooltip is to the right of element) -->
+                <div class="absolute w-4 h-4 bg-white transform rotate-45 -left-2 top-8" x-show="arrowDirection === 'left'">
+                </div>
+                <!-- Arrow pointing RIGHT (tooltip is to the left of element) -->
+                <div class="absolute w-4 h-4 bg-white transform rotate-45 -right-2 top-8"
+                    x-show="arrowDirection === 'right'"></div>
+                <!-- Arrow pointing UP (tooltip is below element) -->
                 <div class="absolute w-4 h-4 bg-white transform rotate-45 -top-2 left-1/2 -translate-x-1/2"
-                    x-show="position === 'bottom'"></div>
+                    x-show="arrowDirection === 'up'"></div>
+                <!-- Arrow pointing DOWN (tooltip is above element) -->
                 <div class="absolute w-4 h-4 bg-white transform rotate-45 -bottom-2 left-1/2 -translate-x-1/2"
-                    x-show="position === 'top'"></div>
-                <div class="absolute w-4 h-4 bg-white transform rotate-45 -left-2 top-1/2 -translate-y-1/2"
-                    x-show="position === 'right'"></div>
-                <div class="absolute w-4 h-4 bg-white transform rotate-45 -right-2 top-1/2 -translate-y-1/2"
-                    x-show="position === 'left'"></div>
+                    x-show="arrowDirection === 'down'"></div>
 
                 <!-- Content -->
                 <div class="text-center">
@@ -57,17 +57,19 @@
         function dashboardTour() {
             return {
                 step: 0,
-                position: 'bottom',
+                arrowDirection: 'none',
                 tooltipStyle: 'top: 50%; left: 50%; transform: translate(-50%, -50%);',
+                highlightedElement: null,
                 steps: [
                     {
                         title: "Welcome to IHRAUTO CRM",
                         text: "Your professional workshop management system is ready. Let's take a quick tour.",
                         icon: "👋",
-                        target: null
+                        target: null,
+                        position: 'center'
                     },
                     {
-                        title: "Dashboard Overview",
+                        title: "Dashboard",
                         text: "Track your customers, revenue, and daily operations at a glance.",
                         icon: "📊",
                         target: "#nav-dashboard",
@@ -91,108 +93,152 @@
                         title: "Work Orders",
                         text: "Create detailed work orders with parts, labor, and service tracking.",
                         icon: "📋",
-                        target: "a[href*='work-orders']",
+                        target: "#nav-work-orders",
                         position: 'right'
                     },
                     {
                         title: "Appointments",
                         text: "Schedule and manage customer appointments efficiently.",
                         icon: "📅",
-                        target: "a[href*='appointments']",
+                        target: "#nav-appointments",
                         position: 'right'
                     },
                     {
                         title: "Finance & Billing",
                         text: "Track payments, invoices, and financial overview of your business.",
                         icon: "💶",
-                        target: "a[href*='finance']",
+                        target: "#nav-finance",
                         position: 'right'
                     },
                     {
                         title: "You're Ready!",
                         text: "Explore the system and enjoy your new CRM!",
                         icon: "🚀",
-                        target: null
+                        target: null,
+                        position: 'center'
                     }
                 ],
 
                 initTour() {
-                    // Delay start slightly
+                    // Small delay to ensure DOM is ready
                     setTimeout(() => {
                         this.step = 1;
                         this.updatePosition();
-                    }, 1000);
+                    }, 500);
                 },
 
                 nextStep() {
+                    // Clear previous highlight first
+                    this.clearHighlight();
+
                     if (this.step < this.steps.length) {
                         this.step++;
-                        this.updatePosition();
+                        // Small delay for smooth transition
+                        setTimeout(() => this.updatePosition(), 50);
                     } else {
                         this.finishTour();
                     }
                 },
 
                 skipTour() {
+                    this.clearHighlight();
                     this.finishTour();
                 },
 
                 async finishTour() {
                     this.step = 0;
                     // Save state to backend so it doesn't show again
-                    await fetch('{{ route("subscription.tour-complete") }}', {
-                        method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-                    });
+                    try {
+                        await fetch('{{ route("subscription.tour-complete") }}', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            credentials: 'same-origin'
+                        });
+                    } catch (e) {
+                        console.error('Failed to save tour completion:', e);
+                    }
+                },
+
+                clearHighlight() {
+                    if (this.highlightedElement) {
+                        this.highlightedElement.style.zIndex = '';
+                        this.highlightedElement.style.position = '';
+                        this.highlightedElement.style.boxShadow = '';
+                        this.highlightedElement = null;
+                    }
                 },
 
                 updatePosition() {
                     const currentStep = this.steps[this.step - 1];
 
-                    if (!currentStep.target) {
-                        // Center screen
+                    // Center position for welcome/finish screens
+                    if (!currentStep.target || currentStep.position === 'center') {
                         this.tooltipStyle = 'top: 50%; left: 50%; transform: translate(-50%, -50%);';
-                        this.position = 'bottom'; // Default arrow
+                        this.arrowDirection = 'none';
                         return;
                     }
 
                     const el = document.querySelector(currentStep.target);
-                    if (el) {
-                        const rect = el.getBoundingClientRect();
-                        const padding = 20;
-
-                        // Simple positioning logic
-                        // In a real app, use Popper.js or Floating UI
-                        if (currentStep.position === 'right') {
-                            this.tooltipStyle = `top: ${rect.top + (rect.height / 2) - 150}px; left: ${rect.right + padding}px;`;
-                            this.position = 'right'; // Arrow points right (towards element on left)
-                        } else if (currentStep.position === 'left') {
-                            this.tooltipStyle = `top: ${rect.top + (rect.height / 2) - 150}px; left: ${rect.left - 320 - padding}px;`;
-                            this.position = 'left'; // Arrow points left (towards element on right)
-                        } else {
-                            // Default bottom
-                            this.tooltipStyle = `top: ${rect.bottom + padding}px; left: ${rect.left + (rect.width / 2) - 160}px;`;
-                            this.position = 'top'; // Arrow points top
-                        }
-
-                        // Highlight effect on element
-                        el.style.zIndex = "101";
-                        el.style.position = "relative";
-                        el.style.boxShadow = "0 0 0 4px rgba(255, 255, 255, 0.5), 0 0 0 8px rgba(99, 102, 241, 0.5)";
-
-                        // Cleanup previous highlights
-                        document.querySelectorAll('*').forEach(e => {
-                            if (e !== el) {
-                                e.style.zIndex = "";
-                                e.style.position = "";
-                                e.style.boxShadow = "";
-                            }
-                        });
-
-                    } else {
-                        // Fallback if element not found
+                    if (!el) {
+                        console.warn('Tour target not found:', currentStep.target);
+                        // Fallback to center
                         this.tooltipStyle = 'top: 50%; left: 50%; transform: translate(-50%, -50%);';
+                        this.arrowDirection = 'none';
+                        return;
                     }
+
+                    const rect = el.getBoundingClientRect();
+                    const tooltipWidth = 320; // w-80 = 20rem = 320px
+                    const tooltipHeight = 250; // Approximate height
+                    const padding = 16;
+                    const scrollY = window.scrollY;
+
+                    let top, left;
+
+                    if (currentStep.position === 'right') {
+                        // Tooltip appears to the RIGHT of the element
+                        // Arrow points LEFT toward the element
+                        top = rect.top + scrollY + (rect.height / 2) - 40;
+                        left = rect.right + padding;
+                        this.arrowDirection = 'left';
+                    } else if (currentStep.position === 'left') {
+                        // Tooltip appears to the LEFT of the element
+                        // Arrow points RIGHT toward the element
+                        top = rect.top + scrollY + (rect.height / 2) - 40;
+                        left = rect.left - tooltipWidth - padding;
+                        this.arrowDirection = 'right';
+                    } else if (currentStep.position === 'bottom') {
+                        // Tooltip appears BELOW the element
+                        // Arrow points UP toward the element
+                        top = rect.bottom + scrollY + padding;
+                        left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+                        this.arrowDirection = 'up';
+                    } else if (currentStep.position === 'top') {
+                        // Tooltip appears ABOVE the element
+                        // Arrow points DOWN toward the element
+                        top = rect.top + scrollY - tooltipHeight - padding;
+                        left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+                        this.arrowDirection = 'down';
+                    }
+
+                    // Keep tooltip within viewport
+                    if (left < padding) left = padding;
+                    if (left + tooltipWidth > window.innerWidth - padding) {
+                        left = window.innerWidth - tooltipWidth - padding;
+                    }
+                    if (top < padding) top = padding;
+
+                    this.tooltipStyle = `top: ${top}px; left: ${left}px;`;
+
+                    // Highlight the target element
+                    el.style.zIndex = '101';
+                    el.style.position = 'relative';
+                    el.style.boxShadow = '0 0 0 4px rgba(255, 255, 255, 0.8), 0 0 0 8px rgba(99, 102, 241, 0.6)';
+                    el.style.borderRadius = '8px';
+                    this.highlightedElement = el;
                 }
             }
         }

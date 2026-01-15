@@ -117,7 +117,7 @@
                         @endif
 
                         @if(!auth()->check() || auth()->user()->can('access work-orders'))
-                        <a href="{{ route('work-orders.index') }}" 
+                        <a href="{{ route('work-orders.index') }}" id="nav-work-orders"
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('work-orders*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
                             <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('work-orders*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,7 +128,7 @@
                         @endif
                         
                         @if(!auth()->check() || auth()->user()->can('access appointments'))
-                        <a href="{{ route('appointments.index') }}" 
+                        <a href="{{ route('appointments.index') }}" id="nav-appointments"
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('appointments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
                             <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('appointments*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,7 +139,7 @@
                         @endif
 
                         @if(!auth()->check() || auth()->user()->can('access finance'))
-                        <a href="{{ route('finance.index') }}" 
+                        <a href="{{ route('finance.index') }}" id="nav-finance"
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('finance*', 'payments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
                             <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('finance*', 'payments*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">

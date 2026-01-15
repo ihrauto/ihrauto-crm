@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -28,7 +27,7 @@ return new class extends Migration
             $table->string('country')->default('Kosovo');
 
             // Subscription & Billing
-            $table->enum('plan', ['free', 'basic', 'premium', 'enterprise'])->default('free');
+            $table->enum('plan', ['basic', 'standard', 'custom'])->default('basic');
             $table->integer('max_users')->default(1);
             $table->integer('max_customers')->default(100);
             $table->integer('max_vehicles')->default(500);
