@@ -51,6 +51,8 @@ php artisan optimize:clear; \
 until php -r 'try{$pdo=new PDO(\"pgsql:host=\".getenv(\"DB_HOST\").\";port=\".getenv(\"DB_PORT\").\";dbname=\".getenv(\"DB_DATABASE\"), getenv(\"DB_USERNAME\"), getenv(\"DB_PASSWORD\"));}catch(Exception $e){exit(1);}'; \
 do echo 'Waiting for Postgres...'; sleep 2; done; \
 php artisan migrate --force; \
+if [ \"$RUN_SEED\" = \"true\" ]; then php artisan db:seed --force; fi; \
 apache2-foreground \
 "]
+
 
