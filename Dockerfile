@@ -38,6 +38,11 @@ RUN chown -R www-data:www-data /var/www/html
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
+RUN php artisan key:generate --force \
+    && php artisan config:clear \
+    && php artisan cache:clear \
+    && php artisan config:cache
+
 # Install Node dependencies and build assets
 RUN npm ci && npm run build
 
@@ -53,9 +58,6 @@ RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 # Expose port 80
 EXPOSE 80
 
-RUN php artisan key:generate --force || true
-RUN php artisan config:clear || true
-RUN php artisan cache:clear || true
-RUN php artisan config:cache || true
+
 
 CMD ["apache2-foreground"]
