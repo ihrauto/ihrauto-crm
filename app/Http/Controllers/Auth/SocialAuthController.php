@@ -59,51 +59,79 @@ class SocialAuthController extends Controller
     }
 
     /**
-     * Show the create company form for new Google users.
+     * Show the create company form for new users without a tenant.
+     * Works for both Google OAuth users and regular authenticated users.
      */
     public function showCreateCompany(): View|RedirectResponse
     {
-        if (! session('google_user')) {
-            return redirect()->route('login');
+        // Google OAuth flow - has google_user in session
+        if (session('google_user')) {
+            return view('auth.create-company', [
+                'googleUser' => session('google_user'),
+            ]);
         }
 
-        return view('auth.create-company', [
-            'googleUser' => session('google_user'),
-        ]);
+        // Regular authenticated user without a tenant
+        if (Auth::check()) {
+            return view('auth.create-company', [
+                'googleUser' => null,
+                'user' => Auth::user(),
+            ]);
+        }
+
+        // Not authenticated at all - redirect to login
+        return redirect()->route('login');
     }
 
     /**
-     * Store new company and user from Google OAuth.
+     * Store new company for both Google OAuth and regular authenticated users.
      */
     public function storeCompany(Request $request, RegisterTenantOwner $action): RedirectResponse
     {
-        $googleUser = session('google_user');
-
-        if (! $googleUser) {
-            return redirect()->route('login');
-        }
-
         $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
         ]);
 
-        // Use RegisterTenantOwner action but with a random secure password
-        // since Google users don't need a password (they login via OAuth)
-        $user = $action->handle([
-            'name' => $googleUser['name'],
-            'email' => $googleUser['email'],
-            'password' => \Illuminate\Support\Str::random(32),
-            'company_name' => $request->company_name,
-        ]);
+        $googleUser = session('google_user');
 
-        // Mark email as verified (Google already verified it)
-        $user->markEmailAsVerified();
+        if ($googleUser) {
+            // Google OAuth flow - create new user and tenant
+            $user = $action->handle([
+                'name' => $googleUser['name'],
+                'email' => $googleUser['email'],
+                'password' => \Illuminate\Support\Str::random(32),
+                'company_name' => $request->company_name,
+            ]);
 
-        // Clear session data
-        session()->forget('google_user');
+            // Mark email as verified (Google already verified it)
+            $user->markEmailAsVerified();
 
-        // Log the user in
-        Auth::login($user, remember: true);
+            // Clear session data
+            session()->forget('google_user');
+
+            // Log the user in
+            Auth::login($user, remember: true);
+        } elseif (Auth::check()) {
+            // Regular authenticated user - create tenant and associate
+            $user = Auth::user();
+
+            // Create tenant for this user
+            $tenant = \App\Models\Tenant::create([
+                'name' => $request->company_name,
+                'slug' => \Illuminate\Support\Str::slug($request->company_name) . '-' . \Illuminate\Support\Str::random(6),
+                'subdomain' => \Illuminate\Support\Str::slug($request->company_name),
+                'email' => $user->email,
+                'plan' => 'basic',
+                'is_active' => true,
+                'is_trial' => true,
+                'trial_ends_at' => now()->addDays(14),
+            ]);
+
+            // Associate user with tenant
+            $user->update(['tenant_id' => $tenant->id]);
+        } else {
+            return redirect()->route('login');
+        }
 
         return redirect()->route('dashboard');
     }
