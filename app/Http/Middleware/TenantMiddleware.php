@@ -310,6 +310,11 @@ class TenantMiddleware
     {
         $path = trim($request->getPathInfo(), '/');
 
+        // IMPORTANT: root landing page must bypass tenant resolution
+        if ($path === '') {
+            return true;
+        }
+
         // Auth routes should always be accessible without tenant
         $authRoutes = [
             'health',
