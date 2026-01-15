@@ -240,7 +240,11 @@ class TenantMiddleware
             'sslmode' => 'prefer',
         ]);
 
-        Config::set('database.default', 'tenant');
+        // IMPORTANT: Do NOT switch database.default here!
+        // This breaks sessions when SESSION_DRIVER=database because Laravel writes sessions
+        // to the 'default' connection, causing auth state to be lost between requests.
+        // Models should use $connection = 'tenant' explicitly if needed.
+        // Config::set('database.default', 'tenant');
     }
 
     /**
