@@ -33,4 +33,5 @@ RUN composer install --no-dev --optimize-autoloader
 RUN npm ci && npm run build
 
 EXPOSE 80
-CMD ["apache2-foreground"]
+CMD php artisan migrate --force && apache2-foreground
+
