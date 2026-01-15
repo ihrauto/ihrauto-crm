@@ -44,7 +44,10 @@ if (app()->environment('local')) {
 
 // Root route: serve pricing/landing page (public)
 Route::get('/', function () {
-    return view('pricing');
+    return view('dev.tenant-switch', [
+        'tenants' => collect([]),
+        'currentTenant' => null,
+    ]);
 });
 
 // Protected CRM routes
