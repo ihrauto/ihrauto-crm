@@ -11,6 +11,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // 0. Create super admin user (uses SUPERADMIN_* env vars)
+        $this->call(SuperAdminSeeder::class);
+
         $this->call(\Database\Seeders\InitialAdminSeeder::class);
 
         // 1. Seed Tenants and Users (Admin)
