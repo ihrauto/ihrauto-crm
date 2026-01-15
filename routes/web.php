@@ -36,8 +36,12 @@ if (app()->environment('local')) {
     Route::post('/subscription/tour-complete', [\App\Http\Controllers\SubscriptionController::class, 'markTourComplete'])->name('subscription.tour-complete');
 }
 
-// Redirect root to dashboard
-Route::redirect('/', '/dashboard');
+// Root route: send guests to login, authenticated users to dashboard
+Route::get('/', function () {
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('login');
+});
 
 // Protected CRM routes
 Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(function () {
