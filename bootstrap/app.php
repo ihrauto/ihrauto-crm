@@ -11,6 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust proxies for Render
+        $middleware->append(\App\Http\Middleware\TrustProxies::class);
+
         // Register tenant middleware globally for web routes
         $middleware->web(append: [
             \App\Http\Middleware\TenantMiddleware::class,

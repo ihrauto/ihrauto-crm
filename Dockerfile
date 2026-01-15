@@ -19,6 +19,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 
 # Apache
 RUN a2enmod rewrite
+RUN echo 'SetEnvIf X-Forwarded-Proto "https" HTTPS=on' >> /etc/apache2/apache2.conf
 
 # Point Apache to /public
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
