@@ -21,13 +21,48 @@ Route::get('/setup-admin', function () {
         abort(403, 'Invalid key');
     }
 
-    \Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
-    \Artisan::call('db:seed', ['--class' => 'SuperAdminSeeder', '--force' => true]);
+    try {
+        \Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
+        \Artisan::call('db:seed', ['--class' => 'SuperAdminSeeder', '--force' => true]);
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Super admin seeded successfully',
-    ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Super admin seeded successfully',
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ], 500);
+    }
+});
+
+// Debug route to test dashboard (temporary)
+Route::get('/debug-dashboard', function () {
+    $key = request('key');
+    if ($key !== config('app.key')) {
+        abort(403, 'Invalid key');
+    }
+
+    try {
+        $user = \App\Models\User::first();
+        $tenant = $user ? \App\Models\Tenant::find($user->tenant_id) : null;
+
+        return response()->json([
+            'db_connection' => config('database.default'),
+            'user_count' => \App\Models\User::withoutGlobalScopes()->count(),
+            'tenant_count' => \App\Models\Tenant::count(),
+            'first_user' => $user ? ['id' => $user->id, 'email' => $user->email, 'tenant_id' => $user->tenant_id] : null,
+            'roles_table_exists' => \Schema::hasTable('roles'),
+            'roles_count' => \Schema::hasTable('roles') ? \DB::table('roles')->count() : 0,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ], 500);
+    }
 });
 
 // Google OAuth routes (public)
