@@ -89,9 +89,10 @@ Route::get('/restore-super-admin', function () {
     }
 
     try {
-        $email = env('SUPERADMIN_EMAIL', 'info@ihrauto.ch');
-        $name = env('SUPERADMIN_NAME', 'Platform Owner');
-        $password = env('SUPERADMIN_PASSWORD', 'ChangeMe123!'); // Default if not set
+        // Check both new and old env variable names for backwards compatibility
+        $email = env('SUPERADMIN_EMAIL', env('INITIAL_ADMIN_EMAIL', 'info@ihrauto.ch'));
+        $name = env('SUPERADMIN_NAME', env('INITIAL_ADMIN_NAME', 'Platform Owner'));
+        $password = env('SUPERADMIN_PASSWORD', env('INITIAL_ADMIN_PASSWORD', 'ChangeMe123!'));
 
         // Check if super-admin exists
         $existing = \DB::table('users')->where('email', $email)->first();
