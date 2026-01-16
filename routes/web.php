@@ -47,25 +47,108 @@ Route::get('/cleanup-test-data', function () {
     }
 
     try {
+        // CRITICAL: Multiple fallbacks to ensure super-admin is NEVER deleted
         $superAdminEmail = env('SUPERADMIN_EMAIL', 'info@ihrauto.ch');
 
-        // Use DB facade for thorough deletion (bypasses any model scopes)
-        $deletedUsers = \DB::table('users')->where('email', '!=', $superAdminEmail)->delete();
+        // Additional protection: also protect users without tenant_id (super-admins)
+        $deletedUsers = \DB::table('users')
+            ->where('email', '!=', $superAdminEmail)
+            ->whereNotNull('tenant_id') // Only delete tenant users, NEVER super-admins
+            ->delete();
 
         // Delete all tenants
         $deletedTenants = \DB::table('tenants')->delete();
 
-        // Also clear model_has_roles for deleted users (keep super-admin's roles)
-        $superAdminId = \DB::table('users')->where('email', $superAdminEmail)->value('id');
-        if ($superAdminId) {
-            \DB::table('model_has_roles')->where('model_id', '!=', $superAdminId)->delete();
+        // Clear model_has_roles for deleted users only
+        $protectedUserIds = \DB::table('users')->whereNull('tenant_id')->pluck('id')->toArray();
+        if (count($protectedUserIds) > 0) {
+            \DB::table('model_has_roles')->whereNotIn('model_id', $protectedUserIds)->delete();
         }
 
         return response()->json([
             'success' => true,
             'deleted_users' => $deletedUsers,
             'deleted_tenants' => $deletedTenants,
-            'kept_super_admin' => $superAdminEmail,
+            'protected_super_admin' => $superAdminEmail,
+            'protected_user_count' => count($protectedUserIds),
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+})->withoutMiddleware(['auth', 'verified', 'web']);
+
+// EMERGENCY: Force restore super-admin if accidentally deleted
+// Access: /restore-super-admin?key=ihrauto2026
+Route::get('/restore-super-admin', function () {
+    $key = request('key');
+    if ($key !== 'ihrauto2026') {
+        abort(403, 'Invalid key');
+    }
+
+    try {
+        $email = env('SUPERADMIN_EMAIL', 'info@ihrauto.ch');
+        $name = env('SUPERADMIN_NAME', 'Platform Owner');
+        $password = env('SUPERADMIN_PASSWORD', 'ChangeMe123!'); // Default if not set
+
+        // Check if super-admin exists
+        $existing = \DB::table('users')->where('email', $email)->first();
+
+        if ($existing) {
+            // Update password if exists
+            \DB::table('users')->where('id', $existing->id)->update([
+                'password' => \Hash::make($password),
+                'email_verified_at' => now(),
+                'is_active' => true,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'action' => 'updated',
+                'email' => $email,
+                'message' => 'Super-admin password reset successfully.',
+            ]);
+        }
+
+        // Create super-admin
+        $userId = \DB::table('users')->insertGetId([
+            'name' => $name,
+            'email' => $email,
+            'password' => \Hash::make($password),
+            'tenant_id' => null,
+            'is_active' => true,
+            'email_verified_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Ensure super-admin role exists
+        $role = \DB::table('roles')->where('name', 'super-admin')->first();
+        if (!$role) {
+            $roleId = \DB::table('roles')->insertGetId([
+                'name' => 'super-admin',
+                'guard_name' => 'web',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } else {
+            $roleId = $role->id;
+        }
+
+        // Assign role
+        \DB::table('model_has_roles')->insert([
+            'role_id' => $roleId,
+            'model_type' => 'App\\Models\\User',
+            'model_id' => $userId,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'action' => 'created',
+            'email' => $email,
+            'message' => 'Super-admin created successfully.',
         ]);
     } catch (\Exception $e) {
         return response()->json([

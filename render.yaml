@@ -25,5 +25,12 @@ services:
         value: noreply@ihrauto.ch
       - key: MAIL_FROM_NAME
         value: IHRAUTO CRM
+      # Super Admin Credentials (REQUIRED)
+      - key: SUPERADMIN_EMAIL
+        value: info@ihrauto.ch
+      - key: SUPERADMIN_NAME
+        value: Platform Owner
+      - key: SUPERADMIN_PASSWORD
+        sync: false  # Set this secret in Render dashboard
       - key: STARTUP_COMMAND
         value: php artisan migrate --force && apache2-foreground
