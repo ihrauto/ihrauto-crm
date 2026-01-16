@@ -75,6 +75,62 @@ Route::get('/cleanup-test-data', function () {
     }
 })->withoutMiddleware(['auth', 'verified', 'web']);
 
+// Debug route to test registration - DELETE AFTER TESTING
+Route::get('/debug-registration', function () {
+    $key = request('key');
+    if ($key !== 'ihrauto2026') {
+        abort(403, 'Invalid key');
+    }
+
+    try {
+        // Check database connection
+        $dbCheck = \DB::connection()->getPDO() ? 'Connected' : 'Failed';
+
+        // Check if tables exist
+        $tables = [
+            'tenants' => \Schema::hasTable('tenants'),
+            'users' => \Schema::hasTable('users'),
+            'roles' => \Schema::hasTable('roles'),
+            'products' => \Schema::hasTable('products'),
+            'services' => \Schema::hasTable('services'),
+        ];
+
+        // Test Tenant creation
+        $testData = [
+            'company_name' => 'Test Company ' . time(),
+            'email' => 'test' . time() . '@test.com',
+            'name' => 'Test User',
+            'password' => 'password123',
+            'plan' => 'basic',
+        ];
+
+        $action = new \App\Actions\Auth\RegisterTenantOwner();
+        $user = $action->handle($testData);
+
+        // Cleanup - delete the test user and tenant
+        $tenantId = $user->tenant_id;
+        \DB::table('users')->where('id', $user->id)->delete();
+        \DB::table('tenants')->where('id', $tenantId)->delete();
+
+        return response()->json([
+            'success' => true,
+            'db_connection' => $dbCheck,
+            'tables' => $tables,
+            'test_user_created' => true,
+            'user_id' => $user->id,
+            'message' => 'Registration flow works! Test data cleaned up.',
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => collect(explode("\n", $e->getTraceAsString()))->take(10)->toArray(),
+        ], 500);
+    }
+})->withoutMiddleware(['auth', 'verified', 'web']);
+
 // Debug route to test dashboard (temporary)
 Route::get('/debug-dashboard', function () {
     $key = request('key');
