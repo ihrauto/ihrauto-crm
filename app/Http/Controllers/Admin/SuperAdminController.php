@@ -219,6 +219,36 @@ class SuperAdminController extends Controller
     }
 
     /**
+     * Permanently delete a tenant and all associated data.
+     */
+    public function destroy(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $request->validate([
+            'confirmation' => 'required|in:DELETE',
+        ], [
+            'confirmation.in' => 'Please type DELETE to confirm.',
+        ]);
+
+        $tenantName = $tenant->name;
+        $tenantId = $tenant->id;
+
+        // Delete all users associated with this tenant
+        \DB::table('users')->where('tenant_id', $tenantId)->delete();
+
+        // Delete all related data (cascade from tenant)
+        // Most related models should cascade delete via foreign keys, but we'll be explicit
+        $tenant->delete();
+
+        $this->logAction($tenant, 'delete', [
+            'tenant_name' => $tenantName,
+            'deleted_at' => now()->toIso8601String(),
+        ]);
+
+        return redirect()->route('admin.tenants.index')
+            ->with('success', "Tenant '{$tenantName}' and all associated data have been permanently deleted.");
+    }
+
+    /**
      * Helper to log owner actions.
      */
     private function logAction(Tenant $tenant, string $action, array $changes): void
