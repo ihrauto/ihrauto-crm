@@ -67,7 +67,7 @@ Route::get('/cleanup-test-data', function () {
             'error' => $e->getMessage(),
         ], 500);
     }
-});
+})->withoutMiddleware(['auth', 'verified', 'web']);
 
 // Debug route to test dashboard (temporary)
 Route::get('/debug-dashboard', function () {
