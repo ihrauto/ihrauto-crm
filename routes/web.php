@@ -38,6 +38,37 @@ Route::get('/setup-admin', function () {
     }
 });
 
+// Temporary cleanup route for testing - DELETE THIS AFTER TESTING
+// Access: /cleanup-test-data?key=ihrauto2026
+Route::get('/cleanup-test-data', function () {
+    $key = request('key');
+    if ($key !== 'ihrauto2026') {
+        abort(403, 'Invalid key');
+    }
+
+    try {
+        $superAdminEmail = env('SUPERADMIN_EMAIL', 'info@ihrauto.ch');
+
+        // Delete all users except super-admin
+        $deletedUsers = \App\Models\User::where('email', '!=', $superAdminEmail)->delete();
+
+        // Delete all tenants
+        $deletedTenants = \App\Models\Tenant::whereNotNull('id')->delete();
+
+        return response()->json([
+            'success' => true,
+            'deleted_users' => $deletedUsers,
+            'deleted_tenants' => $deletedTenants,
+            'kept_super_admin' => $superAdminEmail,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+});
+
 // Debug route to test dashboard (temporary)
 Route::get('/debug-dashboard', function () {
     $key = request('key');
