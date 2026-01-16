@@ -86,13 +86,17 @@ if (app()->environment('local')) {
         Route::get('/tenant-info', [TenantSwitchController::class, 'info'])->name('tenant-info');
     });
 
-    // mocked subscription flow (kept in local check for safety)
+    // Mock checkout/process routes (local only for testing)
     Route::get('/subscription/checkout/{tenant}', [\App\Http\Controllers\SubscriptionController::class, 'checkout'])->name('subscription.checkout');
     Route::post('/subscription/process/{tenant}', [\App\Http\Controllers\SubscriptionController::class, 'process'])->name('subscription.process');
+}
+
+// Subscription/Onboarding routes (available in all environments)
+Route::middleware(['auth'])->group(function () {
     Route::get('/subscription/onboarding', [\App\Http\Controllers\SubscriptionController::class, 'onboarding'])->name('subscription.onboarding');
     Route::post('/subscription/setup', [\App\Http\Controllers\SubscriptionController::class, 'storeSetup'])->name('subscription.setup');
     Route::post('/subscription/tour-complete', [\App\Http\Controllers\SubscriptionController::class, 'markTourComplete'])->name('subscription.tour-complete');
-}
+});
 
 // Root route: serve pricing/landing page (public)
 Route::get('/', function () {
