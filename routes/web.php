@@ -49,11 +49,17 @@ Route::get('/cleanup-test-data', function () {
     try {
         $superAdminEmail = env('SUPERADMIN_EMAIL', 'info@ihrauto.ch');
 
-        // Delete all users except super-admin
-        $deletedUsers = \App\Models\User::where('email', '!=', $superAdminEmail)->delete();
+        // Use DB facade for thorough deletion (bypasses any model scopes)
+        $deletedUsers = \DB::table('users')->where('email', '!=', $superAdminEmail)->delete();
 
         // Delete all tenants
-        $deletedTenants = \App\Models\Tenant::whereNotNull('id')->delete();
+        $deletedTenants = \DB::table('tenants')->delete();
+
+        // Also clear model_has_roles for deleted users (keep super-admin's roles)
+        $superAdminId = \DB::table('users')->where('email', $superAdminEmail)->value('id');
+        if ($superAdminId) {
+            \DB::table('model_has_roles')->where('model_id', '!=', $superAdminId)->delete();
+        }
 
         return response()->json([
             'success' => true,
