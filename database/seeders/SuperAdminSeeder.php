@@ -22,9 +22,9 @@ class SuperAdminSeeder extends Seeder
         );
 
         // Get superadmin credentials from env or use defaults
-        $email = env('INITIAL_ADMIN_EMAIL', 'admin@ihrauto.com');
-        $name = env('INITIAL_ADMIN_NAME', 'Super Admin');
-        $password = env('INITIAL_ADMIN_PASSWORD', 'password');
+        $email = env('SUPERADMIN_EMAIL', env('INITIAL_ADMIN_EMAIL', 'info@ihrauto.ch'));
+        $name = env('SUPERADMIN_NAME', env('INITIAL_ADMIN_NAME', 'Platform Owner'));
+        $password = env('SUPERADMIN_PASSWORD', env('INITIAL_ADMIN_PASSWORD', 'password'));
 
         // Check if superadmin already exists
         $existingAdmin = User::withoutGlobalScopes()
