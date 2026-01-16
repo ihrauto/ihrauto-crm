@@ -16,5 +16,14 @@ services:
         value: false
       - key: LOG_CHANNEL
         value: stderr
+      # Email Configuration (Resend)
+      - key: MAIL_MAILER
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false  # Set this secret in Render dashboard
+      - key: MAIL_FROM_ADDRESS
+        value: noreply@ihrauto.ch
+      - key: MAIL_FROM_NAME
+        value: IHRAUTO CRM
       - key: STARTUP_COMMAND
         value: php artisan migrate --force && apache2-foreground
