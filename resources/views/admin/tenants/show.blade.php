@@ -8,9 +8,11 @@
         {{-- Header --}}
         <div class="flex items-center justify-between border-b border-gray-200 pb-4">
             <div class="flex items-center space-x-4">
-                <a href="{{ route('admin.tenants.index') }}" class="group flex items-center justify-center w-8 h-8 bg-gray-900 hover:bg-gray-600 rounded transition-colors shadow-sm">
+                <a href="{{ route('admin.tenants.index') }}"
+                    class="group flex items-center justify-center w-8 h-8 bg-gray-900 hover:bg-gray-600 rounded transition-colors shadow-sm">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
                 </a>
                 <div>
@@ -54,7 +56,8 @@
                 <div>
                     <dt class="text-gray-400 text-xs">Locale</dt>
                     <dd class="font-medium text-gray-900">{{ $tenant->country ?? 'Unknown' }} ·
-                        {{ $tenant->timezone ?? 'UTC' }}</dd>
+                        {{ $tenant->timezone ?? 'UTC' }}
+                    </dd>
                 </div>
             </dl>
         </div>
@@ -98,7 +101,8 @@
                 <div>
                     <dt class="text-gray-400 text-xs">Status</dt>
                     <dd class="font-medium {{ $tenant->is_active ? 'text-green-700' : 'text-red-600' }}">
-                        {{ $tenant->is_active ? 'Good Standing' : 'Attention Needed' }}</dd>
+                        {{ $tenant->is_active ? 'Good Standing' : 'Attention Needed' }}
+                    </dd>
                 </div>
             </dl>
         </div>
@@ -161,6 +165,24 @@
                     @endif
                 </div>
             </div>
+
+            {{-- Delete Tenant (Danger Zone) --}}
+            <div class="mt-6 pt-6 border-t border-red-200">
+                <h3 class="text-xs font-bold text-red-700 mb-1">⚠️ Danger Zone - Delete Tenant</h3>
+                <p class="text-[10px] text-gray-500 mb-3">Permanently delete this tenant and ALL associated data. This
+                    action cannot be undone.</p>
+                <form action="{{ route('admin.tenants.destroy', $tenant) }}" method="POST" class="space-y-2">
+                    @csrf
+                    @method('DELETE')
+                    <input type="text" name="confirmation" required placeholder="Type DELETE to confirm"
+                        class="w-full text-xs border border-red-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-red-500 focus:border-red-500 bg-red-50">
+                    <button type="submit"
+                        class="w-full text-xs font-bold py-1.5 px-3 border border-red-500 rounded bg-red-600 text-white hover:bg-red-700"
+                        onclick="return confirm('⚠️ FINAL WARNING: This will permanently delete {{ $tenant->name }} and all users, customers, invoices, and data. This CANNOT be undone. Are you absolutely sure?')">
+                        🗑️ Delete Tenant Permanently
+                    </button>
+                </form>
+            </div>
         </div>
 
         {{-- Owner Actions Log --}}
@@ -220,7 +242,8 @@
                                 <p class="text-sm text-gray-900 break-words whitespace-pre-wrap"
                                     id="note-content-{{ $note->id }}">{{ $note->changes['content'] ?? '' }}</p>
                                 <p class="text-[10px] text-gray-400 mt-1">{{ $note->created_at->format('M d, Y H:i') }} ·
-                                    {{ $note->user->name ?? 'Unknown' }}</p>
+                                    {{ $note->user->name ?? 'Unknown' }}
+                                </p>
                             </div>
                             <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                 <button type="button" onclick="editNote({{ $note->id }})"

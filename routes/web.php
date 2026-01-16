@@ -246,6 +246,7 @@ Route::middleware(['auth', 'role:super-admin'])->prefix('admin')->name('admin.')
     Route::post('/tenants/{tenant}/note', [\App\Http\Controllers\Admin\SuperAdminController::class, 'addNote'])->name('tenants.note');
     Route::put('/tenants/{tenant}/note/{note}', [\App\Http\Controllers\Admin\SuperAdminController::class, 'updateNote'])->name('tenants.note.update');
     Route::delete('/tenants/{tenant}/note/{note}', [\App\Http\Controllers\Admin\SuperAdminController::class, 'deleteNote'])->name('tenants.note.delete');
+    Route::delete('/tenants/{tenant}', [\App\Http\Controllers\Admin\SuperAdminController::class, 'destroy'])->name('tenants.destroy');
     Route::get('/tenants/{tenant}', [\App\Http\Controllers\Admin\SuperAdminController::class, 'show'])->name('tenants.show');
 });
 
