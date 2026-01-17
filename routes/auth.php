@@ -61,3 +61,9 @@ Route::middleware('auth')->group(function () {
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
 });
+
+// Invite/Password Setup Routes (public, token-based)
+Route::get('invite/{token}', [\App\Http\Controllers\Auth\InviteController::class, 'showSetupForm'])
+    ->name('invite.setup');
+Route::post('invite/{token}', [\App\Http\Controllers\Auth\InviteController::class, 'setup'])
+    ->name('invite.setup.store');
