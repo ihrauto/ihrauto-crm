@@ -338,7 +338,7 @@
                         @endcan
 
                         @can('access tire-hotel')
-                        <a href="{{ route('tire-hotel.index') }}"
+                        <a href="{{ route('tires-hotel') }}"
                             class="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition group">
                             <div class="p-2 rounded-md bg-purple-100 text-purple-600 group-hover:bg-purple-200">
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
