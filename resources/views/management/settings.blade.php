@@ -251,57 +251,7 @@
                     </div>
                 </div>
 
-                <!-- Module Configuration -->
-                <div class="p-8 border-b border-gray-100">
-                    <div class="md:grid md:grid-cols-3 md:gap-10">
-                        <div class="md:col-span-1">
-                            <div class="flex items-center space-x-2 mb-2">
-                                <div class="w-6 h-6 rounded bg-orange-50 text-orange-600 flex items-center justify-center">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 001 1h1a2 2 0 110 4h-1a1 1 0 00-1 1v3a1 1 0 01-1 1h-3a1 1 0 00-1 1v1a2 2 0 11-4 0v-1a1 1 0 00-1-1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
-                                    </svg>
-                                </div>
-                                <h3 class="text-base font-bold text-gray-900">Module Configuration</h3>
-                            </div>
-                            <p class="text-xs text-gray-500 leading-relaxed ml-8">Enable or disable specific CRM modules.
-                            </p>
-                        </div>
-                        <div class="mt-6 md:mt-0 md:col-span-2 space-y-6">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <label
-                                    class="relative flex items-start p-4 hover:bg-gray-50 rounded-xl cursor-pointer border border-gray-200 transition-all group">
-                                    <div class="flex h-5 items-center">
-                                        <input id="module_tire_hotel" name="module_tire_hotel" type="checkbox" checked
-                                            class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                    </div>
-                                    <div class="ml-3 text-sm">
-                                        <span
-                                            class="font-bold text-gray-900 group-hover:text-indigo-700 transition-colors">Tire
-                                            Hotel</span>
-                                        <p class="text-gray-500 text-xs mt-0.5">Manage customer tire storage and seasonal
-                                            swaps.</p>
-                                    </div>
-                                </label>
 
-                                <label
-                                    class="relative flex items-start p-4 hover:bg-gray-50 rounded-xl cursor-pointer border border-gray-200 transition-all group">
-                                    <div class="flex h-5 items-center">
-                                        <input id="module_checkin" name="module_checkin" type="checkbox" checked
-                                            class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                    </div>
-                                    <div class="ml-3 text-sm">
-                                        <span
-                                            class="font-bold text-gray-900 group-hover:text-indigo-700 transition-colors">Service
-                                            Check-in</span>
-                                        <p class="text-gray-500 text-xs mt-0.5">Digital vehicle check-in and inspection
-                                            workflow.</p>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Footer Actions -->
                 <div class="px-8 py-5 bg-gray-50 flex items-center justify-end">

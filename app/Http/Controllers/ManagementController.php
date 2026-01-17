@@ -70,13 +70,6 @@ class ManagementController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    public function audit()
-    {
-        $logs = \App\Models\AuditLog::with('user')->latest()->paginate(20);
-
-        return view('management.audit', compact('logs'));
-    }
-
     public function settings()
     {
         return view('management.settings');

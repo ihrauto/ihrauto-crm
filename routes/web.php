@@ -351,7 +351,6 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
     Route::get('/management/pricing', [ManagementController::class, 'pricing'])->name('management.pricing');
     Route::get('/management/reports', [ManagementController::class, 'reports'])->name('management.reports');
     Route::get('/management/analytics', [ManagementController::class, 'analytics'])->name('management.analytics');
-    Route::get('/management/audit', [ManagementController::class, 'audit'])->name('management.audit');
     Route::get('/management/settings', [ManagementController::class, 'settings'])->name('management.settings');
     Route::post('/management/settings', [ManagementController::class, 'updateSettings'])->name('management.settings.update');
     Route::get('/management/users/create', [ManagementController::class, 'createUser'])->name('management.users.create');
