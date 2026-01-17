@@ -232,17 +232,32 @@ class SuperAdminController extends Controller
         $tenantName = $tenant->name;
         $tenantId = $tenant->id;
 
-        // Delete all users associated with this tenant
+        // Get all user IDs for this tenant first
+        $userIds = \DB::table('users')->where('tenant_id', $tenantId)->pluck('id')->toArray();
+
+        // Delete role assignments for these users
+        if (!empty($userIds)) {
+            \DB::table('model_has_roles')->whereIn('model_id', $userIds)
+                ->where('model_type', 'App\\Models\\User')
+                ->delete();
+        }
+
+        // Delete all users associated with this tenant (bypassing soft deletes)
         \DB::table('users')->where('tenant_id', $tenantId)->delete();
 
-        // Delete all related data (cascade from tenant)
-        // Most related models should cascade delete via foreign keys, but we'll be explicit
-        $tenant->delete();
+        // Delete related data that might not have cascade
+        \DB::table('events')->where('tenant_id', $tenantId)->delete();
+        \DB::table('products')->where('tenant_id', $tenantId)->delete();
+        \DB::table('services')->where('tenant_id', $tenantId)->delete();
 
+        // Log action before deleting tenant
         $this->logAction($tenant, 'delete', [
             'tenant_name' => $tenantName,
             'deleted_at' => now()->toIso8601String(),
         ]);
+
+        // Force delete tenant (not soft delete) using DB facade
+        \DB::table('tenants')->where('id', $tenantId)->delete();
 
         return redirect()->route('admin.tenants.index')
             ->with('success', "Tenant '{$tenantName}' and all associated data have been permanently deleted.");
