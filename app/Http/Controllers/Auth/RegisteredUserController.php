@@ -58,12 +58,9 @@ class RegisteredUserController extends Controller
                 \Log::warning('Failed to track registration event: ' . $e->getMessage());
             }
 
-            // Redirect to onboarding if available, otherwise dashboard
-            if (Route::has('subscription.onboarding')) {
-                return redirect()->route('subscription.onboarding');
-            }
-
-            return redirect()->route('dashboard');
+            // Redirect to email verification page first
+            // After verification, user will be redirected to onboarding
+            return redirect()->route('verification.notice');
         } catch (\Exception $e) {
             \Log::error('Registration failed: ' . $e->getMessage(), [
                 'email' => $request->email,
