@@ -389,6 +389,14 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
     Route::post('/checkin/{checkin}/generate-wo', [\App\Http\Controllers\WorkOrderController::class, 'generate'])->name('work-orders.generate');
     Route::post('/work-orders/{workOrder}/generate-invoice', [\App\Http\Controllers\WorkOrderController::class, 'generateInvoice'])->name('work-orders.generate-invoice');
 
+    // Mechanics & Work Bays
+    Route::resource('mechanics', \App\Http\Controllers\MechanicsController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+    Route::post('/mechanics/{mechanic}/invite', [\App\Http\Controllers\MechanicsController::class, 'invite'])->name('mechanics.invite');
+
+    Route::get('/work-bays', function () {
+        return "Work Bay Page - Coming Soon";
+    })->name('work-bays.index');
+
     // Appointment routes
     Route::resource('appointments', \App\Http\Controllers\AppointmentController::class);
 
