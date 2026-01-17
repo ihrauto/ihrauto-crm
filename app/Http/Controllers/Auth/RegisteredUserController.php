@@ -38,25 +38,41 @@ class RegisteredUserController extends Controller
             'email.unique' => 'This email already exists. Please use a different email or login to your existing account.',
         ]);
 
-        $user = $action->handle([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => $request->password,
-            'company_name' => $request->company_name,
-            'plan' => $request->plan ?? 'basic',
-        ]);
+        try {
+            $user = $action->handle([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => $request->password,
+                'company_name' => $request->company_name,
+                'plan' => $request->plan ?? 'basic',
+            ]);
 
-        Auth::login($user);
-        session(['tenant_id' => $user->tenant_id]);
+            Auth::login($user);
+            session(['tenant_id' => $user->tenant_id]);
 
-        // Track tenant registration event
-        app(\App\Services\EventTracker::class)->track('tenant_registered', $user->tenant_id, $user->id);
+            // Track tenant registration event (wrapped to prevent failure)
+            try {
+                app(\App\Services\EventTracker::class)->track('tenant_registered', $user->tenant_id, $user->id);
+            } catch (\Exception $e) {
+                // Log but don't fail registration
+                \Log::warning('Failed to track registration event: ' . $e->getMessage());
+            }
 
-        // Redirect to onboarding if available, otherwise dashboard
-        if (Route::has('subscription.onboarding')) {
-            return redirect()->route('subscription.onboarding');
+            // Redirect to onboarding if available, otherwise dashboard
+            if (Route::has('subscription.onboarding')) {
+                return redirect()->route('subscription.onboarding');
+            }
+
+            return redirect()->route('dashboard');
+        } catch (\Exception $e) {
+            \Log::error('Registration failed: ' . $e->getMessage(), [
+                'email' => $request->email,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->withInput()->withErrors([
+                'email' => 'Registration failed. Please try again or contact support.',
+            ]);
         }
-
-        return redirect()->route('dashboard');
     }
 }

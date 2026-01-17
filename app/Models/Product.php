@@ -19,6 +19,7 @@ class Product extends Model
         'price',
         'stock_quantity',
         'min_stock_quantity',
+        'is_template',
     ];
 
     public function movements()

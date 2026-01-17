@@ -19,6 +19,7 @@ class Service extends Model
         'description',
         'price',
         'is_active',
+        'is_template',
     ];
 
     protected $casts = [
