@@ -166,51 +166,91 @@ Route::get('/debug-registration', function () {
         abort(403, 'Invalid key');
     }
 
+    $steps = [];
+
     try {
-        // Check database connection
-        $dbCheck = \DB::connection()->getPDO() ? 'Connected' : 'Failed';
+        // Step 1: Check database connection
+        $steps['1_db_connection'] = \DB::connection()->getPDO() ? 'OK' : 'FAILED';
 
-        // Check if tables exist
-        $tables = [
-            'tenants' => \Schema::hasTable('tenants'),
-            'users' => \Schema::hasTable('users'),
-            'roles' => \Schema::hasTable('roles'),
-            'products' => \Schema::hasTable('products'),
-            'services' => \Schema::hasTable('services'),
+        // Step 2: Check if important columns exist
+        $steps['2_columns'] = [
+            'products.is_template' => \Schema::hasColumn('products', 'is_template'),
+            'services.is_template' => \Schema::hasColumn('services', 'is_template'),
+            'events_table_exists' => \Schema::hasTable('events'),
         ];
 
-        // Test Tenant creation
-        $testData = [
-            'company_name' => 'Test Company ' . time(),
+        // Step 3: Test Tenant creation only
+        $tenant = \App\Models\Tenant::create([
+            'name' => 'Test Company ' . time(),
             'email' => 'test' . time() . '@test.com',
-            'name' => 'Test User',
-            'password' => 'password123',
+            'is_trial' => true,
+            'trial_ends_at' => now()->addDays(14),
+            'is_active' => true,
             'plan' => 'basic',
-        ];
+            'max_users' => 1,
+            'max_customers' => 100,
+            'max_vehicles' => 200,
+            'max_work_orders' => 50,
+        ]);
+        $steps['3_tenant_created'] = 'OK - ID: ' . $tenant->id;
 
-        $action = new \App\Actions\Auth\RegisterTenantOwner();
-        $user = $action->handle($testData);
+        // Step 4: Test User creation
+        $user = \App\Models\User::create([
+            'name' => 'Test User',
+            'email' => 'test' . time() . '@test.com',
+            'password' => \Hash::make('password123'),
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+        $steps['4_user_created'] = 'OK - ID: ' . $user->id;
 
-        // Cleanup - delete the test user and tenant
-        $tenantId = $user->tenant_id;
+        // Step 5: Test Role assignment
+        $adminRole = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $user->assignRole($adminRole);
+        $steps['5_role_assigned'] = 'OK';
+
+        // Step 6: Test Product creation
+        \App\Models\Product::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Test Product',
+            'sku' => 'TEST-001',
+            'price' => 10.00,
+            'stock_quantity' => 5,
+            'is_template' => true,
+        ]);
+        $steps['6_product_created'] = 'OK';
+
+        // Step 7: Test Service creation
+        \App\Models\Service::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Test Service',
+            'price' => 20.00,
+            'is_active' => true,
+            'is_template' => true,
+        ]);
+        $steps['7_service_created'] = 'OK';
+
+        // Cleanup
+        \DB::table('products')->where('tenant_id', $tenant->id)->delete();
+        \DB::table('services')->where('tenant_id', $tenant->id)->delete();
+        \DB::table('model_has_roles')->where('model_id', $user->id)->delete();
         \DB::table('users')->where('id', $user->id)->delete();
-        \DB::table('tenants')->where('id', $tenantId)->delete();
+        \DB::table('tenants')->where('id', $tenant->id)->delete();
+        $steps['8_cleanup'] = 'OK';
 
         return response()->json([
             'success' => true,
-            'db_connection' => $dbCheck,
-            'tables' => $tables,
-            'test_user_created' => true,
-            'user_id' => $user->id,
-            'message' => 'Registration flow works! Test data cleaned up.',
+            'steps' => $steps,
+            'message' => 'All registration steps work correctly!',
         ]);
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
+            'steps_completed' => $steps,
             'error' => $e->getMessage(),
-            'file' => $e->getFile(),
+            'error_class' => get_class($e),
+            'file' => basename($e->getFile()),
             'line' => $e->getLine(),
-            'trace' => collect(explode("\n", $e->getTraceAsString()))->take(10)->toArray(),
         ], 500);
     }
 })->withoutMiddleware(['auth', 'verified', 'web']);
