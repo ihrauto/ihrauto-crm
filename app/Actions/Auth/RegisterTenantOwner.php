@@ -83,8 +83,13 @@ class RegisterTenantOwner
         // Seed example products and services for the new tenant
         $this->seedDemoCatalog($tenant);
 
-        // Fire Registered event for email verification
-        event(new Registered($user));
+        // Fire Registered event for email verification (wrapped to prevent failure)
+        try {
+            event(new Registered($user));
+        } catch (\Exception $e) {
+            // Log but don't fail registration - user can resend verification email
+            \Log::warning('Failed to send verification email: ' . $e->getMessage());
+        }
 
         return $user;
     }
