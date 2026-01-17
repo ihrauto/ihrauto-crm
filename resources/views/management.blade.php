@@ -147,17 +147,6 @@
                         <span class="text-indigo-400">&rarr;</span>
                     </a>
 
-                    <a href="{{ route('management.audit') }}"
-                        class="flex items-center justify-between w-full px-4 py-3 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
-                        <span class="flex items-center">
-                            <svg class="w-5 h-5 mr-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            View System Audit Logs
-                        </span>
-                        <span class="text-indigo-400">&rarr;</span>
-                    </a>
 
                     <a href="{{ route('management.backup') }}"
                         class="flex items-center justify-between w-full px-4 py-3 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">

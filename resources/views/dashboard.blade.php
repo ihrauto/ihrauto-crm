@@ -26,6 +26,7 @@
 
 
 
+        @can('access work-orders')
         <div class="mb-8">
             <!-- Key Stats (4x1 Grid) -->
             <div class="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
@@ -114,7 +115,9 @@
                 </div>
             </div>
         </div>
+        @endcan
 
+        @can('access management')
         <!-- Operational Pulse -->
         <div class="mb-8">
             <h3 class="text-xs sm:text-sm font-medium text-gray-500 mb-4 px-1">Operational Pulse</h3>
@@ -205,10 +208,12 @@
                 </div>
             </div>
         </div>
+        @endcan
 
         <!-- Secondary Operational Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
 
+            @can('access work-orders')
             <!-- Left Column: Today's Schedule -->
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden">
@@ -254,9 +259,10 @@
                     </ul>
                 </div>
             </div>
+            @endcan
 
             <!-- Right Column: Quick Actions & Tech Status -->
-            <div class="space-y-8">
+            <div class="space-y-8 @cannot('access work-orders') lg:col-span-3 @endcannot">
 
                 <!-- Quick Actions -->
                 <div class="bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden">
@@ -264,6 +270,7 @@
                         <h3 class="text-lg font-semibold text-indigo-950">Quick Actions</h3>
                     </div>
                     <div class="p-6 grid grid-cols-1 gap-4">
+                        @can('access check-in')
                         <a href="{{ route('checkin') }}"
                             class="flex items-center p-3 rounded-lg border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 transition group">
                             <div class="p-2 rounded-md bg-indigo-100 text-indigo-600 group-hover:bg-indigo-200">
@@ -277,7 +284,9 @@
                                 <p class="text-xs text-indigo-500">Register vehicle arrival</p>
                             </div>
                         </a>
+                        @endcan
 
+                        @can('access work-orders')
                         <a href="{{ route('work-orders.create') }}"
                             class="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition group">
                             <div class="p-2 rounded-md bg-gray-100 text-gray-600 group-hover:bg-gray-200">
@@ -291,6 +300,7 @@
                                 <p class="text-xs text-gray-500">Book future work</p>
                             </div>
                         </a>
+                        @endcan
 
                         @if($todays_schedule->where('status', 'scheduled')->count() > 0)
                             <a href="{{ route('work-orders.index', ['status' => 'scheduled']) }}"
@@ -311,6 +321,7 @@
                             </a>
                         @endif
 
+                        @can('access finance')
                         <a href="{{ route('finance.index') }}"
                             class="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition group">
                             <div class="p-2 rounded-md bg-gray-100 text-gray-600 group-hover:bg-gray-200">
@@ -324,9 +335,27 @@
                                 <p class="text-xs text-gray-500">Create new invoice</p>
                             </div>
                         </a>
+                        @endcan
+
+                        @can('access tire-hotel')
+                        <a href="{{ route('tire-hotel.index') }}"
+                            class="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition group">
+                            <div class="p-2 rounded-md bg-purple-100 text-purple-600 group-hover:bg-purple-200">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-900">Tire Hotel</p>
+                                <p class="text-xs text-gray-500">Manage tire storage</p>
+                            </div>
+                        </a>
+                        @endcan
                     </div>
                 </div>
 
+                @can('access management')
                 <!-- Technician Status Board -->
                 <div class="bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden">
                     <div class="px-6 py-4 border-b border-indigo-100">
@@ -360,6 +389,7 @@
                         @endforeach
                     </ul>
                 </div>
+                @endcan
             </div>
         </div>
 

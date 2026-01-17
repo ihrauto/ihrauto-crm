@@ -13,7 +13,10 @@ class RoleController extends Controller
      */
     public function index()
     {
-        $roles = Role::with('permissions')->get();
+        // Only show admin, manager, and technician roles for tenants
+        $roles = Role::with('permissions')
+            ->whereIn('name', ['admin', 'manager', 'technician'])
+            ->get();
         $permissions = Permission::all()->groupBy(function ($permission) {
             // Group permissions by their first word (module)
             $parts = explode(' ', $permission->name);
