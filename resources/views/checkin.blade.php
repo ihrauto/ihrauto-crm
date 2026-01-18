@@ -297,7 +297,8 @@
                     </div>
                 </div>
 
-                <form method="POST" action="{{ route('checkin.store') }}" class="space-y-4" id="multi-step-form">
+                <form method="POST" action="{{ route('checkin.store') }}" class="space-y-4" id="multi-step-form"
+                    enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="form_type" value="new_customer">
 
@@ -450,6 +451,23 @@
                                     <p class="text-red-600 text-xs mt-1">{{ $message }}</p>
                                 @enderror
                             </div>
+
+                        <!-- Vehicle Photos (Before) -->
+                        <div class="mt-6">
+                            <label class="block text-sm font-medium text-indigo-900 mb-2">Vehicle Condition Photos (Before Service)</label>
+                            <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-indigo-200 border-dashed rounded-xl cursor-pointer bg-white hover:bg-indigo-50 hover:border-indigo-400 transition-colors group">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <svg class="w-8 h-8 mb-2 text-indigo-300 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    <p class="mb-1 text-sm text-gray-500 group-hover:text-indigo-700">Click to upload photos</p>
+                                    <p class="text-xs text-gray-400" id="photo-count">Max 5MB each</p>
+                                </div>
+                                <input type="file" name="photos[]" multiple accept="image/*" class="hidden" 
+                                       onchange="document.getElementById('photo-count').textContent = this.files.length + ' photo(s) selected'">
+                            </label>
+                        </div>
                         </div>
                     </div>
 
@@ -547,7 +565,7 @@
                                         <label class="text-sm font-medium text-indigo-900 mb-2 block">Assign
                                             Technician *</label>
                                         <select name="technician_id" required
-                                            class="block w-full rounded-lg border-0 py-2 px-4 text-indigo-900 ring-1 ring-inset ring-indigo-200 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                            class="block w-full rounded-lg border-0 py-2 px-4 text-indigo-900 ring-1 ring-inset ring-indigo-200 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
                                             <option value="">Select Technician</option>
                                             @foreach($users as $user)
                                                 @php $isBusy = in_array($user->id, $busy_technician_ids ?? []); @endphp
@@ -856,10 +874,18 @@
             @if(old('form_type') == 'new_customer')
                 activeUserBox.parentElement.classList.add('hidden');
                 addNewForm.classList.remove('hidden');
+            @else
+                                        // Auto-open Check-in form if URL param is present (from dashboard quick action)
+                                        const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('openForm') === 'true') {
+                    // Open New Customer form directly as requested
+                    activeUserBox.parentElement.classList.add('hidden');
+                    addNewForm.classList.remove('hidden');
+                }
             @endif
 
-                                                                // EXISTING CUSTOMER SEARCH LOGIC
-                                                                const searchInput = document.getElementById('customer-search');
+                                                                            // EXISTING CUSTOMER SEARCH LOGIC
+                                                                            const searchInput = document.getElementById('customer-search');
             const resultsDiv = document.getElementById('customer-results');
             let searchTimeout;
 
@@ -887,14 +913,14 @@
                                         const li = document.createElement('li');
                                         li.className = 'p-3 hover:bg-indigo-50 cursor-pointer transition-colors';
                                         li.innerHTML = `
-                                                                                                                <div class="flex justify-between items-center">
-                                                                                                                    <div>
-                                                                                                                        <p class="font-bold text-indigo-900 text-sm">${customer.name}</p>
-                                                                                                                        <p class="text-xs text-indigo-500">${customer.phone || 'No phone'}</p>
-                                                                                                                    </div>
-                                                                                                                    <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">Select</span>
-                                                                                                                </div>
-                                                                                                            `;
+                                                                                                                            <div class="flex justify-between items-center">
+                                                                                                                                <div>
+                                                                                                                                    <p class="font-bold text-indigo-900 text-sm">${customer.name}</p>
+                                                                                                                                    <p class="text-xs text-indigo-500">${customer.phone || 'No phone'}</p>
+                                                                                                                                </div>
+                                                                                                                                <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">Select</span>
+                                                                                                                            </div>
+                                                                                                                        `;
                                         li.addEventListener('click', () => selectCustomer(customer));
                                         ul.appendChild(li);
                                     });
@@ -902,10 +928,10 @@
                                 } else {
                                     resultsDiv.classList.remove('hidden');
                                     resultsDiv.innerHTML = `
-                                                                                                            <div class="bg-white border border-indigo-200 rounded-lg p-3 text-sm text-indigo-500 text-center">
-                                                                                                                No customers found
-                                                                                                            </div>
-                                                                                                        `;
+                                                                                                                        <div class="bg-white border border-indigo-200 rounded-lg p-3 text-sm text-indigo-500 text-center">
+                                                                                                                            No customers found
+                                                                                                                        </div>
+                                                                                                                    `;
                                 }
                             })
                             .catch(error => {
@@ -920,14 +946,14 @@
                 const display = document.getElementById('customer-display');
                 if (display) {
                     display.innerHTML = `
-                                                                                            <div class="flex justify-between items-center">
-                                                                                                <div>
-                                                                                                    <span class="font-bold block text-lg">${customer.name}</span>
-                                                                                                    <span class="text-xs text-indigo-500">${customer.email || ''} • ${customer.phone || ''}</span>
-                                                                                                </div>
-                                                                                                <input type="hidden" name="customer_id" value="${customer.id}">
-                                                                                            </div>
-                                                                                        `;
+                                                                                                        <div class="flex justify-between items-center">
+                                                                                                            <div>
+                                                                                                                <span class="font-bold block text-lg">${customer.name}</span>
+                                                                                                                <span class="text-xs text-indigo-500">${customer.email || ''} • ${customer.phone || ''}</span>
+                                                                                                            </div>
+                                                                                                            <input type="hidden" name="customer_id" value="${customer.id}">
+                                                                                                        </div>
+                                                                                                    `;
                 }
 
                 document.getElementById('selected-customer-info').classList.remove('hidden');

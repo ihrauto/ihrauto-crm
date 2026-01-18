@@ -142,6 +142,27 @@ class CheckinController extends Controller
             // Track checkin created event
             app(\App\Services\EventTracker::class)->trackSimple('checkin_created');
 
+            // Handle Photo Uploads (Before Service)
+            if ($request->hasFile('photos')) {
+                foreach ($request->file('photos') as $photo) {
+                    $filename = \Illuminate\Support\Str::uuid() . '.' . $photo->getClientOriginalExtension();
+                    $path = "work-order-photos/{$workOrder->tenant_id}/{$workOrder->id}/{$filename}";
+
+                    \Illuminate\Support\Facades\Storage::disk('public')->put($path, file_get_contents($photo));
+
+                    \App\Models\WorkOrderPhoto::create([
+                        'tenant_id' => $workOrder->tenant_id,
+                        'work_order_id' => $workOrder->id,
+                        'user_id' => auth()->id(),
+                        'filename' => $filename,
+                        'original_name' => $photo->getClientOriginalName(),
+                        'path' => $path,
+                        'type' => 'before',
+                        'caption' => 'Uploaded during check-in',
+                    ]);
+                }
+            }
+
             // Redirect to Work Order Show Page (Job Sheet) - same as tire hotel
             return redirect()->route('work-orders.show', $workOrder)
                 ->with('success', 'Check-in completed! Work Order #' . $workOrder->id . ' created. You can now start the job.');

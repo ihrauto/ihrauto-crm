@@ -68,6 +68,14 @@ class WorkOrder extends Model
         return $this->hasOne(Quote::class);
     }
 
+    /**
+     * Get all photos attached to this work order.
+     */
+    public function photos()
+    {
+        return $this->hasMany(WorkOrderPhoto::class);
+    }
+
     // Helper for Status Badge Color
     public function getStatusBadgeColorAttribute(): string
     {
