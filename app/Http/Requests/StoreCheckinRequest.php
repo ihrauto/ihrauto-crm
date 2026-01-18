@@ -27,6 +27,8 @@ class StoreCheckinRequest extends FormRequest
             'priority' => 'required|in:low,medium,high,urgent',
             'service_bay' => 'required|string|max:50',
             'service_description' => 'nullable|string|max:1000',
+            'photos' => 'nullable|array',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120', // 5MB max
         ];
 
         if ($this->form_type === 'active_user') {

@@ -387,6 +387,11 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
     Route::resource('work-orders', \App\Http\Controllers\WorkOrderController::class);
     Route::post('/checkin/{checkin}/generate-wo', [\App\Http\Controllers\WorkOrderController::class, 'generate'])->name('work-orders.generate');
     Route::post('/work-orders/{workOrder}/generate-invoice', [\App\Http\Controllers\WorkOrderController::class, 'generateInvoice'])->name('work-orders.generate-invoice');
+    Route::get('/work-orders/{workOrder}/details', [\App\Http\Controllers\WorkOrderController::class, 'jobDetails'])->name('work-orders.details');
+
+    // Work Order Photos
+    Route::post('/work-orders/{workOrder}/photos', [\App\Http\Controllers\WorkOrderPhotoController::class, 'store'])->name('work-orders.photos.store');
+    Route::delete('/work-orders/{workOrder}/photos/{photo}', [\App\Http\Controllers\WorkOrderPhotoController::class, 'destroy'])->name('work-orders.photos.destroy');
 
     // Mechanics & Work Bays
     Route::resource('mechanics', \App\Http\Controllers\MechanicsController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);

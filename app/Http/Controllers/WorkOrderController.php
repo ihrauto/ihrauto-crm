@@ -66,8 +66,11 @@ class WorkOrderController extends Controller
 
         $completedQuery = WorkOrder::whereIn('status', ['completed', 'cancelled'])
             ->with(['vehicle', 'customer', 'technician'])
-            ->latest('completed_at')
-            ->limit(50);
+            ->latest('completed_at');
+
+        // Filter by completed date (default: today)
+        $completedDate = $request->get('completed_date', now()->toDateString());
+        $completedQuery->whereDate('completed_at', $completedDate);
 
         // Also filter completed orders by ownership
         if (!$user->can('view all work-orders')) {
@@ -76,7 +79,7 @@ class WorkOrderController extends Controller
 
         $completed_orders = $completedQuery->get();
 
-        return view('work-orders.index', compact('active_orders', 'completed_orders'));
+        return view('work-orders.index', compact('active_orders', 'completed_orders', 'completedDate'));
     }
 
     public function board()
@@ -92,6 +95,11 @@ class WorkOrderController extends Controller
 
     public function employeeStats()
     {
+        // Technicians go directly to their own stats page
+        if (!auth()->user()->can('access management')) {
+            return redirect()->route('work-orders.employee-details', auth()->user());
+        }
+
         $users = User::all();
 
         return view('work-orders.employee_stats', compact('users'));
@@ -264,7 +272,7 @@ class WorkOrderController extends Controller
 
     public function show(WorkOrder $workOrder)
     {
-        $workOrder->load(['checkin', 'customer', 'vehicle', 'technician']);
+        $workOrder->load(['checkin', 'customer', 'vehicle', 'technician', 'photos']);
         $technicians = User::where('is_active', true)->get();
 
         return view('work-orders.show', compact('workOrder', 'technicians'));
@@ -353,6 +361,12 @@ class WorkOrderController extends Controller
 
             $invoice = $workOrder->refresh()->invoice;
             if ($invoice) {
+                // Technicians go back to work orders, not finance
+                if (!auth()->user()->can('access finance')) {
+                    return redirect()->route('work-orders.index')
+                        ->with('success', "Work Order Completed! Invoice generated.");
+                }
+
                 return redirect()->route('finance.index', ['tab' => 'invoices'])
                     ->with('success', "Work Order Completed. Invoice {$invoice->invoice_number} generated.");
             }
@@ -362,5 +376,16 @@ class WorkOrderController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Show read-only job details (services and parts without prices).
+     * For technicians to see what they completed.
+     */
+    public function jobDetails(WorkOrder $workOrder)
+    {
+        $workOrder->load(['customer', 'vehicle', 'technician', 'checkin']);
+
+        return view('work-orders.details', compact('workOrder'));
     }
 }
