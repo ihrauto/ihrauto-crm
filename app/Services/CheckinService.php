@@ -44,7 +44,7 @@ class CheckinService
         }
 
         // 2. Update Customer if found (enforce fresh data)
-        if (! $customer->wasRecentlyCreated) {
+        if (!$customer->wasRecentlyCreated) {
             $this->updateCustomer($customer, $data);
         }
 
@@ -52,7 +52,7 @@ class CheckinService
         $vehicle = $this->findVehicle($data['license_plate']) ?? $this->createVehicle($customer, $data);
 
         // 4. Update Vehicle if found
-        if (! $vehicle->wasRecentlyCreated) {
+        if (!$vehicle->wasRecentlyCreated) {
             $vehicle->update([
                 'customer_id' => $customer->id,
                 'mileage' => $data['mileage'] ?? $vehicle->mileage,
@@ -73,7 +73,7 @@ class CheckinService
 
     private function findCustomer(array $data)
     {
-        if (! empty($data['email'])) {
+        if (!empty($data['email'])) {
             $email = trim($data['email']);
             // Search withTrashed to prevent unique constraint violations on soft-deleted records
             $customer = Customer::withTrashed()
@@ -85,7 +85,7 @@ class CheckinService
             }
         }
 
-        if (! empty($data['phone'])) {
+        if (!empty($data['phone'])) {
             $phone = trim($data['phone']);
 
             return Customer::withTrashed()
@@ -105,7 +105,7 @@ class CheckinService
         ]);
 
         return Customer::create([
-            'name' => trim($data['customer_first_name'].' '.$data['customer_last_name']),
+            'name' => trim($data['customer_first_name'] . ' ' . $data['customer_last_name']),
             'phone' => isset($data['phone']) ? trim($data['phone']) : null,
             'email' => isset($data['email']) ? trim($data['email']) : null,
             'address' => implode(', ', $addressParts),
@@ -121,7 +121,7 @@ class CheckinService
         ]);
 
         $customer->update([
-            'name' => trim($data['customer_first_name'].' '.$data['customer_last_name']),
+            'name' => trim($data['customer_first_name'] . ' ' . $data['customer_last_name']),
             'phone' => isset($data['phone']) ? trim($data['phone']) : $customer->phone,
             // Don't update email if it conflicts? Or assume findCustomer handled it?
             // If we found by phone, but email is different and exists elsewhere... edge case.
@@ -135,7 +135,7 @@ class CheckinService
     {
         $normalized = strtoupper(str_replace(' ', '', trim($licensePlate)));
 
-        return Vehicle::whereRaw('UPPER(REPLACE(license_plate, " ", "")) = ?', [$normalized])->first();
+        return Vehicle::whereRaw("UPPER(REPLACE(license_plate, ' ', '')) = ?", [$normalized])->first();
     }
 
     private function createVehicle(Customer $customer, array $data)

@@ -58,16 +58,16 @@ class StoreCheckinRequest extends FormRequest
                         $normalizedPlate = strtoupper(str_replace(' ', '', trim($value)));
 
                         // Check if any existing vehicle has this normalized plate
-                        $existingVehicle = Vehicle::whereRaw('UPPER(REPLACE(license_plate, " ", "")) = ?', [$normalizedPlate])->first();
+                        $existingVehicle = Vehicle::whereRaw("UPPER(REPLACE(license_plate, ' ', '')) = ?", [$normalizedPlate])->first();
 
                         if ($existingVehicle) {
-                            $fail('A vehicle with license plate "'.$existingVehicle->license_plate.'" is already registered in our system.');
+                            $fail('A vehicle with license plate "' . $existingVehicle->license_plate . '" is already registered in our system.');
                         }
                     },
                 ],
                 'make' => 'required|string|max:50',
                 'model' => 'required|string|max:50',
-                'year' => 'required|integer|min:1900|max:'.(date('Y') + 1),
+                'year' => 'required|integer|min:1900|max:' . (date('Y') + 1),
                 'color' => 'nullable|string|max:30',
                 'mileage' => 'nullable|integer|min:0',
                 'services' => 'required|array|min:1',
