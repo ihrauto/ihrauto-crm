@@ -69,7 +69,7 @@
                 <div>
                     <h3 class="px-3 text-[10px] font-extrabold text-indigo-300/50 uppercase tracking-[0.2em] mb-4">Overview</h3>
                     <div class="space-y-1">
-                        @if(!auth()->check() || auth()->user()->can('access dashboard'))
+                        @can('access dashboard')
                         <a href="{{ route('dashboard') }}" id="nav-dashboard"
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('dashboard') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
@@ -78,9 +78,9 @@
                             </svg>
                             Dashboard
                         </a>
-                        @endif
+                        @endcan
 
-                        @if(!auth()->check() || auth()->user()->can('access check-in'))
+                        @can('access check-in')
                         <a href="{{ route('checkin') }}" id="nav-checkin"
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('checkin*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
@@ -89,9 +89,9 @@
                             </svg>
                             Check-In
                         </a>
-                        @endif
+                        @endcan
 
-                        @if(!auth()->check() || auth()->user()->can('access tire-hotel'))
+                        @can('access tire-hotel')
                             @php
                                 $hasTireHotel = tenant() && tenant()->hasTireHotel();
                             @endphp
@@ -114,9 +114,9 @@
                                     <span class="ml-auto px-1.5 py-0.5 text-[9px] bg-amber-500/20 text-amber-300 rounded font-semibold">PRO</span>
                                 </div>
                             @endif
-                        @endif
+                        @endcan
 
-                        @if(!auth()->check() || auth()->user()->can('access work-orders'))
+                        @can('access work-orders')
                         <a href="{{ route('work-orders.index') }}" id="nav-work-orders"
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('work-orders*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
@@ -125,9 +125,9 @@
                             </svg>
                             Work Orders
                         </a>
-                        @endif
+                        @endcan
                         
-                        @if(!auth()->check() || auth()->user()->can('access appointments'))
+                        @can('access appointments')
                         <a href="{{ route('appointments.index') }}" id="nav-appointments"
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('appointments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
@@ -136,9 +136,9 @@
                             </svg>
                             APPOINTMENTS
                         </a>
-                        @endif
+                        @endcan
 
-                        @if(!auth()->check() || auth()->user()->can('access finance'))
+                        @can('access finance')
                         <a href="{{ route('finance.index') }}" id="nav-finance"
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('finance*', 'payments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
@@ -147,7 +147,7 @@
                             </svg>
                             FINANCE
                         </a>
-                        @endif
+                        @endcan
                     </div>
                 </div>
 
@@ -155,7 +155,7 @@
                 <div>
                    <h3 class="px-3 text-[10px] font-extrabold text-indigo-300/50 uppercase tracking-[0.2em] mb-4">Management</h3>
                     <div class="space-y-1">
-                        @if(!auth()->check() || auth()->user()->can('access inventory'))
+                        @can('access inventory')
                         <a href="{{ route('products-services.index') }}" 
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('products-services*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
@@ -164,9 +164,9 @@
                             </svg>
                             Inventory & Services
                         </a>
-                        @endif
+                        @endcan
 
-                        @if(!auth()->check() || auth()->user()->can('access customers'))
+                        @can('access customers')
                         <a href="{{ route('customers.index') }}" 
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('customers*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
@@ -175,9 +175,9 @@
                             </svg>
                             Customers
                         </a>
-                        @endif
+                        @endcan
 
-                        @if(!auth()->check() || auth()->user()->can('access management'))
+                        @can('access management')
                         <a href="{{ route('management') }}" 
                            @click="sidebarOpen = false"
                            class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('management*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
@@ -187,7 +187,7 @@
                             </svg>
                             Management
                         </a>
-                        @endif
+                        @endcan
                     </div>
                 </div>
             </div>
