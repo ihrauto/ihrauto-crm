@@ -191,7 +191,9 @@ class CheckinController extends Controller
         $checkin->update($updates);
 
         if ($request->status === 'done') {
-            return back()->with('success', 'Check-in completed and archived successfully! Service for ' . $checkin->vehicle->display_name . ' has been finalized.');
+            $checkin->load('vehicle');
+            $vehicleName = $checkin->vehicle ? $checkin->vehicle->display_name : 'Unknown Vehicle';
+            return back()->with('success', 'Check-in completed and archived successfully! Service for ' . $vehicleName . ' has been finalized.');
         }
 
         return back()->with('success', 'Check-in updated successfully.');
