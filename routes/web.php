@@ -397,9 +397,10 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
     Route::resource('mechanics', \App\Http\Controllers\MechanicsController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
     Route::post('/mechanics/{mechanic}/invite', [\App\Http\Controllers\MechanicsController::class, 'invite'])->name('mechanics.invite');
 
-    Route::get('/work-bays', function () {
-        return "Work Bay Page - Coming Soon";
-    })->name('work-bays.index');
+    Route::get('/work-bays', [\App\Http\Controllers\ServiceBayController::class, 'index'])->name('work-bays.index');
+    Route::post('/work-bays', [\App\Http\Controllers\ServiceBayController::class, 'store'])->name('work-bays.store');
+    Route::put('/work-bays/{serviceBay}', [\App\Http\Controllers\ServiceBayController::class, 'update'])->name('work-bays.update');
+    Route::delete('/work-bays/{serviceBay}', [\App\Http\Controllers\ServiceBayController::class, 'destroy'])->name('work-bays.destroy');
 
     // Appointment routes
     Route::resource('appointments', \App\Http\Controllers\AppointmentController::class);

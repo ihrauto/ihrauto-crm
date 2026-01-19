@@ -8,14 +8,11 @@
         <div class="flex items-center justify-between no-print">
             <div class="flex items-center gap-4">
                 <a href="{{ route('finance.index', ['tab' => 'invoices']) }}"
-                    class="group inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">
-                    <div
-                        class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mr-2 group-hover:bg-indigo-100 transition-colors">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7 7-7">
-                            </path>
-                        </svg>
-                    </div>
+                    class="inline-flex items-center px-4 py-2 border border-indigo-200 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-50 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
                     Back to Invoices
                 </a>
             </div>
@@ -53,7 +50,8 @@
                         <div class="mt-4 text-sm text-gray-500">
                             <p>{{ auth()->user()->tenant->address ?? '123 Garage Lane' }}</p>
                             <p>{{ auth()->user()->tenant->postal_code ?? '' }}
-                                {{ auth()->user()->tenant->city ?? 'Zurich' }}</p>
+                                {{ auth()->user()->tenant->city ?? 'Zurich' }}
+                            </p>
                             <p>{{ auth()->user()->tenant->country ?? 'Switzerland' }}</p>
                             @if(auth()->user()->tenant->uid_number)
                                 <p class="mt-1">UID: {{ auth()->user()->tenant->uid_number }}</p>

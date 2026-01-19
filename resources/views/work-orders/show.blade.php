@@ -493,7 +493,7 @@
         </div>
 
         <!-- View Details Button (Below Grid to allow Left Column to match Right Column height) -->
-        @if($workOrder->status === 'completed')
+        @if($workOrder->status === 'completed' && !auth()->user()->hasRole(['admin', 'owner']))
             <div class="mt-6 flex justify-start">
                 <a href="{{ route('work-orders.details', $workOrder) }}"
                     class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-6 rounded-lg text-sm font-bold shadow-sm transition-colors">

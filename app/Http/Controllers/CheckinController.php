@@ -244,11 +244,19 @@ class CheckinController extends Controller
 
     private function getServiceBayStatus()
     {
-        $bays = config('crm.service_bays.names');
+        // Fetch bays from database (auto-seeds defaults if empty)
+        $serviceBays = \App\Models\ServiceBay::active()->ordered()->get();
+
+        // If no bays exist, seed defaults for this tenant
+        if ($serviceBays->isEmpty()) {
+            $this->seedDefaultBays();
+            $serviceBays = \App\Models\ServiceBay::active()->ordered()->get();
+        }
+
         $bay_status = [];
 
-        foreach ($bays as $bay) {
-            $active_checkins = Checkin::where('service_bay', $bay)
+        foreach ($serviceBays as $serviceBay) {
+            $active_checkins = Checkin::where('service_bay', $serviceBay->name)
                 ->whereIn('status', ['pending', 'in_progress'])
                 ->get();
 
@@ -256,7 +264,7 @@ class CheckinController extends Controller
             $first_checkin = $active_checkins->first();
 
             $bay_status[] = [
-                'name' => $bay,
+                'name' => $serviceBay->name,
                 'status' => $count > 0 ? 'in_use' : 'available',
                 'count' => $count,
                 'checkin' => $first_checkin,
@@ -265,6 +273,24 @@ class CheckinController extends Controller
         }
 
         return $bay_status;
+    }
+
+    /**
+     * Seed default bays for the current tenant.
+     */
+    private function seedDefaultBays()
+    {
+        $tenantId = auth()->user()->tenant_id;
+        $defaultBays = ['Bay 1', 'Bay 2', 'Bay 3', 'Bay 4', 'Bay 5', 'Bay 6'];
+
+        foreach ($defaultBays as $index => $name) {
+            \App\Models\ServiceBay::create([
+                'tenant_id' => $tenantId,
+                'name' => $name,
+                'is_active' => true,
+                'sort_order' => $index + 1,
+            ]);
+        }
     }
 
     /**

@@ -12,55 +12,29 @@
     </nav>
 
     <!-- Professional Header -->
-    <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-8">
-        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div class="flex items-center space-x-6 w-full md:w-auto">
-                <a href="{{ route('customers.index') }}" 
-                   class="p-2 rounded-lg text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                    </svg>
-                </a>
-                
-                <div class="flex flex-col sm:flex-row items-center sm:space-x-6 text-center sm:text-left">
-                    <div class="w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-2xl flex items-center justify-center text-3xl font-bold shadow-lg mb-4 sm:mb-0">
-                        {{ strtoupper(substr($customer->name, 0, 1)) }}
-                    </div>
-                    <div>
-                        <h1 class="text-3xl font-bold text-indigo-950 tracking-tight">{{ $customer->name }}</h1>
-                        <p class="text-indigo-500 font-mono mt-1">Customer ID: #{{ sprintf('%04d', $customer->id) }}</p>
-                        <div class="flex flex-wrap justify-center sm:justify-start items-center gap-3 mt-3">
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-sm">
-                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                </svg>
-                                Active Customer
-                            </span>
-                            <span class="text-sm font-medium text-indigo-400">Member since {{ $customer->created_at->format('F Y') }}</span>
-                        </div>
-                    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-6">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-indigo-950 tracking-tight">{{ $customer->name }}</h1>
+                <p class="text-indigo-500 font-mono text-sm mt-1">Customer ID: #{{ sprintf('%04d', $customer->id) }}</p>
+                <div class="flex flex-wrap items-center gap-2 mt-2">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Active
+                    </span>
+                    <span class="text-xs text-indigo-400">Since {{ $customer->created_at->format('M Y') }}</span>
                 </div>
             </div>
             
-            <div class="flex items-center space-x-3 w-full md:w-auto justify-center md:justify-end">
-                <a href="{{ route('customers.edit', $customer) }}" 
-                   class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                    </svg>
-                    Edit Customer
-                </a>
-                
-                <div class="relative">
-                    <button type="button" 
-                            onclick="document.getElementById('deleteModal').classList.remove('hidden')"
-                            class="bg-white text-red-600 px-4 py-3 rounded-lg font-medium hover:bg-red-50 transition-colors border border-red-200 shadow-sm hover:border-red-300">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+            <a href="{{ route('customers.edit', $customer) }}" 
+               class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                Edit Customer
+            </a>
         </div>
     </div>
 

@@ -25,20 +25,19 @@
 
         <!-- Header Actions -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div class="flex items-center space-x-4">
-                <a href="{{ route('work-orders.index') }}" class="text-indigo-500 hover:text-indigo-700 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                </a>
-                <h1 class="text-2xl font-bold text-indigo-950 tracking-tight">Mechanics</h1>
-                <span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold border border-indigo-200">
-                    {{ $mechanics->total() }} Total
-                </span>
-            </div>
+            <a href="{{ route('work-orders.index') }}"
+                class="inline-flex items-center px-4 py-2 border border-indigo-200 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-50 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Work Orders
+            </a>
+            <span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold border border-indigo-200">
+                {{ $mechanics->total() }} Total
+            </span>
 
             <a href="{{ route('mechanics.create') }}"
-                class="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                class="inline-flex items-center justify-center px-5 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                 </svg>
