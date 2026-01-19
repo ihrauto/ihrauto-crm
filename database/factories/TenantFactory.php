@@ -16,7 +16,7 @@ class TenantFactory extends Factory
 
         return [
             'name' => $name,
-            'slug' => Str::slug($name).'-'.fake()->unique()->numberBetween(1000, 9999),
+            'slug' => Str::slug($name) . '-' . fake()->unique()->numberBetween(1000, 9999),
             'subdomain' => fake()->unique()->slug(2),
             'domain' => null,
             'email' => fake()->unique()->safeEmail(),
@@ -24,7 +24,7 @@ class TenantFactory extends Factory
             'address' => fake()->address(),
             'city' => fake()->city(),
             'country' => 'CH',
-            'plan' => fake()->randomElement(['free', 'basic', 'premium', 'enterprise']),
+            'plan' => fake()->randomElement(['basic', 'standard', 'custom']),
             'max_users' => 10,
             'max_customers' => 1000,
             'max_vehicles' => 5000,
@@ -45,7 +45,7 @@ class TenantFactory extends Factory
             'two_factor_required' => false,
             'ip_whitelist' => null,
             'audit_logs_enabled' => true,
-            'api_key' => 'tk_'.Str::random(32),
+            'api_key' => 'tk_' . Str::random(32),
             'api_rate_limit' => 1000,
         ];
     }

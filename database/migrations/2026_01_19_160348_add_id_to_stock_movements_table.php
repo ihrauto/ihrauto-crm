@@ -10,9 +10,12 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('stock_movements', function (Blueprint $table) {
-            $table->id()->first();
-        });
+        // Only add id if it doesn't exist (SQLite compatibility)
+        if (!Schema::hasColumn('stock_movements', 'id')) {
+            Schema::table('stock_movements', function (Blueprint $table) {
+                $table->id()->first();
+            });
+        }
     }
 
     /**
