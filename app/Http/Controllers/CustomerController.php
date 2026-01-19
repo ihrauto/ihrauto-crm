@@ -15,10 +15,17 @@ class CustomerController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+            $normalizedSearch = strtoupper(str_replace(' ', '', trim($search)));
+
+            $query->where(function ($q) use ($search, $normalizedSearch) {
+                // Case-insensitive search on name, phone, email
+                $q->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(phone) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(email) LIKE ?', ['%' . strtolower($search) . '%'])
+                    // Search by license plate (normalized, case-insensitive)
+                    ->orWhereHas('vehicles', function ($vehicleQuery) use ($normalizedSearch) {
+                        $vehicleQuery->whereRaw('UPPER(REPLACE(license_plate, \' \', \'\')) LIKE ?', ['%' . $normalizedSearch . '%']);
+                    });
             });
         }
 

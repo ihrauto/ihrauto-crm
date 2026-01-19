@@ -300,12 +300,39 @@
                     <div class="hidden sm:block h-8 w-px bg-indigo-100 mx-2"></div>
                      
                     <!-- Notifications -->
-                    <button class="relative p-2 text-indigo-300 hover:text-indigo-600 transition-colors rounded-full hover:bg-indigo-50">
-                        <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                        </svg>
-                    </button>
+                    <div class="relative" x-data="{ notifOpen: false }">
+                        <button @click="notifOpen = !notifOpen" class="relative p-2 text-indigo-300 hover:text-indigo-600 transition-colors rounded-full hover:bg-indigo-50">
+                            <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                        </button>
+                        
+                        <!-- Notifications Dropdown -->
+                        <div x-show="notifOpen" 
+                             @click.away="notifOpen = false"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-150"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 py-3 z-50 origin-top-right"
+                             style="display: none;">
+                            
+                            <div class="px-4 pb-3 border-b border-gray-100">
+                                <h3 class="text-sm font-bold text-gray-900">Notifications</h3>
+                            </div>
+                            
+                            <div class="py-8 px-4 text-center">
+                                <svg class="w-12 h-12 mx-auto text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                </svg>
+                                <p class="text-sm text-gray-500">No notifications</p>
+                                <p class="text-xs text-gray-400 mt-1">You're all caught up!</p>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Profile Dropdown -->
                     <div class="relative" x-data="{ open: false }">

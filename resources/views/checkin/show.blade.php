@@ -9,13 +9,11 @@
                 <h1 class="text-2xl font-bold text-indigo-900">Check-in #{{ $checkin->id }}</h1>
                 <p class="text-sm text-indigo-500">Created on {{ $checkin->created_at->format('M d, Y H:i') }}</p>
             </div>
-            <a href="{{ route('checkin') }}" 
-               class="group inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">
-                <div class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mr-2 group-hover:bg-indigo-100 transition-colors">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7 7-7"></path>
-                    </svg>
-                </div>
+            <a href="{{ route('checkin') }}"
+                class="inline-flex items-center px-4 py-2 border border-indigo-200 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-50 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
                 Back to Check-ins
             </a>
         </div>
