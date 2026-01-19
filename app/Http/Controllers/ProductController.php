@@ -18,6 +18,11 @@ class ProductController extends Controller
             'stock_quantity' => 'required|integer|min:0',
             'min_stock_quantity' => 'required|integer|min:0',
             'description' => 'nullable|string',
+            'unit' => 'nullable|string|max:50',
+            'purchase_price' => 'nullable|numeric|min:0',
+            'order_number' => 'nullable|string|max:100',
+            'supplier' => 'nullable|string|max:255',
+            'status' => 'nullable|string|in:in_stock,out_of_stock,ordered',
         ]);
 
         $validated['tenant_id'] = auth()->user()->tenant_id;
@@ -48,6 +53,12 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'min_stock_quantity' => 'required|integer|min:0',
             'description' => 'nullable|string',
+            'stock_quantity' => 'nullable|integer|min:0',
+            'unit' => 'nullable|string|max:50',
+            'purchase_price' => 'nullable|numeric|min:0',
+            'order_number' => 'nullable|string|max:100',
+            'supplier' => 'nullable|string|max:255',
+            'status' => 'nullable|string|in:in_stock,out_of_stock,ordered',
         ]);
 
         $product->update($validated);
@@ -100,5 +111,69 @@ class ProductController extends Controller
 
         return redirect()->route('products-services.index', ['tab' => 'parts'])
             ->with('success', 'Stock updated successfully.');
+    }
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt|max:5120', // Max 5MB
+        ]);
+
+        $file = $request->file('file');
+
+        // Open file
+        if (($handle = fopen($file->getRealPath(), 'r')) !== FALSE) {
+            $header = fgetcsv($handle, 1000, ','); // Assume first row is header
+
+            // Basic mapping check (optional, or just assume order/names)
+            // For now, let's assume columns: Name, SKU, Price, Quantity, MinStock
+
+            $count = 0;
+
+            while (($data = fgetcsv($handle, 1000, ',')) !== FALSE) {
+                // Skip empty rows
+                if (count($data) < 1 || empty($data[0]))
+                    continue;
+
+                // Simple mapping by index for MVP (or can be header based later)
+                // 0: Name, 1: SKU, 2: Price, 3: Qty, 4: MinStock
+
+                Product::create([
+                    'tenant_id' => auth()->user()->tenant_id,
+                    'name' => $data[0],
+                    'sku' => $data[1] ?? null,
+                    'price' => isset($data[2]) ? (float) $data[2] : 0,
+                    'stock_quantity' => isset($data[3]) ? (int) $data[3] : 0,
+                    'min_stock_quantity' => isset($data[4]) ? (int) $data[4] : 10,
+                    'description' => 'Imported via Excel/CSV',
+                ]);
+
+                $count++;
+            }
+            fclose($handle);
+
+            return redirect()->route('products-services.index', ['tab' => 'parts'])
+                ->with('success', "Imported {$count} products successfully.");
+        }
+
+        return back()->with('error', 'Could not read the file.');
+    }
+
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="products_template.csv"',
+        ];
+
+        $callback = function () {
+            $handle = fopen('php://output', 'w');
+            // Headers
+            fputcsv($handle, ['Name', 'SKU', 'Price', 'Quantity', 'Min Stock']);
+            // Sample Row
+            fputcsv($handle, ['Brake Pad', 'BP-001', '45.50', '100', '5']);
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

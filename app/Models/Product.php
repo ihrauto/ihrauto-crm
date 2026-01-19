@@ -20,6 +20,11 @@ class Product extends Model
         'stock_quantity',
         'min_stock_quantity',
         'is_template',
+        'unit',
+        'purchase_price',
+        'order_number',
+        'supplier',
+        'status',
     ];
 
     public function movements()
