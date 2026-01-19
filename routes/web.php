@@ -417,6 +417,8 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
     // Products & Services (Inventory)
     Route::get('/api/products-services/search', [\App\Http\Controllers\ProductServiceController::class, 'search'])->name('api.products-services.search');
     Route::get('/products-services', [\App\Http\Controllers\ProductServiceController::class, 'index'])->name('products-services.index');
+    Route::get('products/import/template', [\App\Http\Controllers\ProductController::class, 'downloadTemplate'])->name('products.import.template');
+    Route::post('products/import', [\App\Http\Controllers\ProductController::class, 'import'])->name('products.import');
     Route::resource('products', \App\Http\Controllers\ProductController::class);
     Route::post('products/{product}/stock', [\App\Http\Controllers\ProductController::class, 'stockOperation'])->name('products.stock');
     Route::resource('services', \App\Http\Controllers\ServiceController::class);

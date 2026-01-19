@@ -11,8 +11,19 @@ class ProductServiceController extends Controller
     public function index(Request $request)
     {
         $tab = $request->get('tab', 'parts');
+        $search = $request->get('search');
 
-        $products = Product::latest()->get(); // For MVP, simple get() is fine. Pagination later.
+        // Filter products if search term provided
+        $products = Product::latest()
+            ->when($search, function ($query, $search) {
+                $searchLower = strtolower($search);
+                return $query->where(function ($q) use ($searchLower) {
+                    $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
+                        ->orWhereRaw('LOWER(sku) LIKE ?', ["%{$searchLower}%"]);
+                });
+            })
+            ->get();
+
         $services = Service::latest()->get();
 
         return view('products-services.index', compact('products', 'services', 'tab'));
