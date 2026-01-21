@@ -16,47 +16,44 @@ class CustomerController extends Controller
      */
     public function search(Request $request): JsonResponse
     {
-        $request->validate([
-            'q' => 'required|string|min:1|max:255',
-            'limit' => 'nullable|integer|min:1|max:50',
-        ]);
-
-        $query = $request->get('q');
+        // Accept both 'query' and 'q' for compatibility
+        $searchQuery = $request->get('query') ?? $request->get('q');
         $limit = $request->get('limit', 10);
 
-        try {
-            // Search by license plate (normalized search)
-            $normalizedSearch = strtoupper(str_replace(' ', '', trim($query)));
+        // Validate - minimum 2 characters
+        if (!$searchQuery || strlen($searchQuery) < 2) {
+            return response()->json([]);
+        }
 
-            $customers = Customer::with(['vehicles' => function ($queryBuilder) use ($normalizedSearch) {
-                $queryBuilder->whereRaw('UPPER(REPLACE(license_plate, " ", "")) LIKE ?', ["%{$normalizedSearch}%"]);
-            }])
-                ->where(function ($queryBuilder) use ($normalizedSearch, $query) {
-                    $queryBuilder->whereHas('vehicles', function ($q) use ($normalizedSearch) {
-                        $q->whereRaw('UPPER(REPLACE(license_plate, " ", "")) LIKE ?', ["%{$normalizedSearch}%"]);
-                    })
-                        ->orWhere('name', 'LIKE', "%{$query}%")
-                        ->orWhere('phone', 'LIKE', "%{$query}%")
-                        ->orWhere('email', 'LIKE', "%{$query}%");
+        try {
+            // Normalize for plate search
+            $normalizedPlate = strtoupper(str_replace(' ', '', trim($searchQuery)));
+            $searchTerm = strtolower(trim($searchQuery));
+
+            $customers = Customer::with([
+                'vehicles' => function ($queryBuilder) use ($normalizedPlate) {
+                    $queryBuilder->whereRaw("UPPER(REPLACE(license_plate, ' ', '')) LIKE ?", ["%{$normalizedPlate}%"]);
+                }
+            ])
+                ->where(function ($queryBuilder) use ($normalizedPlate, $searchTerm) {
+                    // Search by customer name (case-insensitive)
+                    $queryBuilder->whereRaw('LOWER(name) LIKE ?', ["%{$searchTerm}%"])
+                        // Or by phone
+                        ->orWhereRaw('LOWER(phone) LIKE ?', ["%{$searchTerm}%"])
+                        // Or by email
+                        ->orWhereRaw('LOWER(email) LIKE ?', ["%{$searchTerm}%"])
+                        // Or by license plate
+                        ->orWhereHas('vehicles', function ($q) use ($normalizedPlate) {
+                        $q->whereRaw("UPPER(REPLACE(license_plate, ' ', '')) LIKE ?", ["%{$normalizedPlate}%"]);
+                    });
                 })
                 ->limit($limit)
-                ->get();
+                ->get(['id', 'name', 'phone', 'email']);
 
-            return response()->json([
-                'success' => true,
-                'data' => CustomerResource::collection($customers),
-                'meta' => [
-                    'query' => $query,
-                    'total' => $customers->count(),
-                    'limit' => $limit,
-                ],
-            ]);
+            // Return simple array for compatibility with checkin.blade.php JavaScript
+            return response()->json($customers);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error searching customers',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+            return response()->json([]);
         }
     }
 

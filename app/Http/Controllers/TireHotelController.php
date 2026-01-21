@@ -177,36 +177,42 @@ class TireHotelController extends Controller
     private function legacySearchByRegistration($request)
     {
         $query = $request->get('registration');
+        $searchTerm = strtolower(trim($query));
 
-        // 1. Try to find by exact Storage Location
-        $tireByLocation = Tire::with(['vehicle.customer'])
-            ->where('storage_location', $query)
-            ->first();
-
-        if ($tireByLocation) {
-            $vehicle = $tireByLocation->vehicle;
-        } else {
-            // 2. Fallback to License Plate or Customer Name search
-            $vehicle = Vehicle::with('customer')
-                ->where(function ($q) use ($query) {
-                    $q->where('license_plate', 'LIKE', "%$query%") // License Plate
-                        ->orWhereHas('customer', function ($q) use ($query) { // Customer Name
-                            $q->where('name', 'LIKE', "%$query%");
-                        });
+        // Search directly on Tire model, looking at customer name, vehicle info, and storage location
+        $tires = Tire::with(['customer', 'vehicle'])
+            ->where(function ($q) use ($searchTerm) {
+                // Storage Location (case-insensitive)
+                $q->whereRaw('LOWER(storage_location) LIKE ?', ["%{$searchTerm}%"])
+                    // Customer Name (case-insensitive, partial match)
+                    ->orWhereHas('customer', function ($cq) use ($searchTerm) {
+                    $cq->whereRaw('LOWER(name) LIKE ?', ["%{$searchTerm}%"]);
                 })
-                ->first();
+                    // Vehicle License Plate (case-insensitive)
+                    ->orWhereHas('vehicle', function ($vq) use ($searchTerm) {
+                    $vq->whereRaw('LOWER(license_plate) LIKE ?', ["%{$searchTerm}%"])
+                        ->orWhereRaw('LOWER(make) LIKE ?', ["%{$searchTerm}%"])
+                        ->orWhereRaw('LOWER(model) LIKE ?', ["%{$searchTerm}%"]);
+                });
+            })
+            ->get();
+
+        if ($tires->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'No tires found']);
         }
 
-        if (!$vehicle) {
-            return response()->json(['success' => false, 'message' => 'Not found']);
-        }
+        // Get the first tire's vehicle for display purposes
+        $firstTire = $tires->first();
+        $vehicle = $firstTire->vehicle;
 
-        // Get all stored tires for this vehicle
-        $tires = Tire::where('vehicle_id', $vehicle->id)->where('status', 'stored')->get();
+        // Load customer for the response
+        if ($vehicle) {
+            $vehicle->load('customer');
+        }
 
         return response()->json([
             'success' => true,
-            'vehicle' => $vehicle,
+            'vehicle' => $vehicle ?? (object) ['make' => 'Unknown', 'model' => 'Vehicle', 'customer' => $firstTire->customer],
             'current_tires' => $tires,
             'stored_seasons' => $tires->pluck('season')->unique()->values(),
         ]);

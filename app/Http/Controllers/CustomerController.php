@@ -79,18 +79,28 @@ class CustomerController extends Controller
 
     public function search(Request $request)
     {
-        $search = $request->get('q');
+        $search = $request->get('query') ?? $request->get('q');
 
-        // Search by license plate (normalized search)
-        $normalizedSearch = strtoupper(str_replace(' ', '', trim($search)));
+        if (!$search || strlen($search) < 2) {
+            return response()->json([]);
+        }
 
+        $searchTerm = strtolower(trim($search));
+        $normalizedPlate = strtoupper(str_replace(' ', '', trim($search)));
+
+        // Search by customer name OR vehicle license plate
         $customers = Customer::with([
-            'vehicles' => function ($query) use ($normalizedSearch) {
-                $query->whereRaw('UPPER(REPLACE(license_plate, " ", "")) LIKE ?', ["%{$normalizedSearch}%"]);
+            'vehicles' => function ($query) use ($normalizedPlate) {
+                $query->whereRaw("UPPER(REPLACE(license_plate, ' ', '')) LIKE ?", ["%{$normalizedPlate}%"]);
             },
         ])
-            ->whereHas('vehicles', function ($query) use ($normalizedSearch) {
-                $query->whereRaw('UPPER(REPLACE(license_plate, " ", "")) LIKE ?', ["%{$normalizedSearch}%"]);
+            ->where(function ($q) use ($searchTerm, $normalizedPlate) {
+                // Search by customer name (case-insensitive)
+                $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchTerm}%"])
+                    // Or by license plate
+                    ->orWhereHas('vehicles', function ($vq) use ($normalizedPlate) {
+                    $vq->whereRaw("UPPER(REPLACE(license_plate, ' ', '')) LIKE ?", ["%{$normalizedPlate}%"]);
+                });
             })
             ->take(10)
             ->get(['id', 'name', 'phone', 'email']);
