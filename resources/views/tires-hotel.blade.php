@@ -57,15 +57,15 @@
                                 d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                         </svg>
                     </div>
-                    <h3 class="text-2xl font-bold mb-2 tracking-tight">Store New Tires</h3>
+                    <h3 class="text-2xl font-bold mb-2 tracking-tight">Store Tires</h3>
                     <p class="text-base font-medium opacity-60 group-hover:opacity-80">Register new tires into storage</p>
                 </div>
             </div>
         </div>
 
         <!-- =========================================
-                                                                 INLINE FORM: Store New Tires (Hidden by default)
-                                                                 ========================================= -->
+                                                                     INLINE FORM: Store New Tires (Hidden by default)
+                                                                     ========================================= -->
         <div id="store-new-form" class="hidden" x-data="tireStorageForm()">
             <x-card>
                 <!-- Header with Cancel -->
@@ -312,23 +312,10 @@
         </div>
 
         <!-- =========================================
-                                                                             INLINE FORM: Retrieve Tires (Hidden by default)
-                                                                             ========================================= -->
+                                                                                 INLINE FORM: Retrieve Tires (Hidden by default)
+                                                                                 ========================================= -->
         <div id="retrieve-form" class="hidden">
             <x-card>
-                <div class="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 class="text-2xl font-bold text-indigo-950">Retrieve Tires</h2>
-                        <p class="text-sm text-indigo-500 mt-1">Find stored tires for active customers</p>
-                    </div>
-                    <button type="button" id="cancel-retrieve-form"
-                        class="text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-full hover:bg-gray-100">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                            </path>
-                        </svg>
-                    </button>
-                </div>
 
                 <!-- Search Box -->
                 <div class="bg-white rounded-xl p-6 ring-1 ring-indigo-100">
@@ -428,223 +415,184 @@
                     </div>
                 </x-card>
             </div>
-
-            <!-- Storage Map -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-                <div class="lg:col-span-2">
-                    <div class="bg-white rounded-xl ring-1 ring-indigo-100 p-6 shadow-sm">
-                        <div class="mb-4 border-b border-indigo-50 pb-2">
-                            <h3 class="text-lg font-bold text-indigo-950">Stored Tires Inventory</h3>
-                        </div>
-                        @if($tires->count() > 0)
-                            <!-- Desktop Table -->
-                            <div class="hidden md:block overflow-x-auto">
-                                <table class="min-w-full divide-y divide-indigo-50">
-                                    <thead class="bg-indigo-50/50">
-                                        <tr>
-                                            <th
-                                                class="px-4 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                                                Customer & Vehicle</th>
-                                            <th
-                                                class="px-4 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                                                Season</th>
-                                            <th
-                                                class="px-4 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                                                Location</th>
-                                            <th
-                                                class="px-4 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                                                Storage Date</th>
-                                            <th
-                                                class="px-4 py-3 text-center text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                                                Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-indigo-50">
-                                        @foreach($tires as $tire)
-                                            <tr class="hover:bg-indigo-50/30 transition-colors">
-                                                <td class="px-4 py-3 whitespace-nowrap">
-                                                    <div>
-                                                        <p class="text-sm font-semibold text-indigo-900">
-                                                            {{ explode(' - ', $tire->customer->name ?? 'Unknown')[0] }}
-                                                        </p>
-                                                        <p class="text-xs text-indigo-500">
-                                                            {{ $tire->vehicle->display_name ?? 'Unknown Vehicle' }}
-                                                        </p>
-                                                    </div>
-                                                </td>
-                                                <td class="px-4 py-3 whitespace-nowrap">
-                                                    <span
-                                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $tire->season === 'winter' ? 'bg-sky-100 text-sky-800' : ($tire->season === 'summer' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800') }}">
-                                                        {{ ucfirst(str_replace('_', ' ', $tire->season)) }}
-                                                    </span>
-                                                </td>
-                                                <td class="px-4 py-3 whitespace-nowrap">
-                                                    <span
-                                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 font-mono">
-                                                        {{ $tire->storage_location }}
-                                                    </span>
-                                                </td>
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-indigo-600">
-                                                    {{ $tire->storage_date->format('M j, Y') }}
-                                                    <br>
-                                                    <span class="text-xs text-indigo-400">{{ $tire->storage_duration }}</span>
-                                                </td>
-                                                <td class="px-4 py-3 whitespace-nowrap text-center">
-                                                    <div class="flex items-center justify-center space-x-2">
-                                                        <button type="button"
-                                                            class="group inline-flex items-center justify-center w-8 h-8 text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-600 hover:text-white transition-all duration-200 shadow-sm"
-                                                            data-action="edit-tire" data-tire-id="{{ $tire->id }}"
-                                                            title="Edit tire">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                                viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                                    stroke-width="2"
-                                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
-                                                                </path>
-                                                            </svg>
-                                                        </button>
-                                                        <form method="POST"
-                                                            action="{{ route('tires-hotel.generate-work-order', $tire->id) }}"
-                                                            onsubmit="return confirm('Create Work Order for this tire job?');"
-                                                            class="inline" title="Create Work Order">
-                                                            @csrf
-                                                            <button type="submit"
-                                                                class="group inline-flex items-center justify-center w-8 h-8 text-green-600 bg-white border border-green-200 rounded-lg hover:bg-green-600 hover:text-white transition-all duration-200 shadow-sm">
-                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                                    viewBox="0 0 24 24">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                                        stroke-width="2"
-                                                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
-                                                                    </path>
-                                                                </svg>
-                                                            </button>
-                                                        </form>
-
-                                                        <form method="POST" action="{{ route('tires-hotel.destroy', $tire->id) }}"
-                                                            onsubmit="return confirm('Are you sure you want to remove these tires?');"
-                                                            class="inline">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit"
-                                                                class="group inline-flex items-center justify-center w-8 h-8 text-red-500 bg-white border border-red-200 rounded-lg hover:bg-red-500 hover:text-white transition-all duration-200 shadow-sm"
-                                                                title="Delete tire">
-                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                                    viewBox="0 0 24 24">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                                        stroke-width="2"
-                                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                                                    </path>
-                                                                </svg>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
+            <!-- Storage Capacity & Upcoming Pickups Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Storage Capacity -->
+                <div class="bg-white rounded-xl ring-1 ring-indigo-100 p-4 shadow-sm">
+                    <h3 class="text-sm font-bold text-indigo-950 mb-3">Storage Capacity</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        @foreach($storage_map as $section)
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-indigo-900 w-16">{{ $section['section'] }}</span>
+                                <div class="flex-1 bg-indigo-50 rounded-full h-1.5">
+                                    <div class="bg-indigo-600 h-1.5 rounded-full" style="width: {{ $section['percentage'] }}%"></div>
+                                </div>
+                                <span class="text-xs text-indigo-500">{{ $section['used'] }}/{{ $section['total'] }}</span>
                             </div>
+                        @endforeach
+                    </div>
+                </div>
 
-                            <!-- Mobile Card Layout -->
-                            <div class="md:hidden space-y-3">
+                <!-- Upcoming Pickups -->
+                <div class="bg-white rounded-xl ring-1 ring-indigo-100 p-4 shadow-sm">
+                    <h3 class="text-sm font-bold text-indigo-950 mb-3">Upcoming Pickups</h3>
+                    @if($upcoming_pickups->count() > 0)
+                        <div class="space-y-2">
+                            @foreach($upcoming_pickups as $pickup)
+                                <div class="flex items-center justify-between py-1 border-b border-indigo-50 last:border-0">
+                                    <div>
+                                        <span class="text-xs font-semibold text-indigo-900">{{ $pickup['customer_name'] }}</span>
+                                        <span class="text-xs text-indigo-400 ml-1">{{ $pickup['vehicle'] }}</span>
+                                    </div>
+                                    <span class="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">{{ $pickup['urgency'] }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-indigo-300 text-center py-2 text-xs">No upcoming pickups</p>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Stored Tires - Full Width -->
+            <div class="bg-white rounded-xl ring-1 ring-indigo-100 p-6 shadow-sm">
+                <div class="mb-4 border-b border-indigo-50 pb-2">
+                    <h3 class="text-lg font-bold text-indigo-950">Stored Tires</h3>
+                </div>
+                @if($tires->count() > 0)
+                    <!-- Desktop Table with scroll for 6 visible rows -->
+                    <div class="hidden md:block overflow-x-auto max-h-[360px] overflow-y-auto">
+                        <table class="min-w-full divide-y divide-indigo-50">
+                            <thead class="bg-indigo-50/50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                        Customer & Vehicle</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                        Season</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                        Location</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                        Storage Date</th>
+                                    <th
+                                        class="px-4 py-3 text-center text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                        Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-indigo-50">
                                 @foreach($tires as $tire)
-                                    <div class="bg-white border border-indigo-100 rounded-lg p-4 shadow-sm">
-                                        <div class="flex justify-between items-start mb-2">
+                                    <tr class="hover:bg-indigo-50/30 transition-colors">
+                                        <td class="px-4 py-3 whitespace-nowrap">
                                             <div>
-                                                <p class="text-sm font-bold text-indigo-900">
+                                                <p class="text-sm font-semibold text-indigo-900">
                                                     {{ explode(' - ', $tire->customer->name ?? 'Unknown')[0] }}
                                                 </p>
                                                 <p class="text-xs text-indigo-500">
                                                     {{ $tire->vehicle->display_name ?? 'Unknown Vehicle' }}
                                                 </p>
                                             </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
                                             <span
-                                                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 font-mono">
-                                                {{ $tire->storage_location }}
-                                            </span>
-                                        </div>
-
-                                        <div class="flex items-center justify-between mt-3 pt-3 border-t border-indigo-50">
-                                            <span
-                                                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $tire->season === 'winter' ? 'bg-sky-100 text-sky-800' : 'bg-orange-100 text-orange-800' }}">
+                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $tire->season === 'winter' ? 'bg-sky-100 text-sky-800' : ($tire->season === 'summer' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800') }}">
                                                 {{ ucfirst(str_replace('_', ' ', $tire->season)) }}
                                             </span>
-                                            <span class="text-xs text-indigo-400">{{ $tire->storage_date->format('M j, Y') }}</span>
-                                        </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span
+                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 font-mono">
+                                                {{ $tire->storage_location }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-indigo-600">
+                                            {{ $tire->storage_date->format('M j, Y') }}
+                                            <br>
+                                            <span class="text-xs text-indigo-400">{{ $tire->storage_duration }}</span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-center">
+                                            <div class="flex items-center justify-center space-x-2">
+                                                <button type="button"
+                                                    class="group inline-flex items-center justify-center w-8 h-8 text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-600 hover:text-white transition-all duration-200 shadow-sm"
+                                                    data-action="edit-tire" data-tire-id="{{ $tire->id }}" title="Edit tire">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                                                        </path>
+                                                    </svg>
+                                                </button>
 
-                                        <div class="mt-3 flex justify-end space-x-2">
-                                            <button type="button" data-action="edit-tire" data-tire-id="{{ $tire->id }}"
-                                                class="text-xs font-medium text-indigo-600 hover:text-indigo-900 p-2">Edit</button>
-                                        </div>
-                                    </div>
+                                                <form method="POST" action="{{ route('tires-hotel.destroy', $tire->id) }}"
+                                                    onsubmit="return confirm('Are you sure you want to remove these tires?');"
+                                                    class="inline">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit"
+                                                        class="group inline-flex items-center justify-center w-8 h-8 text-red-500 bg-white border border-red-200 rounded-lg hover:bg-red-500 hover:text-white transition-all duration-200 shadow-sm"
+                                                        title="Delete tire">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 @endforeach
-                            </div>
-
-                            <!-- Pagination -->
-                            <div class="mt-6">
-                                {{ $tires->links() }}
-                            </div>
-                        @else
-                            <div class="text-center py-12">
-                                <svg class="w-12 h-12 mx-auto text-indigo-200 mb-4" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4">
-                                    </path>
-                                </svg>
-                                <p class="text-indigo-400 font-medium">No tires currently in storage</p>
-                            </div>
-                        @endif
+                            </tbody>
+                        </table>
                     </div>
-                </div>
 
-                <!-- Sidebar Info -->
-                <div class="space-y-6">
-                    <!-- Storage Map -->
-                    <div class="bg-white rounded-xl ring-1 ring-indigo-100 p-6 shadow-sm">
-                        <div class="mb-4 border-b border-indigo-50 pb-2">
-                            <h3 class="text-lg font-bold text-indigo-950">Storage Capacity</h3>
-                        </div>
-                        <div class="space-y-4">
-                            @foreach($storage_map as $section)
-                                <div>
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-sm font-bold text-indigo-900">{{ $section['section'] }}</span>
-                                        <span
-                                            class="text-xs font-medium text-indigo-500">{{ $section['used'] }}/{{ $section['total'] }}</span>
+                    <!-- Mobile Card Layout -->
+                    <div class="md:hidden space-y-3">
+                        @foreach($tires as $tire)
+                            <div class="bg-white border border-indigo-100 rounded-lg p-4 shadow-sm">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p class="text-sm font-bold text-indigo-900">
+                                            {{ explode(' - ', $tire->customer->name ?? 'Unknown')[0] }}
+                                        </p>
+                                        <p class="text-xs text-indigo-500">
+                                            {{ $tire->vehicle->display_name ?? 'Unknown Vehicle' }}
+                                        </p>
                                     </div>
-                                    <div class="w-full bg-indigo-50 rounded-full h-2">
-                                        <div class="bg-indigo-600 h-2 rounded-full transition-all duration-500"
-                                            style="width: {{ $section['percentage'] }}%"></div>
-                                    </div>
+                                    <span
+                                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 font-mono">
+                                        {{ $tire->storage_location }}
+                                    </span>
                                 </div>
-                            @endforeach
-                        </div>
+
+                                <div class="flex items-center justify-between mt-3 pt-3 border-t border-indigo-50">
+                                    <span
+                                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $tire->season === 'winter' ? 'bg-sky-100 text-sky-800' : 'bg-orange-100 text-orange-800' }}">
+                                        {{ ucfirst(str_replace('_', ' ', $tire->season)) }}
+                                    </span>
+                                    <span class="text-xs text-indigo-400">{{ $tire->storage_date->format('M j, Y') }}</span>
+                                </div>
+
+                                <div class="mt-3 flex justify-end space-x-2">
+                                    <button type="button" data-action="edit-tire" data-tire-id="{{ $tire->id }}"
+                                        class="text-xs font-medium text-indigo-600 hover:text-indigo-900 p-2">Edit</button>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
 
-                    <!-- Upcoming Pickups -->
-                    <div class="bg-white rounded-xl ring-1 ring-indigo-100 p-6 shadow-sm">
-                        <div class="mb-4 border-b border-indigo-50 pb-2">
-                            <h3 class="text-lg font-bold text-indigo-950">Upcoming Pickups</h3>
-                        </div>
-                        @if($upcoming_pickups->count() > 0)
-                            <div class="space-y-3">
-                                @foreach($upcoming_pickups as $pickup)
-                                    <div class="p-3 bg-indigo-50/50 rounded-lg border border-indigo-50">
-                                        <p class="text-sm font-bold text-indigo-900">{{ $pickup['customer_name'] }}</p>
-                                        <p class="text-xs text-indigo-500">{{ $pickup['vehicle'] }}</p>
-                                        <span
-                                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 mt-2">
-                                            {{ $pickup['urgency'] }}
-                                        </span>
-                                    </div>
-                                @endforeach
-                            </div>
-                        @else
-                            <p class="text-indigo-300 text-center py-4 text-sm">No upcoming pickups filtered</p>
-                        @endif
+                    <!-- Pagination -->
+                    <div class="mt-6">
+                        {{ $tires->links() }}
                     </div>
-                </div>
+                @else
+                    <div class="text-center py-12">
+                        <svg class="w-12 h-12 mx-auto text-indigo-200 mb-4" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4">
+                            </path>
+                        </svg>
+                        <p class="text-indigo-400 font-medium">No tires currently in storage</p>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
@@ -811,6 +759,13 @@
             function closeAllForms() {
                 hideAllForms();
                 showDashboard();
+                // Clear search input and results
+                const searchInput = document.getElementById('search_registration_inline');
+                const resultsContainer = document.getElementById('tires-results-inline');
+                const statusDiv = document.getElementById('registration-status-inline');
+                if (searchInput) searchInput.value = '';
+                if (resultsContainer) resultsContainer.innerHTML = '';
+                if (statusDiv) statusDiv.classList.add('hidden');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
 
@@ -876,27 +831,27 @@
                                     const tireRow = document.createElement('div');
                                     tireRow.className = 'bg-indigo-50/50 rounded-lg p-4 border border-indigo-100 text-sm mb-4';
                                     tireRow.innerHTML = `
-                                                            <div class="space-y-1">
-                                                                <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Name:</span> <span>${customerName}</span></div>
-                                                                <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Vehicle:</span> <span>${data.vehicle.make} ${data.vehicle.model}</span></div>
-                                                                <div class="h-px bg-indigo-100 my-2"></div>
-                                                                <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Brand:</span> <span>${tire.brand}</span></div>
-                                                                <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Size:</span> <span>${tire.size}</span></div>
-                                                                <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Season:</span> <span>${tire.season}</span></div>
-                                                                <div class="h-px bg-indigo-100 my-2"></div>
-                                                                <div class="flex items-center justify-between">
-                                                                    <div class="font-mono text-indigo-700 font-bold">
-                                                                        Loc: ${section}-${row}-${slot}
+                                                                <div class="space-y-1">
+                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Name:</span> <span>${customerName}</span></div>
+                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Vehicle:</span> <span>${data.vehicle.make} ${data.vehicle.model}</span></div>
+                                                                    <div class="h-px bg-indigo-100 my-2"></div>
+                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Brand:</span> <span>${tire.brand}</span></div>
+                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Size:</span> <span>${tire.size}</span></div>
+                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Season:</span> <span>${tire.season}</span></div>
+                                                                    <div class="h-px bg-indigo-100 my-2"></div>
+                                                                    <div class="flex items-center justify-between">
+                                                                        <div class="font-mono text-indigo-700 font-bold">
+                                                                            Loc: ${section}-${row}-${slot}
+                                                                        </div>
+                                                                        <div class="flex space-x-2">
+                                                                        <a href="/tires-hotel/${tire.id}" 
+                                                                            class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded hover:bg-indigo-700 transition-colors shadow-sm">
+                                                                            View
+                                                                        </a>
                                                                     </div>
-                                                                    <div class="flex space-x-2">
-                                                                    <a href="/tires-hotel/${tire.id}" 
-                                                                        class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded hover:bg-indigo-700 transition-colors shadow-sm">
-                                                                        View
-                                                                    </a>
+                                                                    </div>
                                                                 </div>
-                                                                </div>
-                                                            </div>
-                                                        `;
+                                                            `;
                                     resultsContainer.appendChild(tireRow);
                                 });
                             } else {

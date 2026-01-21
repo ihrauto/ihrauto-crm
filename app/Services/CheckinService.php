@@ -31,35 +31,24 @@ class CheckinService
      */
     public function createWithNewRegistration(array $data)
     {
-        // 1. Find or Create Customer
-        $customer = $this->findCustomer($data);
+        // 1. Always create a NEW customer when using "Add New Client" flow
+        // This ensures new customers are never replaced/merged with existing ones
+        $customer = $this->createCustomer($data);
 
-        if ($customer) {
-            // Restore if trashed
-            if ($customer->trashed()) {
-                $customer->restore();
-            }
-        } else {
-            $customer = $this->createCustomer($data);
-        }
+        // 2. Find existing vehicle by license plate, or create new one
+        $vehicle = $this->findVehicle($data['license_plate']);
 
-        // 2. Update Customer if found (enforce fresh data)
-        if (!$customer->wasRecentlyCreated) {
-            $this->updateCustomer($customer, $data);
-        }
-
-        // 3. Find or Create Vehicle
-        $vehicle = $this->findVehicle($data['license_plate']) ?? $this->createVehicle($customer, $data);
-
-        // 4. Update Vehicle if found
-        if (!$vehicle->wasRecentlyCreated) {
+        if ($vehicle) {
+            // Update vehicle to link to new customer
             $vehicle->update([
                 'customer_id' => $customer->id,
                 'mileage' => $data['mileage'] ?? $vehicle->mileage,
             ]);
+        } else {
+            $vehicle = $this->createVehicle($customer, $data);
         }
 
-        // 5. Create Check-in
+        // 3. Create Check-in
         return Checkin::create([
             'customer_id' => $customer->id,
             'vehicle_id' => $vehicle->id,
@@ -69,31 +58,6 @@ class CheckinService
             'checkin_time' => now(),
             'service_bay' => $data['service_bay'],
         ]);
-    }
-
-    private function findCustomer(array $data)
-    {
-        if (!empty($data['email'])) {
-            $email = trim($data['email']);
-            // Search withTrashed to prevent unique constraint violations on soft-deleted records
-            $customer = Customer::withTrashed()
-                ->where('email', $email)
-                ->first();
-
-            if ($customer) {
-                return $customer;
-            }
-        }
-
-        if (!empty($data['phone'])) {
-            $phone = trim($data['phone']);
-
-            return Customer::withTrashed()
-                ->where('phone', $phone)
-                ->first();
-        }
-
-        return null;
     }
 
     private function createCustomer(array $data)
@@ -109,25 +73,6 @@ class CheckinService
             'phone' => isset($data['phone']) ? trim($data['phone']) : null,
             'email' => isset($data['email']) ? trim($data['email']) : null,
             'address' => implode(', ', $addressParts),
-        ]);
-    }
-
-    private function updateCustomer(Customer $customer, array $data)
-    {
-        $addressParts = array_filter([
-            $data['street_address'] ?? null,
-            $data['city'] ?? null,
-            $data['postal_code'] ?? null,
-        ]);
-
-        $customer->update([
-            'name' => trim($data['customer_first_name'] . ' ' . $data['customer_last_name']),
-            'phone' => isset($data['phone']) ? trim($data['phone']) : $customer->phone,
-            // Don't update email if it conflicts? Or assume findCustomer handled it?
-            // If we found by phone, but email is different and exists elsewhere... edge case.
-            // safely update email only if provided
-            'email' => isset($data['email']) ? trim($data['email']) : $customer->email,
-            'address' => implode(', ', $addressParts) ?: $customer->address,
         ]);
     }
 

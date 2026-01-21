@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="bg-indigo-50 min-h-screen p-6">
+    <div class="min-h-screen p-6">
         <div class="max-w-4xl mx-auto space-y-6">
             <!-- Header -->
             <div class="flex items-center justify-between">
