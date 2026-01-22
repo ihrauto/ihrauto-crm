@@ -72,9 +72,9 @@
                     <div class="relative">
                         <input type="text" name="search" value="{{ $search ?? '' }}" 
                             placeholder="Search by name, vehicle..."
-                            class="block w-64 rounded-md border-0 py-2 pl-4 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                            class="block w-64 rounded-lg border-0 py-2.5 pl-4 pr-10 text-indigo-900 bg-white shadow-sm ring-1 ring-inset ring-indigo-300 placeholder:text-indigo-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6">
                         <button type="submit" class="absolute inset-y-0 right-0 flex items-center pr-3">
-                            <svg class="h-5 w-5 text-gray-400 hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="h-5 w-5 text-indigo-500 hover:text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
                         </button>

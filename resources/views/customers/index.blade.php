@@ -54,9 +54,9 @@
                     <div class="relative">
                         <input type="text" name="search" value="{{ request('search') }}"
                             placeholder="Search by name, phone, or email..."
-                            class="w-full p-2.5 pr-10 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-indigo-900 placeholder-indigo-300 bg-white">
+                            class="w-full p-2.5 pr-10 rounded-lg bg-white text-indigo-900 shadow-sm border-0 ring-1 ring-inset ring-indigo-300 focus:ring-2 focus:ring-indigo-500 placeholder-indigo-400">
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
