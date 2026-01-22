@@ -17,34 +17,87 @@ class AppointmentController extends Controller
     {
         $user = auth()->user();
 
-        // Default to current week or provided date
-        $date = $request->input('date', now()->format('Y-m-d'));
-        $startOfWeek = Carbon::parse($date)->startOfWeek();
-        $endOfWeek = Carbon::parse($date)->endOfWeek();
+        // Get customers for the "New Appointment" modal
+        $customers = Customer::orderBy('name')->limit(100)->get();
 
-        // Fetch appointments for this week
-        $query = Appointment::with(['customer', 'vehicle'])
-            ->whereBetween('start_time', [$startOfWeek, $endOfWeek])
-            ->orderBy('start_time');
+        return view('appointments.index', compact('customers'));
+    }
 
-        // Filter by ownership if user cannot view all appointments
-        // Note: For now, we show all appointments to technicians since they may need to see the schedule.
-        // Uncomment the filter below if you add a user_id/assigned_to_id field to appointments.
-        // if (!$user->can('view all appointments')) {
-        //     $query->where('user_id', $user->id);
-        // }
+    /**
+     * Return appointments as JSON for FullCalendar.
+     */
+    public function events(Request $request)
+    {
+        $start = $request->input('start');
+        $end = $request->input('end');
 
-        $appointments = $query->get();
+        $query = Appointment::with(['customer', 'vehicle']);
 
-        // Group by Date for easier display in grid
-        $appointmentsByDate = $appointments->groupBy(function ($date) {
-            return Carbon::parse($date->start_time)->format('Y-m-d');
+        if ($start && $end) {
+            $query->whereBetween('start_time', [$start, $end]);
+        }
+
+        $appointments = $query->orderBy('start_time')->get();
+
+        $events = $appointments->map(function ($apt) {
+            // Color based on status
+            $colors = [
+                'scheduled' => '#6366f1',  // Indigo
+                'confirmed' => '#8b5cf6',  // Purple
+                'completed' => '#22c55e',  // Green
+                'failed' => '#ef4444',     // Red
+                'cancelled' => '#9ca3af',  // Gray
+            ];
+
+            return [
+                'id' => $apt->id,
+                'title' => $apt->customer ? $apt->customer->name : ($apt->title ?? 'Appointment'),
+                'start' => $apt->start_time->toIso8601String(),
+                'end' => $apt->end_time ? $apt->end_time->toIso8601String() : $apt->start_time->copy()->addHour()->toIso8601String(),
+                'backgroundColor' => $colors[$apt->status] ?? $colors['scheduled'],
+                'borderColor' => $colors[$apt->status] ?? $colors['scheduled'],
+                'extendedProps' => [
+                    'customer_id' => $apt->customer_id,
+                    'customer_name' => $apt->customer?->name,
+                    'customer_phone' => $apt->customer?->phone,
+                    'vehicle' => $apt->vehicle ? ($apt->vehicle->make . ' ' . $apt->vehicle->model . ' (' . $apt->vehicle->license_plate . ')') : null,
+                    'type' => $apt->type,
+                    'type_label' => ucfirst(str_replace('_', ' ', $apt->type)),
+                    'status' => $apt->status,
+                    'notes' => $apt->notes,
+                    'duration' => $apt->end_time ? $apt->start_time->diffInMinutes($apt->end_time) : 60,
+                ],
+            ];
         });
 
-        // Get customers for the "New Appointment" modal
-        $customers = Customer::orderBy('name')->limit(50)->get();
+        return response()->json($events);
+    }
 
-        return view('appointments.index', compact('appointmentsByDate', 'startOfWeek', 'endOfWeek', 'customers'));
+    /**
+     * Quick reschedule via drag-and-drop.
+     */
+    public function reschedule(Request $request, Appointment $appointment)
+    {
+        $validated = $request->validate([
+            'start' => 'required|date',
+            'end' => 'nullable|date',
+        ]);
+
+        $appointment->start_time = Carbon::parse($validated['start']);
+
+        if (!empty($validated['end'])) {
+            $appointment->end_time = Carbon::parse($validated['end']);
+        } else {
+            // Maintain original duration
+            $duration = $appointment->end_time
+                ? $appointment->start_time->diffInMinutes($appointment->end_time)
+                : 60;
+            $appointment->end_time = $appointment->start_time->copy()->addMinutes($duration);
+        }
+
+        $appointment->save();
+
+        return response()->json(['success' => true, 'message' => 'Appointment rescheduled.']);
     }
 
     /**

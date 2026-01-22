@@ -19,9 +19,89 @@
         body { font-family: 'Inter', sans-serif; }
         .bg-purple-light-custom { background-color: #E3E1FC; }
         .bg-navy-custom { background-color: #1E1B4B; }
+        [x-cloak] { display: none !important; }
+        
+        /* Collapsible Sidebar - CSS Variables */
+        :root {
+            --sidebar-width: 18rem;
+            --sidebar-collapsed-width: 5rem;
+        }
+        
+        /* Default sidebar state (expanded) - Desktop only */
+        @media (min-width: 1024px) {
+            .sidebar-nav { width: var(--sidebar-width); }
+            .main-content { margin-left: var(--sidebar-width); }
+            .main-header { left: var(--sidebar-width); }
+            
+            /* Collapsed state - applied when html has .sidebar-collapsed class */
+            .sidebar-collapsed .sidebar-nav { width: var(--sidebar-collapsed-width); }
+            .sidebar-collapsed .main-content { margin-left: var(--sidebar-collapsed-width); }
+            .sidebar-collapsed .main-header { left: var(--sidebar-collapsed-width); }
+            
+            /* Hide text labels in collapsed state */
+            .sidebar-collapsed .nav-label { display: none; }
+            .sidebar-collapsed .nav-section-title { display: none; }
+            
+            /* Center icons in collapsed state */
+            .sidebar-collapsed .nav-link { justify-content: center; padding-left: 0; padding-right: 0; }
+            .sidebar-collapsed .nav-link svg { margin-right: 0; }
+            
+            /* Adjust logo section */
+            .sidebar-collapsed .logo-text { display: none; }
+            .sidebar-collapsed .logo-section { justify-content: center; padding-left: 1rem; padding-right: 1rem; }
+            
+            /* Adjust footer */
+            .sidebar-collapsed .footer-text { display: none; }
+            .sidebar-collapsed .footer-section { justify-content: center; padding: 0.5rem; }
+            
+            /* Adjust nav container padding */
+            .sidebar-collapsed .nav-container { padding-left: 0.5rem; padding-right: 0.5rem; }
+        }
+        
+        /* Disable transitions by default to prevent flash on load */
+        .sidebar-nav,
+        .main-content,
+        .main-header {
+            transition: none;
+        }
+        
+        /* Enable transitions only after page has loaded */
+        body.transitions-enabled .sidebar-nav,
+        body.transitions-enabled .main-content,
+        body.transitions-enabled .main-header {
+            transition: all 300ms ease-in-out;
+        }
+        
+        /* Toggle button rotation */
+        .toggle-btn { transition: transform 300ms ease-in-out; }
+        .sidebar-collapsed .toggle-btn { transform: rotate(180deg); }
     </style>
+    
+    @stack('styles')
+    
+    <!-- Blocking script: Set collapsed state BEFORE body renders -->
+    <script>
+        (function() {
+            if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                document.documentElement.classList.add('sidebar-collapsed');
+            }
+        })();
+    </script>
 </head>
-<body class="h-full font-sans antialiased text-slate-900 bg-purple-light-custom" x-data="{ sidebarOpen: false }">
+<body class="h-full font-sans antialiased text-slate-900 bg-purple-light-custom" 
+      x-data="{ 
+          sidebarOpen: false,
+          collapsed: document.documentElement.classList.contains('sidebar-collapsed'),
+          init() {
+              // Enable transitions after a short delay to prevent flash on load
+              setTimeout(() => document.body.classList.add('transitions-enabled'), 100);
+          },
+          toggleCollapse() {
+              this.collapsed = !this.collapsed;
+              document.documentElement.classList.toggle('sidebar-collapsed', this.collapsed);
+              localStorage.setItem('sidebarCollapsed', this.collapsed);
+          }
+      }">
     <div class="min-h-screen flex">
         
         <!-- Mobile Sidebar Backdrop -->
@@ -39,7 +119,7 @@
         <!-- Sidebar -->
         @if(!request()->is('admin*'))
         <nav :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" 
-             class="w-72 bg-navy-custom flex-shrink-0 flex flex-col fixed inset-y-0 z-50 shadow-xl transition-transform duration-300 ease-in-out lg:translate-x-0">
+             class="sidebar-nav bg-navy-custom flex-shrink-0 flex flex-col fixed inset-y-0 z-50 shadow-xl lg:translate-x-0">
             
             <!-- Close button (mobile only) -->
             <button @click="sidebarOpen = false" class="absolute top-5 right-4 p-2 text-indigo-300 hover:text-white lg:hidden">
@@ -49,45 +129,56 @@
             </button>
             
             <!-- Logo Section -->
-            <div class="h-20 flex items-center px-6 border-b border-indigo-900/50">
+            <div class="logo-section h-20 flex items-center px-6 border-b border-indigo-900/50 relative">
                 <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20 flex-shrink-0">
                         <svg class="w-5 h-5 text-indigo-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
                     </div>
-                    <div>
+                    <div class="logo-text">
                         <span class="text-lg font-bold tracking-tight text-white">IHRAUTO</span>
                         <span class="text-xs text-indigo-200 font-medium ml-1">CRM</span>
                     </div>
                 </div>
+                
+                <!-- Collapse Toggle Button (Desktop only) -->
+                <button @click="toggleCollapse()" 
+                        class="toggle-btn hidden lg:flex absolute -right-4 top-6 w-8 h-8 bg-indigo-600 hover:bg-indigo-500 rounded-full items-center justify-center text-white shadow-lg hover:scale-110 border-2 border-[#1E1B4B]"
+                        :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
             </div>
 
             <!-- Navigation Content -->
-            <div class="flex-1 overflow-y-auto py-8 px-4 space-y-6">
+            <div class="nav-container flex-1 overflow-y-auto py-8 px-4 space-y-6">
                 <!-- MAIN Section -->
                 <div>
-                    <h3 class="px-3 text-[10px] font-extrabold text-indigo-300/50 uppercase tracking-[0.2em] mb-4">Overview</h3>
+                    <h3 class="nav-section-title px-3 text-[10px] font-extrabold text-indigo-300/50 uppercase tracking-[0.2em] mb-4">Overview</h3>
                     <div class="space-y-1">
                         @can('access dashboard')
                         <a href="{{ route('dashboard') }}" id="nav-dashboard"
                            @click="sidebarOpen = false"
-                           class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('dashboard') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('dashboard') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           title="Dashboard"
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('dashboard') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('dashboard') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
                             </svg>
-                            Dashboard
+                            <span class="nav-label">Dashboard</span>
                         </a>
                         @endcan
 
                         @can('access check-in')
                         <a href="{{ route('checkin') }}" id="nav-checkin"
                            @click="sidebarOpen = false"
-                           class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('checkin*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('checkin*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           title="Check-in"
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('checkin*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('checkin*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                             </svg>
-                            Check-In
+                            <span class="nav-label">Check-in</span>
                         </a>
                         @endcan
 
@@ -98,20 +189,21 @@
                             @if($hasTireHotel)
                                 <a href="{{ route('tires-hotel') }}" id="nav-tire-hotel"
                                    @click="sidebarOpen = false"
-                                   class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('tires-hotel*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
-                                    <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('tires-hotel*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   title="Tire Hotel"
+                                   class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('tires-hotel*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
+                                    <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('tires-hotel*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                                     </svg>
-                                    Tire Hotel
+                                    <span class="nav-label">Tire Hotel</span>
                                 </a>
                             @else
                                 {{-- Show locked/upgrade indicator for BASIC plan --}}
-                                <div class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg text-indigo-100/30 cursor-not-allowed" title="Upgrade to Standard to unlock Tire Hotel">
+                                <div class="nav-link group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg text-indigo-100/30 cursor-not-allowed" title="Upgrade to Standard to unlock Tire Hotel">
                                     <svg class="flex-shrink-0 w-5 h-5 mr-3 text-indigo-400/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                                     </svg>
-                                    Tire Hotel
-                                    <span class="ml-auto px-1.5 py-0.5 text-[9px] bg-amber-500/20 text-amber-300 rounded font-semibold">PRO</span>
+                                    <span class="nav-label">Tire Hotel</span>
+                                    <span class="nav-label ml-auto px-1.5 py-0.5 text-[9px] bg-amber-500/20 text-amber-300 rounded font-semibold">PRO</span>
                                 </div>
                             @endif
                         @endcan
@@ -119,33 +211,36 @@
                         @can('access work-orders')
                         <a href="{{ route('work-orders.index') }}" id="nav-work-orders"
                            @click="sidebarOpen = false"
-                           class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('work-orders*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('work-orders*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           title="Work Orders"
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('work-orders*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('work-orders*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
-                            Work Orders
+                            <span class="nav-label">Work Orders</span>
                         </a>
                         @endcan
                         
                         @can('access appointments')
                         <a href="{{ route('appointments.index') }}" id="nav-appointments"
                            @click="sidebarOpen = false"
-                           class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('appointments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('appointments*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           title="Appointments"
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('appointments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('appointments*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
-                            APPOINTMENTS
+                            <span class="nav-label">Appointments</span>
                         </a>
                         @endcan
 
                         @can('access finance')
                         <a href="{{ route('finance.index') }}" id="nav-finance"
                            @click="sidebarOpen = false"
-                           class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('finance*', 'payments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('finance*', 'payments*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           title="Finance"
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('finance*', 'payments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('finance*', 'payments*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
-                            FINANCE
+                            <span class="nav-label">Finance</span>
                         </a>
                         @endcan
                     </div>
@@ -153,39 +248,42 @@
 
                 <!-- MANAGEMENT Section -->
                 <div>
-                   <h3 class="px-3 text-[10px] font-extrabold text-indigo-300/50 uppercase tracking-[0.2em] mb-4">Management</h3>
+                   <h3 class="nav-section-title px-3 text-[10px] font-extrabold text-indigo-300/50 uppercase tracking-[0.2em] mb-4">Management</h3>
                     <div class="space-y-1">
                         @can('access inventory')
                         <a href="{{ route('products-services.index') }}" 
                            @click="sidebarOpen = false"
-                           class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('products-services*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('products-services*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           title="Inventory & Services"
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('products-services*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('products-services*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
-                            Inventory & Services
+                            <span class="nav-label">Inventory & Services</span>
                         </a>
                         @endcan
 
                         @can('access customers')
                         <a href="{{ route('customers.index') }}" 
                            @click="sidebarOpen = false"
-                           class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('customers*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('customers*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           title="Customers"
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('customers*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('customers*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>
-                            Customers
+                            <span class="nav-label">Customers</span>
                         </a>
                         @endcan
 
                         @can('access management')
                         <a href="{{ route('management') }}" 
                            @click="sidebarOpen = false"
-                           class="group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border border-transparent {{ request()->routeIs('management*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/60 hover:bg-white/5 hover:text-white' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('management*') ? 'text-white' : 'text-indigo-400/50 group-hover:text-indigo-300' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           title="Management"
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('management*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('management*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             </svg>
-                            Management
+                            <span class="nav-label">Management</span>
                         </a>
                         @endcan
                     </div>
@@ -194,12 +292,12 @@
 
 
             <!-- User Profile / Footer -->
-            <div class="border-t border-indigo-900/50 p-4 bg-black/20">
+            <div class="footer-section border-t border-indigo-900/50 p-4 bg-black/20">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white border border-indigo-400">
+                    <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white border border-indigo-400 flex-shrink-0">
                         IA
                     </div>
-                    <div>
+                    <div class="footer-text">
                         <p class="text-sm font-bold text-white">System Admin</p>
                         <p class="text-xs text-indigo-300">v{{ app_version() }}</p>
                     </div>
@@ -209,7 +307,7 @@
         @endif
 
         <!-- Main Content -->
-        <main class="{{ request()->is('admin*') ? '' : 'lg:ml-72' }} flex-1 flex flex-col min-h-screen">
+        <main class="main-content flex-1 flex flex-col min-h-screen">
             
             @if(request()->is('admin*'))
             {{-- ADMIN HEADER: Minimal, control-panel style --}}
@@ -273,7 +371,7 @@
             </header>
             @else
             {{-- REGULAR HEADER: Full CRM header with notifications, profile, etc. --}}
-            <header class="bg-white/80 border-b border-indigo-100 h-16 lg:h-20 flex items-center justify-between px-4 lg:px-10 fixed top-0 right-0 left-0 lg:left-72 z-40 bg-opacity-95 backdrop-blur-sm">
+            <header class="main-header bg-white/80 border-b border-indigo-100 h-16 lg:h-20 flex items-center justify-between px-4 lg:px-10 fixed top-0 right-0 left-0 z-40 bg-opacity-95 backdrop-blur-sm">
                 
                 <!-- Mobile Menu Button + Title -->
                 <div class="flex items-center">

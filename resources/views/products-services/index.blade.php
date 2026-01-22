@@ -67,7 +67,7 @@
                             </svg>
                         </div>
                         <input type="text" name="search" value="{{ request('search') }}" placeholder="Search parts..."
-                            class="block w-64 rounded-md border-0 py-1.5 pl-10 pr-16 text-gray-900 bg-white ring-1 ring-inset ring-indigo-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6">
+                            class="block w-64 rounded-lg border-0 py-2.5 pl-10 pr-16 text-indigo-900 bg-white shadow-sm ring-1 ring-inset ring-indigo-300 placeholder:text-indigo-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6">
                         @if(request('search'))
                             <a href="{{ route('products-services.index', ['tab' => 'parts']) }}"
                                 class="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-indigo-600 hover:text-indigo-700 font-medium">

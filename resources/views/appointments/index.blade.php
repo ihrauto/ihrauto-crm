@@ -2,311 +2,443 @@
 
 @section('title', 'Appointments')
 
+@push('styles')
+    <style>
+        /* FullCalendar Custom Theme - Indigo CRM */
+        :root {
+            --fc-border-color: #e0e7ff;
+            --fc-page-bg-color: #ffffff;
+            --fc-today-bg-color: #eef2ff;
+            --fc-neutral-bg-color: #f8fafc;
+        }
+
+        .fc {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1e1b4b;
+        }
+
+        .fc .fc-button {
+            background-color: #ffffff;
+            border: 1px solid #e0e7ff;
+            color: #4f46e5;
+            font-weight: 600;
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            text-transform: capitalize;
+        }
+
+        .fc .fc-button:hover {
+            background-color: #eef2ff;
+            border-color: #c7d2fe;
+            color: #4338ca;
+        }
+
+        .fc .fc-button-primary:not(:disabled).fc-button-active,
+        .fc .fc-button-primary:not(:disabled):active {
+            background-color: #4f46e5;
+            border-color: #4f46e5;
+            color: #ffffff;
+        }
+
+        .fc .fc-button-primary:focus {
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+        }
+
+        .fc-theme-standard .fc-scrollgrid {
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid #e0e7ff;
+        }
+
+        .fc .fc-col-header-cell {
+            background-color: #f8fafc;
+            padding: 0.75rem 0;
+        }
+
+        .fc .fc-col-header-cell-cushion {
+            color: #4f46e5;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .fc .fc-daygrid-day-number,
+        .fc .fc-timegrid-slot-label {
+            color: #6366f1;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .fc .fc-timegrid-slot {
+            height: 3rem;
+        }
+
+        .fc-timegrid-slot-label-cushion {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .fc .fc-event {
+            border-radius: 0.375rem;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .fc .fc-event:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .fc .fc-event-main {
+            padding: 2px 4px;
+        }
+
+        .fc .fc-event-title {
+            font-weight: 600;
+        }
+
+        .fc .fc-event-time {
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .fc .fc-day-today {
+            background-color: #f5f3ff !important;
+        }
+
+        .fc .fc-timegrid-now-indicator-line {
+            border-color: #ef4444;
+            border-width: 2px;
+        }
+
+        .fc .fc-timegrid-now-indicator-arrow {
+            border-color: #ef4444;
+        }
+
+        /* View Toggle Buttons */
+        .view-toggle-btn {
+            transition: all 0.2s ease;
+        }
+
+        .view-toggle-btn.active {
+            background-color: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        /* Loading state */
+        .calendar-loading {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+    </style>
+@endpush
+
 @section('content')
-<div class="space-y-6">
-    <!-- Header Controls -->
-    <div class="flex flex-col md:flex-row md:items-center justify-end gap-4">
-        <!-- Title and Subtitle removed -->
-        
-        <div class="flex items-center gap-3">
-             <div class="flex bg-white rounded-lg shadow-sm border border-indigo-100 p-1">
-                <a href="{{ route('appointments.index', ['date' => $startOfWeek->copy()->subWeek()->format('Y-m-d')]) }}" class="p-1 hover:bg-indigo-50 rounded text-indigo-500">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                </a>
-                <span class="px-3 py-1 text-sm font-bold text-indigo-900">
-                    {{ $startOfWeek->format('M d') }} - {{ $endOfWeek->format('M d, Y') }}
-                </span>
-                <a href="{{ route('appointments.index', ['date' => $startOfWeek->copy()->addWeek()->format('Y-m-d')]) }}" class="p-1 hover:bg-indigo-50 rounded text-indigo-500">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                </a>
+    <div class="space-y-4" x-data="appointmentsCalendar()">
+        <!-- Header Controls -->
+        <div
+            class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-xl shadow-sm border border-indigo-100 p-4">
+            <!-- Left: Navigation -->
+            <div class="flex items-center gap-3">
+                <button @click="calendar.prev()"
+                    class="p-2 hover:bg-indigo-50 rounded-lg text-indigo-500 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                <button @click="calendar.today()"
+                    class="px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                    Today
+                </button>
+                <button @click="calendar.next()"
+                    class="p-2 hover:bg-indigo-50 rounded-lg text-indigo-500 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+                <span class="ml-2 text-lg font-bold text-indigo-900" x-text="currentTitle"></span>
             </div>
-            
-            <button onclick="document.getElementById('new-appointment-modal').classList.remove('hidden')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition-colors text-sm flex items-center">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+
+            <!-- Center: View Toggle -->
+            <div class="flex bg-gray-100 rounded-lg p-1 gap-1">
+                <button @click="changeView('dayGridMonth')" :class="currentView === 'dayGridMonth' ? 'active' : ''"
+                    class="view-toggle-btn px-4 py-2 text-sm font-semibold rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors">
+                    Month
+                </button>
+                <button @click="changeView('timeGridWeek')" :class="currentView === 'timeGridWeek' ? 'active' : ''"
+                    class="view-toggle-btn px-4 py-2 text-sm font-semibold rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors">
+                    Week
+                </button>
+                <button @click="changeView('timeGridDay')" :class="currentView === 'timeGridDay' ? 'active' : ''"
+                    class="view-toggle-btn px-4 py-2 text-sm font-semibold rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors">
+                    Day
+                </button>
+            </div>
+
+            <!-- Right: New Appointment -->
+            <button @click="openNewAppointmentModal()"
+                class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition-colors text-sm flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
                 New Appointment
             </button>
         </div>
-    </div>
 
-    @if(session('success'))
-        <div class="bg-green-50 text-green-700 p-4 rounded-lg border border-green-200">
-            {{ session('success') }}
-        </div>
-    @endif
-    
-    @if($errors->any())
-        <div class="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>• {{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+        @if(session('success'))
+            <div class="bg-green-50 text-green-700 p-4 rounded-lg border border-green-200 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                {{ session('success') }}
+            </div>
+        @endif
 
-    <!-- Weekly Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
-        @for($day = 0; $day < 6; $day++)
-            @php 
-                $currentDay = $startOfWeek->copy()->addDays($day);
-                $dateKey = $currentDay->format('Y-m-d');
-                $dayAppointments = $appointmentsByDate[$dateKey] ?? collect();
-                $isToday = $currentDay->isToday();
-            @endphp
-            
-            <div class="bg-white rounded-xl shadow-sm border {{ $isToday ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-indigo-50' }} flex flex-col h-[600px]">
-                <!-- Day Header -->
-                <div class="p-3 border-b border-indigo-50 {{ $isToday ? 'bg-indigo-50' : '' }} text-center">
-                    <span class="block text-xs font-bold uppercase text-indigo-400">{{ $currentDay->format('D') }}</span>
-                    <span class="block text-lg font-bold {{ $isToday ? 'text-indigo-700' : 'text-indigo-900' }}">{{ $currentDay->format('d') }}</span>
+        @if($errors->any())
+            <div class="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
+                <ul class="list-disc list-inside">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <!-- Calendar Container -->
+        <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-4 relative min-h-[700px]">
+            <div id="calendar"></div>
+
+            <!-- Loading Overlay -->
+            <div x-show="loading" class="calendar-loading" x-cloak>
+                <div class="flex flex-col items-center gap-2">
+                    <svg class="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                    <span class="text-sm text-indigo-600 font-medium">Loading...</span>
                 </div>
-                
-                <!-- Slots -->
-                <div class="flex-1 p-2 space-y-2 overflow-y-auto bg-gray-50/30">
-                    @forelse($dayAppointments as $apt)
-                        <div onclick="openAppointmentDetails({{ $apt }})" class="bg-white px-2 py-1.5 rounded border-l-2 {{ $apt->status === 'completed' ? 'border-green-500' : ($apt->status === 'failed' ? 'border-red-500' : 'border-indigo-500') }} shadow-sm hover:shadow transition-shadow cursor-pointer mb-1.5">
-                             <!-- Row 1: Time + Title -->
-                             <div class="flex items-baseline justify-between">
-                                 <span class="text-xs font-bold text-indigo-900 w-10 shrink-0">{{ $apt->start_time->format('H:i') }}</span>
-                                 <span class="text-[11px] font-semibold text-gray-800 truncate flex-1 text-right">{{ $apt->title ?: $apt->customer->name }}</span>
-                             </div>
-                             
-                             <!-- Row 2: Type + Vehicle -->
-                             <div class="flex items-center justify-between mt-0.5">
-                                  <span class="text-[9px] text-gray-400 truncate max-w-[50%]">{{ $apt->vehicle->make ?? '' }} {{ $apt->vehicle->model ?? '' }}</span>
-                                  <div class="flex items-center gap-1">
-                                      <span class="text-[9px] text-gray-500 bg-gray-100 px-1 rounded">{{ $apt->type_label }}</span>
-                                      @if($apt->status === 'completed')
-                                        <span class="text-[9px] font-bold text-green-600">✓</span>
-                                      @elseif($apt->status === 'failed')
-                                        <span class="text-[9px] font-bold text-red-600">⚠</span>
-                                      @endif
-                                  </div>
-                             </div>
+            </div>
+        </div>
+
+        <!-- Appointment Details Modal -->
+        <div x-show="detailsModalOpen" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="detailsModalOpen = false"></div>
+            <div class="flex min-h-screen items-center justify-center p-4">
+                <div x-show="detailsModalOpen" x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                    x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
+                    x-transition:leave-end="opacity-0 scale-95"
+                    class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6">
+
+                    <!-- Header -->
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold text-indigo-900" x-text="selectedEvent?.title || 'Appointment'">
+                            </h3>
+                            <p class="text-sm text-indigo-500 mt-1" x-text="selectedEvent?.extendedProps?.type_label"></p>
                         </div>
-                    @empty
-                        <div class="h-full flex flex-col items-center justify-center text-gray-300 pointer-events-none">
-                            <span class="text-xs italic">Free</span>
+                        <span :class="getStatusClasses(selectedEvent?.extendedProps?.status)"
+                            class="px-3 py-1 text-xs font-bold rounded-full uppercase"
+                            x-text="selectedEvent?.extendedProps?.status"></span>
+                    </div>
+
+                    <!-- Details -->
+                    <div class="space-y-4">
+                        <div class="bg-indigo-50 rounded-xl p-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-lg font-bold text-indigo-900" x-text="formatEventTime(selectedEvent)">
+                                    </p>
+                                    <p class="text-sm text-indigo-600" x-text="formatEventDate(selectedEvent)"></p>
+                                </div>
+                            </div>
                         </div>
-                    @endforelse
-                </div>
-                
-                <!-- Add Button (Footer) -->
-                <div class="p-2 border-t border-indigo-50">
-                    <button onclick="openModalWithDate('{{ $dateKey }}')" class="w-full py-1 text-xs text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded text-center transition-colors">
-                        + Add
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold mb-1">Customer</p>
+                                <p class="text-sm font-semibold text-gray-900"
+                                    x-text="selectedEvent?.extendedProps?.customer_name || 'Unknown'"></p>
+                                <p class="text-sm text-gray-500" x-text="selectedEvent?.extendedProps?.customer_phone"></p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold mb-1">Vehicle</p>
+                                <p class="text-sm text-gray-900"
+                                    x-text="selectedEvent?.extendedProps?.vehicle || 'Not specified'"></p>
+                            </div>
+                        </div>
+
+                        <div x-show="selectedEvent?.extendedProps?.notes">
+                            <p class="text-xs text-gray-500 uppercase font-bold mb-1">Notes</p>
+                            <p class="text-sm text-gray-600 italic" x-text="selectedEvent?.extendedProps?.notes"></p>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-6 grid grid-cols-3 gap-3"
+                        x-show="selectedEvent?.extendedProps?.status === 'scheduled' || selectedEvent?.extendedProps?.status === 'confirmed'">
+                        <form :action="'/appointments/' + selectedEvent?.id" method="POST">
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="status" value="completed">
+                            <button type="submit"
+                                class="w-full py-2.5 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 transition-colors">
+                                Mark Done
+                            </button>
+                        </form>
+                        <button @click="openEditModal()"
+                            class="w-full py-2.5 border border-indigo-200 text-indigo-700 rounded-lg font-semibold text-sm hover:bg-indigo-50 transition-colors">
+                            Edit
+                        </button>
+                        <form :action="'/appointments/' + selectedEvent?.id" method="POST"
+                            onsubmit="return confirm('Delete this appointment?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                class="w-full py-2.5 border border-red-200 text-red-600 rounded-lg font-semibold text-sm hover:bg-red-50 transition-colors">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+
+                    <button @click="detailsModalOpen = false"
+                        class="mt-4 w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">
+                        Close
                     </button>
                 </div>
             </div>
-        @endfor
-    </div>
-</div>
+        </div>
 
-<!-- Details Modal -->
-<div id="appointment-details-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <!-- Backdrop -->
-    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="document.getElementById('appointment-details-modal').classList.add('hidden')"></div>
+        <!-- New/Edit Appointment Modal -->
+        <div x-show="formModalOpen" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+            <div class="fixed inset-0 bg-black/50" @click="formModalOpen = false"></div>
+            <div class="flex min-h-screen items-center justify-center p-4">
+                <div x-show="formModalOpen" x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                    x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
+                    x-transition:leave-end="opacity-0 scale-95"
+                    class="relative w-full max-w-md bg-white rounded-xl shadow-xl">
 
-    <!-- Centering Container -->
-    <div class="flex min-h-screen items-center justify-center p-4 text-center">
-         <div class="relative w-full max-w-lg transform rounded-lg bg-white p-6 text-left shadow-xl transition-all">
-             <!-- Modal Header -->
-            <div class="flex justify-between items-start">
-                <h3 class="text-lg leading-6 font-medium text-gray-900" id="details-title">Appointment Details</h3>
-                <span id="details-status" class="px-2 py-1 text-xs font-bold rounded-full"></span>
-            </div>
-            
-            <div class="mt-4 space-y-4">
-                <div class="bg-indigo-50 p-3 rounded-lg">
-                    <p class="text-xs text-indigo-500 uppercase font-bold">Time</p>
-                    <p class="text-lg font-bold text-indigo-900"><span id="details-time"></span></p>
-                    <p class="text-sm text-indigo-700" id="details-date"></p>
-                </div>
-                
-                <div>
-                     <p class="text-xs text-gray-500 uppercase font-bold">Customer</p>
-                     <p class="text-base font-bold text-gray-900" id="details-customer"></p>
-                     <p class="text-sm text-gray-600" id="details-vehicle"></p>
-                </div>
-                
-                <div>
-                     <p class="text-xs text-gray-500 uppercase font-bold">Service Check</p>
-                     <p class="text-sm text-gray-900" id="details-type"></p>
-                     <p class="text-sm text-gray-500 italic mt-1" id="details-notes"></p>
-                </div>
-            </div>
-            
-            <div class="mt-6">
-                <!-- Main Actions Grid -->
-                <div class="grid grid-cols-3 gap-3" id="action-buttons">
-                     <!-- Complete Action -->
-                     <form id="form-complete" method="POST" class="w-full">
-                         @csrf
-                         @method('PUT')
-                         <input type="hidden" name="status" value="completed">
-                         <button type="submit" id="btn-complete" class="w-full justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-green-600 text-sm font-bold text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-                             Mark Done
-                         </button>
-                     </form>
-    
-                     <!-- Edit Action -->
-                     <button type="button" onclick="openEditModal()" class="w-full justify-center rounded-lg border border-indigo-200 shadow-sm px-4 py-2 bg-white text-sm font-bold text-indigo-700 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        Edit
-                     </button>
-                     
-                     <!-- Initial Failed Button (Toggles Reason) -->
-                     <button type="button" id="btn-failed" onclick="toggleFailedReason()" class="w-full justify-center rounded-lg border border-red-200 shadow-sm px-4 py-2 bg-white text-sm font-bold text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500">
-                         Failed
-                     </button>
-                </div>
-                
-                <!-- Failed Reason Form (Hidden by default) -->
-                <div id="failed-reason-section" class="hidden mt-4 bg-red-50 p-4 rounded-lg border border-red-100">
-                    <form id="form-failed" method="POST">
-                        @csrf
-                        @method('PUT')
-                        <input type="hidden" name="status" value="failed">
-                        <label class="block text-xs font-bold text-red-700 uppercase mb-2">Reason for Failure / No Show</label>
-                        <textarea name="notes" required class="w-full rounded-md border-red-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm" rows="2" placeholder="e.g. Client did not show up..."></textarea>
-                        
-                        <div class="mt-3 flex gap-2">
-                             <button type="submit" class="flex-1 justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                 Confirm Failed
-                             </button>
-                             <button type="button" onclick="toggleFailedReason()" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
-                                 Cancel
-                             </button>
+                    <!-- Header -->
+                    <div class="p-6 border-b border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-bold text-gray-900"
+                                x-text="isEditing ? 'Edit Appointment' : 'New Appointment'"></h3>
+                            <button type="button" @click="formModalOpen = false" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
                         </div>
-                    </form>
-                </div>
-                
-                <!-- Delete Action (Secondary) -->
-                <div class="mt-2 text-center">
-                     <form id="form-delete" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to completely DELETE this record? This cannot be undone.');">
-                         @csrf
-                         @method('DELETE')
-                         <button type="submit" class="text-xs text-gray-400 hover:text-red-500 underline">
-                             Delete Appointment
-                         </button>
-                     </form>
-                </div>
-            </div>
-            
-             <div class="mt-3">
-                <button type="button" onclick="document.getElementById('appointment-details-modal').classList.add('hidden')" class="w-full justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none">
-                    Close
-                </button>
-            </div>
-         </div>
-    </div>
-</div>
+                    </div>
 
-<!-- Create/Edit Modal -->
-<div id="new-appointment-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <!-- Backdrop -->
-    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="document.getElementById('new-appointment-modal').classList.add('hidden')"></div>
-
-    <!-- Centering Container -->
-    <div class="flex min-h-screen items-center justify-center p-4 text-center">
-        <div class="relative w-full max-w-lg transform rounded-xl bg-white p-8 text-left shadow-2xl transition-all border border-gray-100">
-            <!-- Modal Content -->
-            <div>
-                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-indigo-50 mb-6">
-                    <svg class="h-8 w-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                </div>
-                <div class="text-center sm:mt-5">
-                    <h3 class="text-xl font-bold text-gray-900" id="form-modal-title">Schedule New Appointment</h3>
-                    <p class="text-sm text-gray-500 mt-1">Enter the details for the upcoming service.</p>
-                </div>
-                
-                <div class="mt-8">
-                    <form id="appointment-form" action="{{ route('appointments.store') }}" method="POST" class="space-y-4">
+                    <form :action="formAction" method="POST" class="p-6 space-y-5">
                         @csrf
-                        <input type="hidden" name="_method" id="form-method" value="POST">
-                        
-                        <!-- Customer Selection -->
+                        <input type="hidden" name="_method" :value="isEditing ? 'PUT' : 'POST'">
+
+                        <!-- Customer -->
                         <div>
-                            <label class="text-sm font-medium text-indigo-900 mb-2 block">Customer *</label>
-                            
-                            <!-- Two Button Options -->
-                            <div id="customer-choice-buttons" class="grid grid-cols-2 gap-3">
-                                <button type="button" onclick="showSearchClient()" class="py-3 px-4 rounded-lg border-2 border-indigo-200 text-indigo-700 font-semibold hover:bg-indigo-50 hover:border-indigo-400 transition-all flex items-center justify-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                    Search Client
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Customer
+                                *</label>
+
+                            <!-- Toggle Buttons -->
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <button type="button" @click="customerMode = 'new'" :class="customerMode === 'new' 
+                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
+                                                : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'"
+                                    class="py-2.5 px-4 rounded-lg border text-sm font-semibold transition-all">
+                                    New Customer
                                 </button>
-                                <button type="button" onclick="showAddNewClient()" class="py-3 px-4 rounded-lg border-2 border-indigo-200 text-indigo-700 font-semibold hover:bg-indigo-50 hover:border-indigo-400 transition-all flex items-center justify-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                                    Add New Client
+                                <button type="button" @click="customerMode = 'existing'" :class="customerMode === 'existing' 
+                                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
+                                                : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'"
+                                    class="py-2.5 px-4 rounded-lg border text-sm font-semibold transition-all">
+                                    Existing Customer
                                 </button>
                             </div>
-                            
-                            <!-- Search Existing Customer (hidden by default) -->
-                            <div id="search-customer-section" class="hidden">
-                                <div class="mb-2 text-right">
-                                    <button type="button" onclick="showCustomerChoice()" class="text-xs text-indigo-500 hover:text-indigo-700">← Back</button>
-                                </div>
-                                <input type="hidden" name="customer_id" id="form-customer_id" value="">
-                                <div class="relative">
-                                    <input type="text" id="customer-search-input" 
-                                        placeholder="Type customer name..." 
-                                        autocomplete="off"
-                                        oninput="searchCustomers(this.value)"
-                                        onfocus="showSearchResults()"
-                                        class="block w-full rounded-lg border-0 py-2 px-4 text-indigo-900 ring-1 ring-inset ring-indigo-200 placeholder:text-indigo-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
-                                    
-                                    <!-- Search Results Dropdown -->
-                                    <div id="customer-search-results" class="hidden absolute z-10 mt-1 w-full bg-white rounded-lg shadow-lg ring-1 ring-indigo-200 max-h-48 overflow-y-auto">
-                                        @foreach($customers as $customer)
-                                            <div class="customer-result px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm" 
-                                                data-id="{{ $customer->id }}" 
-                                                data-name="{{ $customer->name }}"
-                                                data-phone="{{ $customer->phone }}"
-                                                onclick="selectCustomer({{ $customer->id }}, '{{ addslashes($customer->name) }}', '{{ $customer->phone }}')">
-                                                <span class="font-medium text-indigo-900">{{ $customer->name }}</span>
-                                                <span class="text-indigo-400 ml-2">{{ $customer->phone }}</span>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                                <div id="selected-customer-display" class="hidden mt-2 p-2 bg-indigo-50 rounded-lg flex items-center justify-between">
-                                    <span id="selected-customer-name" class="text-sm font-medium text-indigo-900"></span>
-                                    <button type="button" onclick="clearSelectedCustomer()" class="text-xs text-red-500 hover:text-red-700">✕ Clear</button>
-                                </div>
-                            </div>
-                            
-                            <!-- New Customer Fields (hidden by default) -->
-                            <div id="new-customer-section" class="hidden">
-                                <div class="mb-2 text-right">
-                                    <button type="button" onclick="showCustomerChoice()" class="text-xs text-indigo-500 hover:text-indigo-700">← Back</button>
-                                </div>
+
+                            <!-- New Customer Fields -->
+                            <div x-show="customerMode === 'new'" x-transition class="space-y-3">
                                 <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <input type="text" name="new_customer_name" id="new-customer-name" placeholder="Full Name" class="block w-full rounded-lg border-0 py-2 px-4 text-indigo-900 ring-1 ring-inset ring-indigo-200 placeholder:text-indigo-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
-                                    </div>
-                                    <div>
-                                        <input type="tel" name="new_customer_phone" id="new-customer-phone" placeholder="Phone Number" class="block w-full rounded-lg border-0 py-2 px-4 text-indigo-900 ring-1 ring-inset ring-indigo-200 placeholder:text-indigo-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
-                                    </div>
+                                    <input type="text" name="new_customer_name" x-model="formData.new_customer_name"
+                                        placeholder="Full Name" :required="customerMode === 'new'"
+                                        class="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3 placeholder:text-gray-400">
+                                    <input type="tel" name="new_customer_phone" x-model="formData.new_customer_phone"
+                                        placeholder="Phone Number" :required="customerMode === 'new'"
+                                        class="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3 placeholder:text-gray-400">
                                 </div>
+                            </div>
+
+                            <!-- Existing Customer Dropdown -->
+                            <div x-show="customerMode === 'existing'" x-transition>
+                                <select name="customer_id" x-model="formData.customer_id"
+                                    :required="customerMode === 'existing'"
+                                    class="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3">
+                                    <option value="">Select customer...</option>
+                                    @foreach($customers as $customer)
+                                        <option value="{{ $customer->id }}">{{ $customer->name }} - {{ $customer->phone }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
                         </div>
 
                         <!-- Date & Time -->
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="text-sm font-medium text-indigo-900 mb-1 block">Date *</label>
-                                <input type="date" name="start_date" id="form-date" required class="block w-full rounded-lg border-0 py-2 px-4 text-indigo-900 ring-1 ring-inset ring-indigo-200 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Date
+                                    *</label>
+                                <input type="date" name="start_date" x-model="formData.start_date" required
+                                    class="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3">
                             </div>
                             <div>
-                                <label class="text-sm font-medium text-indigo-900 mb-1 block">Time *</label>
-                                <input type="time" name="start_time" id="form-time" value="09:00" required class="block w-full rounded-lg border-0 py-2 px-4 text-indigo-900 ring-1 ring-inset ring-indigo-200 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Time
+                                    *</label>
+                                <input type="time" name="start_time" x-model="formData.start_time" required
+                                    class="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3">
                             </div>
                         </div>
-                        
+
                         <!-- Type & Duration -->
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="text-sm font-medium text-indigo-900 mb-1 block">Service Type</label>
-                                <select name="type" id="form-type" class="block w-full rounded-lg border-0 py-2 pl-4 pr-10 text-indigo-900 ring-1 ring-inset ring-indigo-200 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Service
+                                    Type</label>
+                                <select name="type" x-model="formData.type"
+                                    class="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3">
                                     <option value="tire_change">Tire Change</option>
                                     <option value="service">General Service</option>
                                     <option value="repair">Repair</option>
@@ -315,29 +447,37 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="text-sm font-medium text-indigo-900 mb-1 block">Duration</label>
-                                <select name="duration" id="form-duration" class="block w-full rounded-lg border-0 py-2 pl-4 pr-10 text-indigo-900 ring-1 ring-inset ring-indigo-200 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                <label
+                                    class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Duration</label>
+                                <select name="duration" x-model="formData.duration"
+                                    class="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3">
                                     <option value="30">30 min</option>
-                                    <option value="60" selected>1 Hour</option>
+                                    <option value="60">1 Hour</option>
                                     <option value="90">1.5 Hours</option>
                                     <option value="120">2 Hours</option>
                                 </select>
                             </div>
                         </div>
-                        
+
                         <input type="hidden" name="status" value="scheduled">
-                        
+
+                        <!-- Notes -->
                         <div>
-                            <label class="text-sm font-medium text-indigo-900 mb-1 block">Notes</label>
-                            <textarea name="notes" id="form-notes" rows="3" class="block w-full rounded-lg border-0 py-2 px-4 text-indigo-900 ring-1 ring-inset ring-indigo-200 placeholder:text-indigo-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" placeholder="Add any specific details here..."></textarea>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Notes</label>
+                            <textarea name="notes" x-model="formData.notes" rows="3"
+                                class="block w-full rounded-lg border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm placeholder:text-gray-400 py-2.5 px-3"
+                                placeholder="Add any notes..."></textarea>
                         </div>
 
-                        <div class="flex justify-end space-x-4 mt-8">
-                             <button type="button" onclick="document.getElementById('new-appointment-modal').classList.add('hidden')" class="inline-flex items-center px-6 py-3 border border-red-200 text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-all duration-200 shadow-sm">
+                        <!-- Actions -->
+                        <div class="flex gap-3 pt-2">
+                            <button type="button" @click="formModalOpen = false"
+                                class="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-gray-800 transition-colors">
                                 Cancel
                             </button>
-                            <button type="submit" id="form-submit-btn" class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-all duration-200 shadow-sm">
-                                Book Appointment
+                            <button type="submit"
+                                class="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors">
+                                <span x-text="isEditing ? 'Update' : 'Book Appointment'"></span>
                             </button>
                         </div>
                     </form>
@@ -345,273 +485,217 @@
             </div>
         </div>
     </div>
-</div>
-
-<script>
-    let currentAppointment = null;
-
-    function resetForm() {
-        const form = document.getElementById('appointment-form');
-        form.action = "{{ route('appointments.store') }}";
-        document.getElementById('form-method').value = "POST";
-        document.getElementById('form-modal-title').textContent = "Schedule New Appointment";
-        document.getElementById('form-submit-btn').textContent = "Book Appointment";
-        
-        // Reset values
-        form.reset();
-        document.getElementById('form-time').value = "09:00";
-        document.getElementById('form-duration').value = "60";
-    }
-
-    function openModalWithDate(date) {
-        resetForm();
-        document.getElementById('form-date').value = date;
-        document.getElementById('new-appointment-modal').classList.remove('hidden');
-    }
-    
-    function toggleFailedReason() {
-        const section = document.getElementById('failed-reason-section');
-        const buttons = document.getElementById('action-buttons');
-        
-        if (section.classList.contains('hidden')) {
-            section.classList.remove('hidden');
-            buttons.classList.add('opacity-50', 'pointer-events-none');
-        } else {
-            section.classList.add('hidden');
-            buttons.classList.remove('opacity-50', 'pointer-events-none');
-        }
-    }
-    
-    function openAppointmentDetails(apt) {
-        currentAppointment = apt;
-        
-        // Reset Failed Section
-        document.getElementById('failed-reason-section').classList.add('hidden');
-        document.getElementById('action-buttons').classList.remove('opacity-50', 'pointer-events-none');
-        
-        // Populate Details
-        document.getElementById('details-title').textContent = apt.title || 'Appointment Details';
-        document.getElementById('details-time').textContent = new Date(apt.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        document.getElementById('details-date').textContent = new Date(apt.start_time).toLocaleDateString([], {weekday: 'long', month: 'long', day: 'numeric'});
-        
-        document.getElementById('details-customer').textContent = apt.customer ? apt.customer.name : 'Unknown';
-        document.getElementById('details-vehicle').textContent = apt.vehicle ? (apt.vehicle.make + ' ' + apt.vehicle.model + ' (' + apt.vehicle.license_plate + ')') : 'No vehicle';
-        
-        document.getElementById('details-type').textContent = apt.type.replace('_', ' ').toUpperCase();
-        document.getElementById('details-notes').textContent = apt.notes || 'No notes.';
-        
-        const statusSpan = document.getElementById('details-status');
-        statusSpan.textContent = apt.status.toUpperCase();
-        
-        let statusClasses = 'bg-blue-100 text-blue-800';
-        if(apt.status === 'completed') statusClasses = 'bg-green-100 text-green-800';
-        if(apt.status === 'failed') statusClasses = 'bg-red-100 text-red-800';
-        
-        statusSpan.className = 'px-2 py-1 text-xs font-bold rounded-full ' + statusClasses;
-        
-        // Setup Actions
-        const formComplete = document.getElementById('form-complete');
-        const formDelete = document.getElementById('form-delete');
-        const formFailed = document.getElementById('form-failed');
-        
-        formComplete.action = `/appointments/${apt.id}`;
-        formDelete.action = `/appointments/${apt.id}`;
-        formFailed.action = `/appointments/${apt.id}`; // Setup Failed Form Action
-        
-        // Button Logic
-        const btnComplete = document.getElementById('btn-complete');
-        const btnFailed = document.getElementById('btn-failed');
-
-        // Reset classes
-        btnComplete.className = "w-full justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors";
-        btnFailed.className = "w-full justify-center rounded-lg border border-red-200 shadow-sm px-4 py-2 bg-white text-sm font-bold text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors";
-
-        if(apt.status === 'completed') {
-            // Completed state
-            btnComplete.disabled = true;
-            btnComplete.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed', 'border-gray-200');
-            btnComplete.classList.remove('bg-green-600', 'hover:bg-green-700', 'text-white', 'shadow-sm');
-            btnComplete.innerHTML = 'Completed ✓';
-
-            btnFailed.disabled = true;
-            btnFailed.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed', 'border-gray-200');
-            btnFailed.classList.remove('bg-white', 'text-red-700', 'border-red-200', 'hover:bg-red-50');
-            btnFailed.innerHTML = 'Failed';
-        } 
-        else if(apt.status === 'failed') {
-            // Failed state
-            btnComplete.disabled = true;
-            btnComplete.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed', 'border-gray-200');
-            btnComplete.classList.remove('bg-green-600', 'hover:bg-green-700', 'text-white', 'shadow-sm');
-            btnComplete.innerHTML = 'Mark Done';
-
-            btnFailed.disabled = true;
-            btnFailed.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed', 'border-gray-200');
-            btnFailed.classList.remove('bg-white', 'text-red-700', 'border-red-200', 'hover:bg-red-50');
-            btnFailed.innerHTML = 'Failed ⚠';
-        } else {
-            // Active state
-            btnComplete.disabled = false;
-            btnComplete.classList.add('bg-green-600', 'hover:bg-green-700');
-            btnComplete.innerHTML = 'Mark Done';
-
-            btnFailed.disabled = false;
-            btnFailed.innerHTML = 'Failed';
-        }
-        
-        // Show Modal
-        document.getElementById('appointment-details-modal').classList.remove('hidden');
-    }
-
-    function openEditModal() {
-        if (!currentAppointment) return;
-        
-        // Close details modal
-        document.getElementById('appointment-details-modal').classList.add('hidden');
-        
-        // Setup Form for Edit
-        const form = document.getElementById('appointment-form');
-        form.action = `/appointments/${currentAppointment.id}`;
-        document.getElementById('form-method').value = "PUT";
-        document.getElementById('form-modal-title').textContent = "Edit Appointment";
-        document.getElementById('form-submit-btn').textContent = "Update Appointment";
-        
-        // Populate Inputs
-        document.getElementById('form-customer_id').value = currentAppointment.customer_id;
-        
-        // Parse dates (ISO string assumed)
-        const dateObj = new Date(currentAppointment.start_time);
-        
-        // Format YYYY-MM-DD
-        const yyyy = dateObj.getFullYear();
-        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const dd = String(dateObj.getDate()).padStart(2, '0');
-        document.getElementById('form-date').value = `${yyyy}-${mm}-${dd}`;
-        
-        // Format HH:mm
-        const hh = String(dateObj.getHours()).padStart(2, '0');
-        const min = String(dateObj.getMinutes()).padStart(2, '0');
-        document.getElementById('form-time').value = `${hh}:${min}`;
-        
-        document.getElementById('form-type').value = currentAppointment.type;
-        document.getElementById('form-duration').value = currentAppointment.duration;
-        document.getElementById('form-notes').value = currentAppointment.notes || '';
-        
-        // Show Modal
-        document.getElementById('new-appointment-modal').classList.remove('hidden');
-    }
-
-    let customerMode = 'choice'; // 'choice', 'search', 'new'
-    
-    function showSearchClient() {
-        customerMode = 'search';
-        document.getElementById('customer-choice-buttons').classList.add('hidden');
-        document.getElementById('search-customer-section').classList.remove('hidden');
-        document.getElementById('new-customer-section').classList.add('hidden');
-        
-        // Set required
-        document.getElementById('form-customer_id').setAttribute('required', 'required');
-        document.getElementById('new-customer-name').removeAttribute('required');
-        document.getElementById('new-customer-phone').removeAttribute('required');
-    }
-    
-    function showAddNewClient() {
-        customerMode = 'new';
-        document.getElementById('customer-choice-buttons').classList.add('hidden');
-        document.getElementById('search-customer-section').classList.add('hidden');
-        document.getElementById('new-customer-section').classList.remove('hidden');
-        
-        // Set required
-        document.getElementById('form-customer_id').removeAttribute('required');
-        document.getElementById('form-customer_id').value = '';
-        document.getElementById('new-customer-name').setAttribute('required', 'required');
-        document.getElementById('new-customer-phone').setAttribute('required', 'required');
-    }
-    
-    function showCustomerChoice() {
-        customerMode = 'choice';
-        document.getElementById('customer-choice-buttons').classList.remove('hidden');
-        document.getElementById('search-customer-section').classList.add('hidden');
-        document.getElementById('new-customer-section').classList.add('hidden');
-        
-        // Clear fields
-        document.getElementById('form-customer_id').value = '';
-        document.getElementById('new-customer-name').value = '';
-        document.getElementById('new-customer-phone').value = '';
-        
-        // Remove required from both
-        document.getElementById('form-customer_id').removeAttribute('required');
-        document.getElementById('new-customer-name').removeAttribute('required');
-        document.getElementById('new-customer-phone').removeAttribute('required');
-    }
-    
-    function resetCustomerMode() {
-        showCustomerChoice();
-    }
-
-    // Customer Search Functions
-    function searchCustomers(query) {
-        const results = document.getElementById('customer-search-results');
-        const items = results.querySelectorAll('.customer-result');
-        const normalizedQuery = query.toLowerCase().trim();
-        
-        if (normalizedQuery.length === 0) {
-            results.classList.add('hidden');
-            return;
-        }
-        
-        let hasResults = false;
-        items.forEach(item => {
-            const name = item.dataset.name.toLowerCase();
-            const phone = item.dataset.phone.toLowerCase();
-            if (name.includes(normalizedQuery) || phone.includes(normalizedQuery)) {
-                item.classList.remove('hidden');
-                hasResults = true;
-            } else {
-                item.classList.add('hidden');
-            }
-        });
-        
-        if (hasResults) {
-            results.classList.remove('hidden');
-        } else {
-            results.classList.add('hidden');
-        }
-    }
-    
-    function showSearchResults() {
-        const input = document.getElementById('customer-search-input');
-        if (input.value.length > 0) {
-            searchCustomers(input.value);
-        }
-    }
-    
-    function selectCustomer(id, name, phone) {
-        document.getElementById('form-customer_id').value = id;
-        document.getElementById('customer-search-input').value = '';
-        document.getElementById('customer-search-results').classList.add('hidden');
-        
-        // Show selected customer
-        document.getElementById('selected-customer-display').classList.remove('hidden');
-        document.getElementById('selected-customer-name').textContent = name + ' (' + phone + ')';
-        document.getElementById('customer-search-input').classList.add('hidden');
-    }
-    
-    function clearSelectedCustomer() {
-        document.getElementById('form-customer_id').value = '';
-        document.getElementById('selected-customer-display').classList.add('hidden');
-        document.getElementById('customer-search-input').classList.remove('hidden');
-        document.getElementById('customer-search-input').value = '';
-        document.getElementById('customer-search-input').focus();
-    }
-    
-    // Close search results when clicking outside
-    document.addEventListener('click', function(e) {
-        const searchSection = document.getElementById('search-customer-section');
-        const results = document.getElementById('customer-search-results');
-        if (searchSection && results && !searchSection.contains(e.target)) {
-            results.classList.add('hidden');
-        }
-    });
-</script>
 @endsection
+
+@push('scripts')
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <script>
+        function appointmentsCalendar() {
+            return {
+                calendar: null,
+                loading: false,
+                currentView: 'timeGridWeek',
+                currentTitle: '',
+                detailsModalOpen: false,
+                formModalOpen: false,
+                selectedEvent: null,
+                isEditing: false,
+                formAction: '{{ route("appointments.store") }}',
+                customerMode: 'new',
+                formData: {
+                    customer_id: '',
+                    new_customer_name: '',
+                    new_customer_phone: '',
+                    start_date: '',
+                    start_time: '09:00',
+                    type: 'service',
+                    duration: '60',
+                    notes: ''
+                },
+
+                init() {
+                    const calendarEl = document.getElementById('calendar');
+                    const self = this;
+
+                    this.calendar = new FullCalendar.Calendar(calendarEl, {
+                        initialView: 'timeGridWeek',
+                        headerToolbar: false, // Using custom header
+                        height: 'auto',
+                        slotMinTime: '07:00:00',
+                        slotMaxTime: '20:00:00',
+                        slotDuration: '00:30:00',
+                        allDaySlot: false,
+                        weekends: true,
+                        hiddenDays: [0], // Hide Sunday
+                        nowIndicator: true,
+                        editable: true,
+                        droppable: true,
+                        eventStartEditable: true,
+                        eventDurationEditable: true,
+
+                        events: {
+                            url: '{{ route("appointments.events") }}',
+                            failure: function () {
+                                console.error('Error loading appointments');
+                            }
+                        },
+
+                        loading: function (isLoading) {
+                            self.loading = isLoading;
+                        },
+
+                        datesSet: function (dateInfo) {
+                            self.currentTitle = dateInfo.view.title;
+                            self.currentView = dateInfo.view.type;
+                        },
+
+                        eventClick: function (info) {
+                            self.selectedEvent = {
+                                id: info.event.id,
+                                title: info.event.title,
+                                start: info.event.start,
+                                end: info.event.end,
+                                extendedProps: info.event.extendedProps
+                            };
+                            self.detailsModalOpen = true;
+                        },
+
+                        dateClick: function (info) {
+                            self.formData.start_date = info.dateStr.split('T')[0];
+                            if (info.dateStr.includes('T')) {
+                                self.formData.start_time = info.dateStr.split('T')[1].substring(0, 5);
+                            }
+                            self.isEditing = false;
+                            self.formAction = '{{ route("appointments.store") }}';
+                            self.formModalOpen = true;
+                        },
+
+                        eventDrop: function (info) {
+                            self.rescheduleEvent(info.event);
+                        },
+
+                        eventResize: function (info) {
+                            self.rescheduleEvent(info.event);
+                        },
+
+                        eventDidMount: function (info) {
+                            // Add tooltip
+                            const props = info.event.extendedProps;
+                            info.el.title = `${info.event.title}\n${props.type_label}\n${props.vehicle || 'No vehicle'}`;
+                        }
+                    });
+
+                    this.calendar.render();
+                    this.currentTitle = this.calendar.view.title;
+                },
+
+                changeView(view) {
+                    this.calendar.changeView(view);
+                    this.currentView = view;
+                },
+
+                openNewAppointmentModal() {
+                    this.customerMode = 'new';
+                    // Keep date/time if already set via dateClick
+                    const existingDate = this.formData.start_date || new Date().toISOString().split('T')[0];
+                    const existingTime = this.formData.start_time || '09:00';
+
+                    this.formData = {
+                        customer_id: '',
+                        new_customer_name: '',
+                        new_customer_phone: '',
+                        start_date: existingDate,
+                        start_time: existingTime,
+                        type: 'service',
+                        duration: '60',
+                        notes: ''
+                    };
+                    this.isEditing = false;
+                    this.formAction = '{{ route("appointments.store") }}';
+                    this.formModalOpen = true;
+                },
+
+                openEditModal() {
+                    if (!this.selectedEvent) return;
+
+                    const event = this.selectedEvent;
+                    const startDate = new Date(event.start);
+
+                    this.customerMode = 'existing';
+
+                    this.formData = {
+                        customer_id: event.extendedProps.customer_id,
+                        new_customer_name: '',
+                        new_customer_phone: '',
+                        start_date: startDate.toISOString().split('T')[0],
+                        start_time: startDate.toTimeString().substring(0, 5),
+                        type: event.extendedProps.type,
+                        duration: event.extendedProps.duration || '60',
+                        notes: event.extendedProps.notes || ''
+                    };
+
+                    this.isEditing = true;
+                    this.formAction = '/appointments/' + event.id;
+                    this.detailsModalOpen = false;
+                    this.formModalOpen = true;
+                },
+
+                async rescheduleEvent(event) {
+                    try {
+                        const response = await fetch(`/api/appointments/${event.id}/reschedule`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                start: event.start.toISOString(),
+                                end: event.end ? event.end.toISOString() : null
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to reschedule');
+                        }
+                    } catch (error) {
+                        console.error('Reschedule error:', error);
+                        this.calendar.refetchEvents();
+                    }
+                },
+
+                formatEventTime(event) {
+                    if (!event || !event.start) return '';
+                    const start = new Date(event.start);
+                    const end = event.end ? new Date(event.end) : null;
+                    const timeStr = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    if (end) {
+                        return timeStr + ' - ' + end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+                    return timeStr;
+                },
+
+                formatEventDate(event) {
+                    if (!event || !event.start) return '';
+                    return new Date(event.start).toLocaleDateString([], {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+                },
+
+                getStatusClasses(status) {
+                    const classes = {
+                        'scheduled': 'bg-indigo-100 text-indigo-800',
+                        'confirmed': 'bg-purple-100 text-purple-800',
+                        'completed': 'bg-green-100 text-green-800',
+                        'failed': 'bg-red-100 text-red-800',
+                        'cancelled': 'bg-gray-100 text-gray-800'
+                    };
+                    return classes[status] || classes['scheduled'];
+                }
+            };
+        }
+    </script>
+@endpush

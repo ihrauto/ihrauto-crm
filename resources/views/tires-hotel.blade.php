@@ -64,8 +64,8 @@
         </div>
 
         <!-- =========================================
-                                                                     INLINE FORM: Store New Tires (Hidden by default)
-                                                                     ========================================= -->
+                                                                         INLINE FORM: Store New Tires (Hidden by default)
+                                                                         ========================================= -->
         <div id="store-new-form" class="hidden" x-data="tireStorageForm()">
             <x-card>
                 <!-- Header with Cancel -->
@@ -312,8 +312,8 @@
         </div>
 
         <!-- =========================================
-                                                                                 INLINE FORM: Retrieve Tires (Hidden by default)
-                                                                                 ========================================= -->
+                                                                                     INLINE FORM: Retrieve Tires (Hidden by default)
+                                                                                     ========================================= -->
         <div id="retrieve-form" class="hidden">
             <x-card>
 
@@ -357,7 +357,7 @@
 
                 <div class="flex justify-start mt-6">
                     <button type="button" id="cancel-retrieve-inline"
-                        class="inline-flex items-center px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-all">
+                        class="inline-flex items-center px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-200">
                         Cancel
                     </button>
                 </div>
@@ -425,7 +425,8 @@
                             <div class="flex items-center gap-2">
                                 <span class="text-xs font-bold text-indigo-900 w-16">{{ $section['section'] }}</span>
                                 <div class="flex-1 bg-indigo-50 rounded-full h-1.5">
-                                    <div class="bg-indigo-600 h-1.5 rounded-full" style="width: {{ $section['percentage'] }}%"></div>
+                                    <div class="bg-indigo-600 h-1.5 rounded-full" style="width: {{ $section['percentage'] }}%">
+                                    </div>
                                 </div>
                                 <span class="text-xs text-indigo-500">{{ $section['used'] }}/{{ $section['total'] }}</span>
                             </div>
@@ -444,7 +445,8 @@
                                         <span class="text-xs font-semibold text-indigo-900">{{ $pickup['customer_name'] }}</span>
                                         <span class="text-xs text-indigo-400 ml-1">{{ $pickup['vehicle'] }}</span>
                                     </div>
-                                    <span class="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">{{ $pickup['urgency'] }}</span>
+                                    <span
+                                        class="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">{{ $pickup['urgency'] }}</span>
                                 </div>
                             @endforeach
                         </div>
@@ -831,27 +833,27 @@
                                     const tireRow = document.createElement('div');
                                     tireRow.className = 'bg-indigo-50/50 rounded-lg p-4 border border-indigo-100 text-sm mb-4';
                                     tireRow.innerHTML = `
-                                                                <div class="space-y-1">
-                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Name:</span> <span>${customerName}</span></div>
-                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Vehicle:</span> <span>${data.vehicle.make} ${data.vehicle.model}</span></div>
-                                                                    <div class="h-px bg-indigo-100 my-2"></div>
-                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Brand:</span> <span>${tire.brand}</span></div>
-                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Size:</span> <span>${tire.size}</span></div>
-                                                                    <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Season:</span> <span>${tire.season}</span></div>
-                                                                    <div class="h-px bg-indigo-100 my-2"></div>
-                                                                    <div class="flex items-center justify-between">
-                                                                        <div class="font-mono text-indigo-700 font-bold">
-                                                                            Loc: ${section}-${row}-${slot}
+                                                                    <div class="space-y-1">
+                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Name:</span> <span>${customerName}</span></div>
+                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Vehicle:</span> <span>${data.vehicle.make} ${data.vehicle.model}</span></div>
+                                                                        <div class="h-px bg-indigo-100 my-2"></div>
+                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Brand:</span> <span>${tire.brand}</span></div>
+                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Size:</span> <span>${tire.size}</span></div>
+                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Season:</span> <span>${tire.season}</span></div>
+                                                                        <div class="h-px bg-indigo-100 my-2"></div>
+                                                                        <div class="flex items-center justify-between">
+                                                                            <div class="font-mono text-indigo-700 font-bold">
+                                                                                Loc: ${section}-${row}-${slot}
+                                                                            </div>
+                                                                            <div class="flex space-x-2">
+                                                                            <a href="/tires-hotel/${tire.id}" 
+                                                                                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded hover:bg-indigo-700 transition-colors shadow-sm">
+                                                                                View
+                                                                            </a>
                                                                         </div>
-                                                                        <div class="flex space-x-2">
-                                                                        <a href="/tires-hotel/${tire.id}" 
-                                                                            class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded hover:bg-indigo-700 transition-colors shadow-sm">
-                                                                            View
-                                                                        </a>
+                                                                        </div>
                                                                     </div>
-                                                                    </div>
-                                                                </div>
-                                                            `;
+                                                                `;
                                     resultsContainer.appendChild(tireRow);
                                 });
                             } else {

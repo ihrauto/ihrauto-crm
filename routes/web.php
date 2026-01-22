@@ -404,6 +404,8 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
 
     // Appointment routes
     Route::resource('appointments', \App\Http\Controllers\AppointmentController::class);
+    Route::get('/api/appointments/events', [\App\Http\Controllers\AppointmentController::class, 'events'])->name('appointments.events');
+    Route::put('/api/appointments/{appointment}/reschedule', [\App\Http\Controllers\AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
 
     // Billing & Finance Routes
     Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)
