@@ -16,6 +16,29 @@ services:
         value: false
       - key: LOG_CHANNEL
         value: stderr
+      # Database Configuration
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: ihrauto-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ihrauto-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: ihrauto-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: ihrauto-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ihrauto-db
+          property: password
       # Email Configuration (Resend)
       - key: MAIL_MAILER
         value: resend
@@ -34,3 +57,10 @@ services:
         sync: false  # Set this secret in Render dashboard
       - key: STARTUP_COMMAND
         value: php artisan migrate --force && apache2-foreground
+
+databases:
+  - name: ihrauto-db
+    databaseName: ihrauto
+    user: ihrauto_admin
+    plan: free
+    region: frankfurt
