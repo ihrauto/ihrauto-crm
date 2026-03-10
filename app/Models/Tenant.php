@@ -80,7 +80,6 @@ class Tenant extends Model
         'two_factor_required',
         'ip_whitelist',
         'audit_logs_enabled',
-        'api_key',
         'api_rate_limit',
         'last_activity_at',
         'last_seen_at',
@@ -118,11 +117,6 @@ class Tenant extends Model
             // Auto-generate subdomain if not provided
             if (!$tenant->subdomain) {
                 $tenant->subdomain = $tenant->slug;
-            }
-
-            // Generate API key
-            if (!$tenant->api_key) {
-                $tenant->api_key = 'tk_' . Str::random(32);
             }
 
             // Set trial end date
@@ -163,6 +157,11 @@ class Tenant extends Model
     public function workOrders(): HasMany
     {
         return $this->hasMany(WorkOrder::class);
+    }
+
+    public function apiTokens(): HasMany
+    {
+        return $this->hasMany(TenantApiToken::class);
     }
 
     /**
@@ -220,10 +219,10 @@ class Tenant extends Model
     public function getDaysRemainingAttribute(): ?int
     {
         if ($this->is_trial && $this->trial_ends_at) {
-            return max(0, $this->trial_ends_at->diffInDays(now(), false));
+            return max(0, now()->diffInDays($this->trial_ends_at, false));
         }
         if (!$this->is_trial && $this->subscription_ends_at) {
-            return max(0, $this->subscription_ends_at->diffInDays(now(), false));
+            return max(0, now()->diffInDays($this->subscription_ends_at, false));
         }
 
         return null;
@@ -270,7 +269,9 @@ class Tenant extends Model
 
     public function updateLastActivity(): void
     {
-        $this->update(['last_activity_at' => now()]);
+        if (!$this->last_activity_at || $this->last_activity_at->lt(now()->subMinutes(5))) {
+            $this->update(['last_activity_at' => now()]);
+        }
     }
 
     public function suspend(): void

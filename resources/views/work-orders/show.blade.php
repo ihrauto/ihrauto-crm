@@ -593,7 +593,7 @@
             }
 
             woDebounceTimer = setTimeout(() => {
-                fetch(`/api/products-services/search?q=${encodeURIComponent(query)}`)
+                fetch(`/ajax/products-services/search?q=${encodeURIComponent(query)}`)
                     .then(res => res.json())
                     .then(data => {
                         woResultsDiv.innerHTML = '';

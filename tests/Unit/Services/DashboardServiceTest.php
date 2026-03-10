@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Services\DashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class DashboardServiceTest extends TestCase
@@ -32,7 +33,7 @@ class DashboardServiceTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_complete_stats_array()
     {
         $stats = $this->service->getStats();
@@ -48,7 +49,7 @@ class DashboardServiceTest extends TestCase
         $this->assertArrayHasKey('revenue_growth', $stats);
     }
 
-    /** @test */
+    #[Test]
     public function it_counts_active_customers()
     {
         Customer::factory()->count(3)->create([
@@ -65,7 +66,7 @@ class DashboardServiceTest extends TestCase
         $this->assertEquals(3, $stats['total_customers']);
     }
 
-    /** @test */
+    #[Test]
     public function it_counts_checkins_by_status()
     {
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
@@ -94,7 +95,7 @@ class DashboardServiceTest extends TestCase
         $this->assertEquals(1, $stats['in_progress_checkins']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_recent_activities_collection()
     {
         $activities = $this->service->getRecentActivities();
@@ -102,7 +103,7 @@ class DashboardServiceTest extends TestCase
         $this->assertInstanceOf(\Illuminate\Support\Collection::class, $activities);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_recent_checkins_with_required_fields()
     {
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
@@ -130,7 +131,7 @@ class DashboardServiceTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_service_bay_status_using_config()
     {
         $bays = $this->service->getServiceBayStatus();
@@ -143,7 +144,7 @@ class DashboardServiceTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_tire_operations_collection()
     {
         $operations = $this->service->getTireOperations();
@@ -151,7 +152,7 @@ class DashboardServiceTest extends TestCase
         $this->assertInstanceOf(\Illuminate\Support\Collection::class, $operations);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_system_status_array()
     {
         $status = $this->service->getSystemStatus();

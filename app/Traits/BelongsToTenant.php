@@ -19,8 +19,8 @@ trait BelongsToTenant
 
         // Automatically set tenant_id when creating new records
         static::creating(function ($model) {
-            if (! $model->tenant_id && auth()->check()) {
-                $model->tenant_id = auth()->user()->tenant_id;
+            if (! $model->tenant_id && tenant_id()) {
+                $model->tenant_id = tenant_id();
             }
         });
     }
@@ -38,7 +38,7 @@ trait BelongsToTenant
      */
     public function scopeForTenant(Builder $query, $tenantId = null): Builder
     {
-        $tenantId = $tenantId ?? auth()->user()?->tenant_id;
+        $tenantId = $tenantId ?? tenant_id();
 
         return $query->where('tenant_id', $tenantId);
     }
@@ -56,7 +56,7 @@ trait BelongsToTenant
      */
     public function isOwnedByCurrentTenant(): bool
     {
-        return $this->tenant_id === auth()->user()?->tenant_id;
+        return $this->tenant_id === tenant_id();
     }
 
     /**

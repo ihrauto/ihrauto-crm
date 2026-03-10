@@ -4,18 +4,25 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Services\InvoiceService;
+use App\Support\TenantValidation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
+    public function __construct(
+        private readonly InvoiceService $invoiceService
+    ) {
+    }
+
     /**
      * Store a newly created payment in storage.
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'invoice_id' => 'required|exists:invoices,id',
+            'invoice_id' => ['required', TenantValidation::exists('invoices')],
             'amount' => 'required|numeric|min:0.01',
             'method' => 'required|string',
             'payment_date' => 'required|date',
@@ -41,16 +48,10 @@ class PaymentController extends Controller
                 }
             }
 
-            $invoice = Invoice::findOrFail($validated['invoice_id']);
-
-            // Security: Verify tenant ownership (prevent IDOR)
-            if ($invoice->tenant_id !== auth()->user()->tenant_id) {
-                DB::rollBack();
-                abort(403, 'Unauthorized: Invoice does not belong to your organization.');
-            }
+            $invoice = Invoice::query()->lockForUpdate()->findOrFail($validated['invoice_id']);
 
             // Security Check: Status
-            if (in_array($invoice->status, ['paid', 'cancelled'])) {
+            if (in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_PAID, Invoice::STATUS_VOID], true)) {
                 DB::rollBack();
 
                 return back()->with('error', 'Cannot process payment. Invoice is already ' . $invoice->status . '.');
@@ -65,7 +66,7 @@ class PaymentController extends Controller
 
             // Create Payment
             Payment::create([
-                'tenant_id' => auth()->user()->tenant_id,
+                'tenant_id' => tenant_id(),
                 'invoice_id' => $validated['invoice_id'],
                 'amount' => $validated['amount'],
                 'method' => $validated['method'],
@@ -74,20 +75,7 @@ class PaymentController extends Controller
                 'notes' => $validated['notes'] ?? null,
             ]);
 
-            // Update Invoice Paid Amount
-            $invoice->paid_amount += $validated['amount'];
-
-            // Update Status Logic
-            if ($invoice->paid_amount >= $invoice->total) {
-                $invoice->status = 'paid';
-                $invoice->locked_at = now();
-            } elseif ($invoice->paid_amount > 0) {
-                $invoice->status = 'partial';
-            } else {
-                $invoice->status = 'unpaid';
-            }
-
-            $invoice->save();
+            $invoice = $this->invoiceService->syncPaymentState($invoice);
 
             DB::commit();
 

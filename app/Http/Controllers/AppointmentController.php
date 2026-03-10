@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Vehicle;
+use App\Support\TenantValidation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -105,6 +106,10 @@ class AppointmentController extends Controller
      */
     public function store(Request $request)
     {
+        $request->validate([
+            'customer_id' => ['nullable', TenantValidation::exists('customers')],
+        ]);
+
         // Check if this is a new customer
         $customerId = $request->customer_id;
 
@@ -117,7 +122,7 @@ class AppointmentController extends Controller
 
             // Create new customer
             $newCustomer = Customer::create([
-                'tenant_id' => auth()->user()->tenant_id,
+                'tenant_id' => tenant_id(),
                 'name' => $request->new_customer_name,
                 'phone' => $request->new_customer_phone,
             ]);
@@ -126,7 +131,7 @@ class AppointmentController extends Controller
         }
 
         $validated = $request->validate([
-            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'vehicle_id' => ['nullable', TenantValidation::exists('vehicles')],
             'start_date' => 'required|date',
             'start_time' => 'required',
             'duration' => 'required|integer|min:15', // minutes
@@ -145,12 +150,12 @@ class AppointmentController extends Controller
 
         // Auto-assign first vehicle if not selected (Optional, but helpful)
         $vehicleId = $validated['vehicle_id'] ?? null;
-        if (!$vehicleId && $customer = Customer::find($customerId)) {
+        if (!$vehicleId && $customer = Customer::query()->find($customerId)) {
             $vehicleId = $customer->vehicles()->first()->id ?? null;
         }
 
         Appointment::create([
-            'tenant_id' => auth()->user()->tenant_id,
+            'tenant_id' => tenant_id(),
             'customer_id' => $customerId,
             'vehicle_id' => $vehicleId,
             'title' => $validated['title'] ?? ucfirst(str_replace('_', ' ', $validated['type'])),
@@ -172,7 +177,7 @@ class AppointmentController extends Controller
         // Full Update
         if ($request->has('start_date') && $request->has('start_time')) {
             $validated = $request->validate([
-                'customer_id' => 'required|exists:customers,id',
+                'customer_id' => ['required', TenantValidation::exists('customers')],
                 'start_date' => 'required|date',
                 'start_time' => 'required',
                 'duration' => 'required|integer|min:15',

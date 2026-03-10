@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Vehicle;
+use App\Support\TenantValidation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCheckinRequest extends FormRequest
@@ -33,7 +34,7 @@ class StoreCheckinRequest extends FormRequest
 
         if ($this->form_type === 'active_user') {
             $rules = array_merge($rules, [
-                'vehicle_id' => 'required|exists:vehicles,id',
+                'vehicle_id' => ['required', TenantValidation::exists('vehicles')],
                 'service_type' => 'required|in:tire_change,oil_change,inspection,maintenance,repair,other',
             ]);
         } elseif ($this->form_type === 'new_customer') {
@@ -60,7 +61,9 @@ class StoreCheckinRequest extends FormRequest
                         $normalizedPlate = strtoupper(str_replace(' ', '', trim($value)));
 
                         // Check if any existing vehicle has this normalized plate
-                        $existingVehicle = Vehicle::whereRaw("UPPER(REPLACE(license_plate, ' ', '')) = ?", [$normalizedPlate])->first();
+                        $existingVehicle = Vehicle::whereRaw("UPPER(REPLACE(license_plate, ' ', '')) = ?", [$normalizedPlate])
+                            ->where('tenant_id', tenant_id())
+                            ->first();
 
                         if ($existingVehicle) {
                             $fail('A vehicle with license plate "' . $existingVehicle->license_plate . '" is already registered in our system.');

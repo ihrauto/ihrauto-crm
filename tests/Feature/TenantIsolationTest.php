@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
@@ -59,7 +60,7 @@ class TenantIsolationTest extends TestCase
     // CUSTOMER ISOLATION TESTS
     // =========================================
 
-    /** @test */
+    #[Test]
     public function user_cannot_view_other_tenant_customer()
     {
         $this->actingAs($this->userA);
@@ -69,7 +70,7 @@ class TenantIsolationTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_update_other_tenant_customer()
     {
         $this->actingAs($this->userA);
@@ -82,7 +83,7 @@ class TenantIsolationTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_delete_other_tenant_customer()
     {
         $this->actingAs($this->userA);
@@ -99,7 +100,7 @@ class TenantIsolationTest extends TestCase
     // VEHICLE ISOLATION TESTS (Query Scope)
     // =========================================
 
-    /** @test */
+    #[Test]
     public function vehicle_query_only_returns_own_tenant_records()
     {
         Vehicle::factory()->count(2)->create([
@@ -127,7 +128,7 @@ class TenantIsolationTest extends TestCase
     // INVOICE ISOLATION TESTS
     // =========================================
 
-    /** @test */
+    #[Test]
     public function user_cannot_view_other_tenant_invoice()
     {
         $invoiceB = Invoice::factory()->create([
@@ -142,7 +143,7 @@ class TenantIsolationTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_update_other_tenant_invoice()
     {
         $invoiceB = Invoice::factory()->create([
@@ -160,7 +161,7 @@ class TenantIsolationTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_delete_other_tenant_invoice()
     {
         $invoiceB = Invoice::factory()->create([
@@ -182,7 +183,7 @@ class TenantIsolationTest extends TestCase
     // WORK ORDER ISOLATION TESTS
     // =========================================
 
-    /** @test */
+    #[Test]
     public function user_cannot_view_other_tenant_work_order()
     {
         $vehicleB = Vehicle::factory()->create([
@@ -203,7 +204,7 @@ class TenantIsolationTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_update_other_tenant_work_order()
     {
         $vehicleB = Vehicle::factory()->create([
@@ -230,7 +231,7 @@ class TenantIsolationTest extends TestCase
     // PRODUCT ISOLATION TESTS
     // =========================================
 
-    /** @test */
+    #[Test]
     public function product_query_only_returns_own_tenant_records()
     {
         Product::factory()->count(3)->create(['tenant_id' => $this->tenantA->id]);
@@ -252,7 +253,7 @@ class TenantIsolationTest extends TestCase
     // TIRE ISOLATION TESTS
     // =========================================
 
-    /** @test */
+    #[Test]
     public function user_cannot_view_other_tenant_tire()
     {
         $vehicleB = Vehicle::factory()->create([
@@ -277,7 +278,7 @@ class TenantIsolationTest extends TestCase
     // QUERY SCOPE ISOLATION TESTS
     // =========================================
 
-    /** @test */
+    #[Test]
     public function customer_query_only_returns_own_tenant_records()
     {
         Customer::factory()->count(3)->create(['tenant_id' => $this->tenantA->id]);
@@ -295,7 +296,7 @@ class TenantIsolationTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function invoice_query_only_returns_own_tenant_records()
     {
         Invoice::factory()->count(2)->create([
@@ -322,7 +323,7 @@ class TenantIsolationTest extends TestCase
     // POLICY AUTHORIZATION TESTS
     // =========================================
 
-    /** @test */
+    #[Test]
     public function policy_denies_view_for_other_tenant_invoice()
     {
         $invoiceB = Invoice::factory()->create([
@@ -335,7 +336,7 @@ class TenantIsolationTest extends TestCase
         $this->assertFalse($this->userA->can('view', $invoiceB));
     }
 
-    /** @test */
+    #[Test]
     public function policy_denies_update_for_other_tenant_invoice()
     {
         $invoiceB = Invoice::factory()->create([
@@ -349,7 +350,7 @@ class TenantIsolationTest extends TestCase
         $this->assertFalse($this->userA->can('update', $invoiceB));
     }
 
-    /** @test */
+    #[Test]
     public function policy_allows_view_for_same_tenant_invoice()
     {
         $invoiceA = Invoice::factory()->create([

@@ -25,12 +25,12 @@ class FinanceController extends Controller
                 ->sum('amount'),
 
             // Sum of all unpaid invoice balances (total - paid_amount where balance > 0)
-            'unpaid_total' => Invoice::where('status', '!=', 'cancelled')
+            'unpaid_total' => Invoice::where('status', '!=', Invoice::STATUS_VOID)
                 ->whereRaw('total - paid_amount > 0')
                 ->sum(\DB::raw('total - paid_amount')),
 
             'overdue_total' => Invoice::whereDate('due_date', '<', now())
-                ->whereNotIn('status', ['draft', 'void', 'paid'])
+                ->whereNotIn('status', [Invoice::STATUS_DRAFT, Invoice::STATUS_VOID, Invoice::STATUS_PAID])
                 ->sum(\DB::raw('total - paid_amount')),
         ];
 
@@ -44,7 +44,7 @@ class FinanceController extends Controller
                         ->orWhereHas('vehicle', function ($vq) use ($search) {
                             $vq->whereRaw('LOWER(make) LIKE ?', ['%' . strtolower($search) . '%'])
                                 ->orWhereRaw('LOWER(model) LIKE ?', ['%' . strtolower($search) . '%'])
-                                ->orWhereRaw('LOWER(plate_number) LIKE ?', ['%' . strtolower($search) . '%']);
+                                ->orWhereRaw('LOWER(license_plate) LIKE ?', ['%' . strtolower($search) . '%']);
                         })
                         ->orWhereRaw('LOWER(invoice_number) LIKE ?', ['%' . strtolower($search) . '%']);
                 });
@@ -67,7 +67,7 @@ class FinanceController extends Controller
 
         // ISSUED tab - Invoices created TODAY with balance > 0
         $issuedQuery = Invoice::with(['customer', 'vehicle'])
-            ->where('status', '!=', 'cancelled')
+            ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_PARTIAL])
             ->whereDate('created_at', now()->toDateString());
         $searchInvoices($issuedQuery);
         $issuedInvoices = $issuedQuery->get()
@@ -76,7 +76,7 @@ class FinanceController extends Controller
 
         // UNPAID tab - All invoices with balance > 0
         $unpaidQuery = Invoice::with(['customer', 'vehicle'])
-            ->where('status', '!=', 'cancelled');
+            ->whereNotIn('status', [Invoice::STATUS_DRAFT, Invoice::STATUS_VOID, Invoice::STATUS_PAID]);
         $searchInvoices($unpaidQuery);
         $unpaidInvoices = $unpaidQuery->get()
             ->filter(fn($inv) => $inv->balance > 0)

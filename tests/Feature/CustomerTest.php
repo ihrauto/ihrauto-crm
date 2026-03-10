@@ -2,16 +2,18 @@
 
 namespace Tests\Feature;
 
+use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Customer;
 use App\Models\User;
 use App\Models\Tenant;
 use App\Models\Vehicle;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class CustomerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $user;
     protected Tenant $tenant;
@@ -19,14 +21,17 @@ class CustomerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(RolesAndPermissionsSeeder::class);
 
         $this->tenant = Tenant::factory()->create();
         $this->user = User::factory()->create([
             'tenant_id' => $this->tenant->id,
+            'role' => 'admin',
         ]);
+        $this->user->assignRole('admin');
     }
 
-    /** @test */
+    #[Test]
     public function user_can_view_customers_index()
     {
         $response = $this->actingAs($this->user)
@@ -36,7 +41,7 @@ class CustomerTest extends TestCase
         $response->assertViewIs('customers.index');
     }
 
-    /** @test */
+    #[Test]
     public function user_can_create_customer()
     {
         $customerData = [
@@ -61,7 +66,7 @@ class CustomerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_view_single_customer()
     {
         $customer = Customer::factory()->create([
@@ -75,7 +80,7 @@ class CustomerTest extends TestCase
         $response->assertViewIs('customers.show');
     }
 
-    /** @test */
+    #[Test]
     public function user_can_update_customer()
     {
         $customer = Customer::factory()->create([
@@ -98,7 +103,7 @@ class CustomerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function customer_search_is_case_insensitive()
     {
         Customer::factory()->create([
@@ -122,7 +127,7 @@ class CustomerTest extends TestCase
         $response->assertDontSee('Peter Schmidt');
     }
 
-    /** @test */
+    #[Test]
     public function customer_search_works_with_email()
     {
         Customer::factory()->create([
@@ -138,7 +143,7 @@ class CustomerTest extends TestCase
         $response->assertSee('Test Customer');
     }
 
-    /** @test */
+    #[Test]
     public function customers_are_tenant_isolated()
     {
         // Create customer for our tenant
@@ -162,7 +167,7 @@ class CustomerTest extends TestCase
         $response->assertDontSee('Their Customer');
     }
 
-    /** @test */
+    #[Test]
     public function customer_has_vehicles_relationship()
     {
         $customer = Customer::factory()->create([
@@ -178,7 +183,7 @@ class CustomerTest extends TestCase
         $this->assertCount(1, $customer->vehicles);
     }
 
-    /** @test */
+    #[Test]
     public function customer_full_name_attribute_returns_name()
     {
         $customer = Customer::factory()->create([
@@ -189,7 +194,7 @@ class CustomerTest extends TestCase
         $this->assertEquals('Max Mustermann', $customer->full_name);
     }
 
-    /** @test */
+    #[Test]
     public function customer_api_show_returns_json()
     {
         $customer = Customer::factory()->create([
@@ -203,7 +208,7 @@ class CustomerTest extends TestCase
         $response->assertJsonStructure(['id', 'name', 'email', 'phone']);
     }
 
-    /** @test */
+    #[Test]
     public function customer_history_returns_json()
     {
         $customer = Customer::factory()->create([

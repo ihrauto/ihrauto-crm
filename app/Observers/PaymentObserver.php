@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Services\InvoiceService;
 
 class PaymentObserver
 {
@@ -62,26 +63,6 @@ class PaymentObserver
             return;
         }
 
-        $totalPaid = $invoice->payments()->sum('amount');
-
-        $invoice->paid_amount = round($totalPaid, 2);
-
-        // Update Status based on payment logic
-        if ($invoice->paid_amount >= $invoice->total) {
-            $invoice->status = 'paid';
-        } elseif ($invoice->paid_amount > 0) {
-            $invoice->status = 'partial';
-        } elseif ($invoice->status !== 'draft') {
-            $invoice->status = 'unpaid';
-        }
-
-        // $invoice->save();
-        // Debugging: Force update via DB to see if Eloquent is blocking
-        \Illuminate\Support\Facades\DB::table('invoices')
-            ->where('id', $invoice->id)
-            ->update([
-                'paid_amount' => $invoice->paid_amount,
-                'status' => $invoice->status,
-            ]);
+        app(InvoiceService::class)->syncPaymentState($invoice->fresh());
     }
 }

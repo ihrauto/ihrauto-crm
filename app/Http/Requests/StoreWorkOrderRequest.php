@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantValidation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreWorkOrderRequest extends FormRequest
@@ -20,10 +21,10 @@ class StoreWorkOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'checkin_id' => 'sometimes|exists:checkins,id',
-            'customer_id' => 'required|exists:customers,id',
-            'vehicle_id' => 'required|exists:vehicles,id',
-            'technician_id' => 'nullable|exists:users,id',
+            'checkin_id' => ['sometimes', TenantValidation::exists('checkins')],
+            'customer_id' => ['required', TenantValidation::exists('customers')],
+            'vehicle_id' => ['required', TenantValidation::exists('vehicles')],
+            'technician_id' => ['nullable', TenantValidation::exists('users')],
             'status' => 'sometimes|in:created,pending,in_progress,completed,cancelled',
             'priority' => 'sometimes|in:low,normal,high,urgent',
             'customer_issues' => 'nullable|string|max:2000',
@@ -36,7 +37,7 @@ class StoreWorkOrderRequest extends FormRequest
             'parts_used.*.name' => 'required_with:parts_used|string|max:255',
             'parts_used.*.qty' => 'nullable|integer|min:1',
             'parts_used.*.price' => 'nullable|numeric|min:0',
-            'parts_used.*.product_id' => 'nullable|exists:products,id',
+            'parts_used.*.product_id' => ['nullable', TenantValidation::exists('products')],
         ];
     }
 

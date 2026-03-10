@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
+use App\Services\TenantLifecycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -219,9 +220,9 @@ class SuperAdminController extends Controller
     }
 
     /**
-     * Permanently delete a tenant and all associated data.
+     * Archive a tenant and deactivate access from the admin panel.
      */
-    public function destroy(Request $request, Tenant $tenant): RedirectResponse
+    public function destroy(Request $request, Tenant $tenant, TenantLifecycleService $tenantLifecycleService): RedirectResponse
     {
         $request->validate([
             'confirmation' => 'required|in:DELETE',
@@ -229,38 +230,10 @@ class SuperAdminController extends Controller
             'confirmation.in' => 'Please type DELETE to confirm.',
         ]);
 
-        $tenantName = $tenant->name;
-        $tenantId = $tenant->id;
-
-        // Get all user IDs for this tenant first
-        $userIds = \DB::table('users')->where('tenant_id', $tenantId)->pluck('id')->toArray();
-
-        // Delete role assignments for these users
-        if (!empty($userIds)) {
-            \DB::table('model_has_roles')->whereIn('model_id', $userIds)
-                ->where('model_type', 'App\\Models\\User')
-                ->delete();
-        }
-
-        // Delete all users associated with this tenant (bypassing soft deletes)
-        \DB::table('users')->where('tenant_id', $tenantId)->delete();
-
-        // Delete related data that might not have cascade
-        \DB::table('events')->where('tenant_id', $tenantId)->delete();
-        \DB::table('products')->where('tenant_id', $tenantId)->delete();
-        \DB::table('services')->where('tenant_id', $tenantId)->delete();
-
-        // Log action before deleting tenant
-        $this->logAction($tenant, 'delete', [
-            'tenant_name' => $tenantName,
-            'deleted_at' => now()->toIso8601String(),
-        ]);
-
-        // Force delete tenant (not soft delete) using DB facade
-        \DB::table('tenants')->where('id', $tenantId)->delete();
+        $tenantLifecycleService->archive($tenant, $request->user(), 'Archived from admin control page.');
 
         return redirect()->route('admin.tenants.index')
-            ->with('success', "Tenant '{$tenantName}' and all associated data have been permanently deleted.");
+            ->with('success', "Tenant '{$tenant->name}' has been archived and deactivated.");
     }
 
     /**
@@ -278,4 +251,3 @@ class SuperAdminController extends Controller
         ]);
     }
 }
-

@@ -45,7 +45,7 @@ class TenantFactory extends Factory
             'two_factor_required' => false,
             'ip_whitelist' => null,
             'audit_logs_enabled' => true,
-            'api_key' => 'tk_' . Str::random(32),
+            'api_key' => null,
             'api_rate_limit' => 1000,
         ];
     }

@@ -36,7 +36,8 @@ class StoreNewTireCustomerRequest extends FormRequest
                 'string',
                 'max:50',
                 \Illuminate\Validation\Rule::unique('tires', 'storage_location')->where(function ($query) {
-                    return $query->where('status', 'stored');
+                    return $query->where('tenant_id', tenant_id())
+                        ->where('status', 'stored');
                 }),
             ],
             'notes' => 'nullable|string|max:1000',

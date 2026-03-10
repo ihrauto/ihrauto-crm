@@ -18,8 +18,9 @@ class UpdateTenantLastSeen
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (auth()->check() && auth()->user()->tenant) {
-            $tenant = auth()->user()->tenant;
+        $tenant = tenant() ?? auth()->user()?->tenant;
+
+        if ($tenant) {
 
             // Throttle: only update if null or older than 5 minutes
             if (!$tenant->last_seen_at || $tenant->last_seen_at->lt(now()->subMinutes(5))) {

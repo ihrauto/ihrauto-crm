@@ -12,6 +12,7 @@ use App\Models\WorkOrder;
 use App\Services\InvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class InvoiceServiceTest extends TestCase
@@ -45,7 +46,7 @@ class InvoiceServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_unique_invoice_numbers()
     {
         $number1 = $this->service->generateInvoiceNumber();
@@ -59,7 +60,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertStringStartsWith(config('crm.invoice.prefix'), $number1);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_invoice_from_work_order()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -81,7 +82,7 @@ class InvoiceServiceTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_existing_invoice_if_one_already_exists()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -103,7 +104,7 @@ class InvoiceServiceTest extends TestCase
         $this->assertEquals($existingInvoice->id, $returnedInvoice->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_invoice_items_from_service_tasks()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -123,7 +124,7 @@ class InvoiceServiceTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_invoice_items_from_parts_used()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -143,7 +144,7 @@ class InvoiceServiceTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function it_processes_stock_deductions_for_parts()
     {
         $product = Product::factory()->create([
@@ -174,7 +175,7 @@ class InvoiceServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_fallback_item_when_no_tasks_or_parts()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -194,7 +195,7 @@ class InvoiceServiceTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_config_tax_rate()
     {
         $workOrder = WorkOrder::factory()->create([

@@ -7,6 +7,7 @@ use App\Models\Tire;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Services\TireStorageService;
+use App\Support\TenantValidation;
 use App\Traits\ChecksTechnicianAvailability;
 use DB;
 use Illuminate\Http\Request;
@@ -143,8 +144,8 @@ class TireHotelController extends Controller
             'search_registration' => 'required|string|min:2',
             'from_season' => 'required',
             'to_season' => 'required',
-            'customer_id' => 'required|exists:customers,id',
-            'vehicle_id' => 'required|exists:vehicles,id',
+            'customer_id' => ['required', TenantValidation::exists('customers')],
+            'vehicle_id' => ['required', TenantValidation::exists('vehicles')],
             'tire_ids' => 'required',
         ]);
 

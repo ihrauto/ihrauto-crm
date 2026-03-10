@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\TenantContext;
+
 if (! function_exists('tenant')) {
     /**
      * Get the current tenant
@@ -8,7 +10,7 @@ if (! function_exists('tenant')) {
      */
     function tenant()
     {
-        return app()->bound('tenant') ? app('tenant') : null;
+        return app(TenantContext::class)->current();
     }
 }
 
@@ -20,9 +22,17 @@ if (! function_exists('tenant_id')) {
      */
     function tenant_id()
     {
-        $tenant = tenant();
+        return app(TenantContext::class)->id();
+    }
+}
 
-        return $tenant ? $tenant->id : null;
+if (! function_exists('tenant_api_token')) {
+    /**
+     * Get the current tenant API token.
+     */
+    function tenant_api_token()
+    {
+        return app(TenantContext::class)->apiToken();
     }
 }
 

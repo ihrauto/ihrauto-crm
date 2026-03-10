@@ -340,7 +340,7 @@
             async fetchNextSlot() {
                 this.storage.isChecking = true;
                 try {
-                    const res = await fetch('/api/tires/storage/check-availability');
+                    const res = await fetch('/ajax/tires/storage/check-availability');
                     const data = await res.json();
 
                     if (data.available && data.components) {
@@ -362,7 +362,7 @@
                 this.storage.isChecking = true;
                 this.storage.message = 'Checking...';
                 try {
-                    const res = await fetch(`/api/tires/storage/check-availability?location=${this.storage.code}`);
+                    const res = await fetch(`/ajax/tires/storage/check-availability?location=${this.storage.code}`);
                     const data = await res.json();
 
                     this.storage.isAvailable = data.available;

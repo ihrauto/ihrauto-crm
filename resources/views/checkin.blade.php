@@ -965,7 +965,7 @@
 
                 if (searchLoading) searchLoading.classList.remove('hidden');
 
-                fetch(`/api/customers/search?query=${encodeURIComponent(query)}`)
+                fetch(`/ajax/customers/search?query=${encodeURIComponent(query)}`)
                     .then(response => response.json())
                     .then(data => {
                         resultsDiv.innerHTML = '';
@@ -1063,7 +1063,7 @@
 
                 vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
 
-                fetch(`/api/vehicles/by-customer/${customerId}`)
+                fetch(`/ajax/vehicles/by-customer/${customerId}`)
                     .then(r => r.json())
                     .then(vehicles => {
                         vehicleSelect.innerHTML = '<option value="">Select a vehicle...</option>';

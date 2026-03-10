@@ -6,7 +6,7 @@ use App\Http\Controllers\TireHotelController;
 use Illuminate\Support\Facades\Route;
 
 // API v1 routes with rate limiting
-Route::prefix('v1')->middleware(['throttle:60,1'])->group(function () {
+Route::prefix('v1')->middleware(['throttle:tenant-api'])->group(function () {
 
     // Customer endpoints
     Route::prefix('customers')->group(function () {
@@ -36,7 +36,7 @@ Route::prefix('v1')->middleware(['throttle:60,1'])->group(function () {
 });
 
 // Legacy API routes (for backward compatibility) - will be deprecated
-Route::middleware(['throttle:30,1'])->group(function () {
+Route::middleware(['throttle:tenant-api', 'legacy-api'])->group(function () {
     Route::get('/customers/search', [CustomerController::class, 'search'])
         ->name('api.customers.search');
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Actions\Auth\RegisterTenantOwner;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\TenantProvisioningService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -86,7 +87,7 @@ class SocialAuthController extends Controller
     /**
      * Store new company for both Google OAuth and regular authenticated users.
      */
-    public function storeCompany(Request $request, RegisterTenantOwner $action): RedirectResponse
+    public function storeCompany(Request $request, RegisterTenantOwner $action, TenantProvisioningService $tenantProvisioningService): RedirectResponse
     {
         $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
@@ -96,12 +97,12 @@ class SocialAuthController extends Controller
 
         if ($googleUser) {
             // Google OAuth flow - create new user and tenant
-            $user = $action->handle([
+            $user = $tenantProvisioningService->provisionOwner([
                 'name' => $googleUser['name'],
                 'email' => $googleUser['email'],
                 'password' => \Illuminate\Support\Str::random(32),
                 'company_name' => $request->company_name,
-            ]);
+            ], dispatchRegisteredEvent: false);
 
             // Mark email as verified (Google already verified it)
             $user->markEmailAsVerified();
@@ -115,20 +116,10 @@ class SocialAuthController extends Controller
             // Regular authenticated user - create tenant and associate
             $user = Auth::user();
 
-            // Create tenant for this user
-            $tenant = \App\Models\Tenant::create([
-                'name' => $request->company_name,
-                'slug' => \Illuminate\Support\Str::slug($request->company_name) . '-' . \Illuminate\Support\Str::random(6),
-                'subdomain' => \Illuminate\Support\Str::slug($request->company_name),
-                'email' => $user->email,
-                'plan' => 'basic',
-                'is_active' => true,
-                'is_trial' => true,
-                'trial_ends_at' => now()->addDays(14),
+            $tenantProvisioningService->provisionTenantForExistingUser($user, [
+                'company_name' => $request->company_name,
+                'plan' => \App\Models\Tenant::PLAN_BASIC,
             ]);
-
-            // Associate user with tenant
-            $user->update(['tenant_id' => $tenant->id]);
         } else {
             return redirect()->route('login');
         }

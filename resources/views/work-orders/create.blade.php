@@ -158,7 +158,7 @@
             vehicleSelect.disabled = true;
             vehicleSelect.innerHTML = '<option>Loading...</option>';
 
-            fetch(`/api/vehicles/by-customer/${customerId}`)
+            fetch(`/ajax/vehicles/by-customer/${customerId}`)
                 .then(response => response.json())
                 .then(data => {
                     vehicleSelect.innerHTML = '<option value="">Select a vehicle</option>';

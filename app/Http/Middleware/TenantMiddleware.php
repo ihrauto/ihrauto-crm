@@ -4,16 +4,20 @@ namespace App\Http\Middleware;
 
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Config;
 use Symfony\Component\HttpFoundation\Response;
 
 class TenantMiddleware
 {
+    public function __construct(
+        private readonly TenantContext $tenantContext
+    ) {
+    }
+
     /**
      * Handle an incoming request.
      *
@@ -53,7 +57,7 @@ class TenantMiddleware
         }
 
         // Set tenant context
-        $this->setTenantContext($tenant);
+        $this->tenantContext->set($tenant, $request);
 
         // In local development, auto-login as first tenant user if not authenticated
         if (app()->environment('local') && !Auth::check()) {
@@ -64,9 +68,6 @@ class TenantMiddleware
             }
         }
 
-        // Update last activity
-        $tenant->updateLastActivity();
-
         return $next($request);
     }
 
@@ -75,10 +76,10 @@ class TenantMiddleware
      */
     private function resolveTenant(Request $request): ?Tenant
     {
-        $tenant = $this->getTenantFromRoute($request)
+        $tenant = $this->tenantContext->current()
+            ?? $this->getTenantFromRoute($request)
             ?? $this->getTenantFromSubdomain($request)
             ?? $this->getTenantFromDomain($request)
-            ?? $this->getTenantFromHeader($request)
             ?? $this->getTenantFromSession($request)
             ?? $this->getTenantFromAuth($request);
 
@@ -160,29 +161,6 @@ class TenantMiddleware
     }
 
     /**
-     * Get tenant from API header (X-Tenant-ID or X-Tenant-Slug)
-     */
-    private function getTenantFromHeader(Request $request): ?Tenant
-    {
-        $tenantId = $request->header('X-Tenant-ID');
-        $tenantSlug = $request->header('X-Tenant-Slug');
-
-        if ($tenantId) {
-            return Cache::remember("tenant.id.{$tenantId}", 3600, function () use ($tenantId) {
-                return Tenant::find($tenantId);
-            });
-        }
-
-        if ($tenantSlug) {
-            return Cache::remember("tenant.slug.{$tenantSlug}", 3600, function () use ($tenantSlug) {
-                return Tenant::where('slug', $tenantSlug)->active()->first();
-            });
-        }
-
-        return null;
-    }
-
-    /**
      * Get tenant from session (for admin switching)
      */
     private function getTenantFromSession(Request $request): ?Tenant
@@ -196,59 +174,6 @@ class TenantMiddleware
         }
 
         return null;
-    }
-
-    /**
-     * Set tenant context in application
-     */
-    private function setTenantContext(Tenant $tenant): void
-    {
-        // Set tenant in app container
-        App::instance('tenant', $tenant);
-
-        // Set tenant in config
-        Config::set('tenant', $tenant->toArray());
-
-        // Set tenant in session
-        session(['tenant_id' => $tenant->id]);
-
-        // Set application settings from tenant
-        Config::set('app.name', $tenant->name);
-        Config::set('app.timezone', $tenant->timezone);
-        Config::set('app.locale', $tenant->locale);
-
-        // Set database connection if using database-per-tenant
-        if ($tenant->database_name) {
-            $this->setTenantDatabase($tenant);
-        }
-    }
-
-    /**
-     * Set tenant-specific database connection
-     */
-    private function setTenantDatabase(Tenant $tenant): void
-    {
-        $databaseName = $tenant->database_name;
-
-        Config::set('database.connections.tenant', [
-            'driver' => 'pgsql',
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '5432'),
-            'database' => $databaseName,
-            'username' => env('DB_USERNAME', 'postgres'),
-            'password' => env('DB_PASSWORD', ''),
-            'charset' => 'utf8',
-            'prefix' => '',
-            'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode' => 'prefer',
-        ]);
-
-        // IMPORTANT: Do NOT switch database.default here!
-        // This breaks sessions when SESSION_DRIVER=database because Laravel writes sessions
-        // to the 'default' connection, causing auth state to be lost between requests.
-        // Models should use $connection = 'tenant' explicitly if needed.
-        // Config::set('database.default', 'tenant');
     }
 
     /**
@@ -366,13 +291,5 @@ class TenantMiddleware
         }
 
         return false;
-    }
-}
-
-// Helper function to get current tenant
-if (!function_exists('tenant')) {
-    function tenant(): ?Tenant
-    {
-        return app('tenant');
     }
 }

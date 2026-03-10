@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,8 +30,16 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 
-        // Register Observers
-        // Register Observers
+        RateLimiter::for('tenant-api', function (Request $request) {
+            $limit = tenant()?->api_rate_limit ?? 60;
+            $identifier = $request->attributes->get('tenant_api_token_id')
+                ?? $request->attributes->get('tenant_api_token_prefix')
+                ?? $request->ip();
+
+            return Limit::perMinute((int) $limit)->by('tenant-api:' . $identifier);
+        });
+
+        // Register observers
         \App\Models\Customer::observe(\App\Observers\CustomerObserver::class);
         \App\Models\Payment::observe(\App\Observers\PaymentObserver::class);
 

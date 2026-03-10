@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantValidation;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateCustomerRequest extends FormRequest
 {
@@ -38,7 +38,7 @@ class UpdateCustomerRequest extends FormRequest
                 'nullable',
                 'email',
                 'max:255',
-                Rule::unique('customers', 'email')->ignore($this->route('customer')),
+                TenantValidation::unique('customers', 'email')->ignore($this->route('customer')),
             ],
             'phone' => [
                 'required',
