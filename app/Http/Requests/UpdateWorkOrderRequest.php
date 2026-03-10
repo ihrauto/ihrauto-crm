@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantValidation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateWorkOrderRequest extends FormRequest
@@ -22,7 +23,7 @@ class UpdateWorkOrderRequest extends FormRequest
         return [
             'status' => 'sometimes|in:created,pending,in_progress,completed,cancelled',
             'priority' => 'sometimes|in:low,normal,high,urgent',
-            'technician_id' => 'nullable|exists:users,id',
+            'technician_id' => ['nullable', TenantValidation::exists('users')],
             'technician_notes' => 'nullable|string|max:2000',
             'customer_issues' => 'nullable|string|max:2000',
 
@@ -37,7 +38,7 @@ class UpdateWorkOrderRequest extends FormRequest
             'parts_used.*.name' => 'required_with:parts_used|string|max:255',
             'parts_used.*.qty' => 'nullable|integer|min:1',
             'parts_used.*.price' => 'nullable|numeric|min:0',
-            'parts_used.*.product_id' => 'nullable|exists:products,id',
+            'parts_used.*.product_id' => ['nullable', TenantValidation::exists('products')],
         ];
     }
 

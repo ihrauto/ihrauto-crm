@@ -137,7 +137,7 @@ class Invoice extends Model
      */
     public function isIssued(): bool
     {
-        return in_array($this->status, [self::STATUS_ISSUED, self::STATUS_PAID]);
+        return in_array($this->status, [self::STATUS_ISSUED, self::STATUS_PARTIAL, self::STATUS_PAID], true);
     }
 
     /**
@@ -237,6 +237,7 @@ class Invoice extends Model
         return match ($this->status) {
             self::STATUS_DRAFT => 'bg-gray-100 text-gray-800',
             self::STATUS_ISSUED => 'bg-blue-100 text-blue-800',
+            self::STATUS_PARTIAL => 'bg-amber-100 text-amber-800',
             self::STATUS_PAID => 'bg-green-100 text-green-800',
             self::STATUS_VOID => 'bg-red-100 text-red-800',
             default => 'bg-gray-100 text-gray-800',

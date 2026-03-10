@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Exceptions\InvoiceImmutableException;
 use App\Models\Invoice;
+use App\Models\InvoiceSequence;
 use App\Models\WorkOrder;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceService
 {
@@ -17,21 +19,34 @@ class InvoiceService
         $prefix = config('crm.invoice.prefix', 'INV');
         $padding = config('crm.invoice.number_padding', 4);
         $year = now()->year;
-        $tenantId = $tenantId ?? (tenant() ? tenant()->id : auth()->user()->tenant_id);
+        $tenantId = $tenantId ?? tenant_id();
 
-        // Count existing invoices for this tenant and year + 1
-        // We use withTrashed() if SoftDeletes were used, but Invoice doesn't seem to use it.
-        // However, checks for safety are good.
-        $query = Invoice::where('tenant_id', $tenantId)->whereYear('created_at', $year);
+        $sequence = InvoiceSequence::query()
+            ->where('tenant_id', $tenantId)
+            ->where('year', $year)
+            ->lockForUpdate()
+            ->first();
 
-        // Handle SoftDeletes if the model uses it (check via method existence)
-        if (method_exists(Invoice::class, 'withTrashed')) {
-            $query->withTrashed();
+        if (! $sequence) {
+            try {
+                $sequence = InvoiceSequence::create([
+                    'tenant_id' => $tenantId,
+                    'year' => $year,
+                    'last_number' => 0,
+                ]);
+            } catch (\Throwable) {
+                $sequence = InvoiceSequence::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('year', $year)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+            }
         }
 
-        $count = $query->count() + 1;
+        $sequence->last_number++;
+        $sequence->save();
 
-        return $prefix.'-'.$year.'-'.str_pad($count, $padding, '0', STR_PAD_LEFT);
+        return $prefix.'-'.$year.'-'.str_pad((string) $sequence->last_number, $padding, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -168,6 +183,34 @@ class InvoiceService
         }
 
         $invoice->status = Invoice::STATUS_PAID;
+        $invoice->save();
+
+        return $invoice->fresh();
+    }
+
+    /**
+     * Recalculate invoice payment totals and keep the persisted status canonical.
+     */
+    public function syncPaymentState(Invoice $invoice): Invoice
+    {
+        if ($invoice->isVoid()) {
+            return $invoice;
+        }
+
+        $paidAmount = round((float) $invoice->payments()->sum('amount'), 2);
+
+        $invoice->paid_amount = $paidAmount;
+
+        if ($invoice->status !== Invoice::STATUS_DRAFT) {
+            if ($paidAmount >= (float) $invoice->total) {
+                $invoice->status = Invoice::STATUS_PAID;
+            } elseif ($paidAmount > 0) {
+                $invoice->status = Invoice::STATUS_PARTIAL;
+            } else {
+                $invoice->status = Invoice::STATUS_ISSUED;
+            }
+        }
+
         $invoice->save();
 
         return $invoice->fresh();

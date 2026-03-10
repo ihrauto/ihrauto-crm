@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,8 +17,7 @@ class AuthenticationTest extends TestCase
     {
         parent::setUp();
 
-        // Ensure roles exist
-        Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $this->seed(RolesAndPermissionsSeeder::class);
         Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
     }
 
@@ -76,6 +76,7 @@ class AuthenticationTest extends TestCase
             'tenant_id' => $tenant->id,
             'email_verified_at' => null, // Not verified
         ]);
+        $user->assignRole('admin');
 
         $response = $this->actingAs($user)->get('/dashboard');
 
@@ -91,6 +92,7 @@ class AuthenticationTest extends TestCase
             'tenant_id' => $tenant->id,
             'email_verified_at' => now(),
         ]);
+        $user->assignRole('admin');
 
         $response = $this->actingAs($user)->get('/dashboard');
 
@@ -107,6 +109,7 @@ class AuthenticationTest extends TestCase
             'tenant_id' => $tenant->id,
             'email_verified_at' => now(),
         ]);
+        $user->assignRole('admin');
 
         $response = $this->actingAs($user)->get('/dashboard');
 
@@ -127,6 +130,7 @@ class AuthenticationTest extends TestCase
             'tenant_id' => $tenant->id,
             'email_verified_at' => now(),
         ]);
+        $user->assignRole('admin');
 
         $response = $this->actingAs($user)->get('/dashboard');
 

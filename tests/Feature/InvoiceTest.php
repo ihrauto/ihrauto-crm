@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -9,12 +10,13 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Models\Tenant;
 use App\Models\Vehicle;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class InvoiceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $user;
     protected Tenant $tenant;
@@ -23,17 +25,20 @@ class InvoiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(RolesAndPermissionsSeeder::class);
 
         $this->tenant = Tenant::factory()->create();
         $this->user = User::factory()->create([
             'tenant_id' => $this->tenant->id,
+            'role' => 'admin',
         ]);
+        $this->user->assignRole('admin');
         $this->customer = Customer::factory()->create([
             'tenant_id' => $this->tenant->id,
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_view_invoice()
     {
         $invoice = Invoice::factory()->create([
@@ -48,7 +53,7 @@ class InvoiceTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function draft_invoice_is_editable()
     {
         $invoice = Invoice::factory()->create([
@@ -62,7 +67,7 @@ class InvoiceTest extends TestCase
         $this->assertFalse($invoice->isIssued());
     }
 
-    /** @test */
+    #[Test]
     public function issued_invoice_is_not_editable()
     {
         $invoice = Invoice::factory()->create([
@@ -76,7 +81,7 @@ class InvoiceTest extends TestCase
         $this->assertTrue($invoice->isIssued());
     }
 
-    /** @test */
+    #[Test]
     public function invoice_balance_is_calculated_correctly()
     {
         $invoice = Invoice::factory()->create([
@@ -89,7 +94,7 @@ class InvoiceTest extends TestCase
         $this->assertEquals(300.00, $invoice->balance);
     }
 
-    /** @test */
+    #[Test]
     public function invoice_payment_status_shows_paid_when_fully_paid()
     {
         $invoice = Invoice::factory()->create([
@@ -103,7 +108,7 @@ class InvoiceTest extends TestCase
         $this->assertEquals('paid', $invoice->payment_status);
     }
 
-    /** @test */
+    #[Test]
     public function invoice_payment_status_shows_partial_when_partially_paid()
     {
         $invoice = Invoice::factory()->create([
@@ -117,7 +122,7 @@ class InvoiceTest extends TestCase
         $this->assertEquals('partial', $invoice->payment_status);
     }
 
-    /** @test */
+    #[Test]
     public function void_invoice_requires_reason()
     {
         $invoice = Invoice::factory()->create([
@@ -133,7 +138,7 @@ class InvoiceTest extends TestCase
         $response->assertSessionHasErrors(['void_reason']);
     }
 
-    /** @test */
+    #[Test]
     public function can_void_unpaid_issued_invoice()
     {
         $invoice = Invoice::factory()->create([
@@ -146,7 +151,7 @@ class InvoiceTest extends TestCase
         $this->assertTrue($invoice->canBeVoided());
     }
 
-    /** @test */
+    #[Test]
     public function cannot_void_paid_invoice()
     {
         $invoice = Invoice::factory()->create([
@@ -160,7 +165,7 @@ class InvoiceTest extends TestCase
         $this->assertFalse($invoice->canBeVoided());
     }
 
-    /** @test */
+    #[Test]
     public function invoices_are_tenant_isolated()
     {
         // Create invoice for our tenant
@@ -189,7 +194,7 @@ class InvoiceTest extends TestCase
         $response->assertNotFound();
     }
 
-    /** @test */
+    #[Test]
     public function invoice_status_badge_color_is_correct()
     {
         $draftInvoice = Invoice::factory()->create([

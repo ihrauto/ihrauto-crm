@@ -26,9 +26,10 @@ class TenantScope implements Scope
         static::$applying = true;
 
         try {
-            // Only apply tenant filtering if user is authenticated
-            if (auth()->check() && auth()->user()?->tenant_id) {
-                $builder->where($model->getTable().'.tenant_id', auth()->user()->tenant_id);
+            $tenantId = tenant_id();
+
+            if ($tenantId) {
+                $builder->where($model->getTable().'.tenant_id', $tenantId);
             }
         } finally {
             static::$applying = false;
@@ -49,7 +50,7 @@ class TenantScope implements Scope
         });
 
         $builder->macro('forCurrentTenant', function (Builder $builder) {
-            $tenantId = auth()->user()?->tenant_id;
+            $tenantId = tenant_id();
 
             return $builder->withoutGlobalScope($this)->where('tenant_id', $tenantId);
         });

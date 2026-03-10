@@ -2,17 +2,19 @@
 
 namespace Tests\Feature;
 
+use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Customer;
 use App\Models\User;
 use App\Models\Tenant;
 use App\Models\Vehicle;
 use App\Models\WorkOrder;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class WorkOrderTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $user;
     protected Tenant $tenant;
@@ -22,11 +24,14 @@ class WorkOrderTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(RolesAndPermissionsSeeder::class);
 
         $this->tenant = Tenant::factory()->create();
         $this->user = User::factory()->create([
             'tenant_id' => $this->tenant->id,
+            'role' => 'admin',
         ]);
+        $this->user->assignRole('admin');
         $this->customer = Customer::factory()->create([
             'tenant_id' => $this->tenant->id,
         ]);
@@ -36,7 +41,7 @@ class WorkOrderTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_view_work_orders_index()
     {
         $response = $this->actingAs($this->user)
@@ -45,7 +50,7 @@ class WorkOrderTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_view_work_order_board()
     {
         $response = $this->actingAs($this->user)
@@ -54,7 +59,7 @@ class WorkOrderTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_view_single_work_order()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -70,7 +75,7 @@ class WorkOrderTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function work_order_status_label_is_correct()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -83,7 +88,7 @@ class WorkOrderTest extends TestCase
         $this->assertEquals('In Progress', $workOrder->status_label);
     }
 
-    /** @test */
+    #[Test]
     public function work_order_status_badge_color_is_correct()
     {
         $createdOrder = WorkOrder::factory()->create([
@@ -104,7 +109,7 @@ class WorkOrderTest extends TestCase
         $this->assertStringContainsString('green', $completedOrder->status_badge_color);
     }
 
-    /** @test */
+    #[Test]
     public function work_order_can_have_service_tasks_as_array()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -122,7 +127,7 @@ class WorkOrderTest extends TestCase
         $this->assertEquals('Oil Change', $workOrder->service_tasks[0]['name']);
     }
 
-    /** @test */
+    #[Test]
     public function work_order_can_have_parts_used_as_array()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -139,7 +144,7 @@ class WorkOrderTest extends TestCase
         $this->assertCount(2, $workOrder->parts_used);
     }
 
-    /** @test */
+    #[Test]
     public function work_orders_are_tenant_isolated()
     {
         // Create work order for our tenant
@@ -172,7 +177,7 @@ class WorkOrderTest extends TestCase
         $response->assertNotFound();
     }
 
-    /** @test */
+    #[Test]
     public function work_order_belongs_to_customer()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -185,7 +190,7 @@ class WorkOrderTest extends TestCase
         $this->assertEquals($this->customer->id, $workOrder->customer->id);
     }
 
-    /** @test */
+    #[Test]
     public function work_order_belongs_to_vehicle()
     {
         $workOrder = WorkOrder::factory()->create([
@@ -198,7 +203,7 @@ class WorkOrderTest extends TestCase
         $this->assertEquals($this->vehicle->id, $workOrder->vehicle->id);
     }
 
-    /** @test */
+    #[Test]
     public function work_order_can_have_technician_assigned()
     {
         $technician = User::factory()->create([

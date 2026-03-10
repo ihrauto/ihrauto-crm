@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantValidation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCustomerRequest extends FormRequest
@@ -37,7 +38,7 @@ class StoreCustomerRequest extends FormRequest
                 'nullable',
                 'email',
                 'max:255',
-                'unique:customers,email',
+                TenantValidation::unique('customers', 'email'),
             ],
             'phone' => [
                 'required',

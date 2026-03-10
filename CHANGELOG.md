@@ -1,68 +1,37 @@
 # Changelog
 
-All notable changes to IHRAUTO-CRM will be documented in this file.
+All notable changes to IHRAUTO CRM are documented here.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [Unreleased]
 
-## [1.1.0] - 2025-01-10
+### Security
+- Removed public setup, restore, cleanup, and debug HTTP backdoors.
+- Locked API access to bearer-authenticated tenant tokens.
+- Stopped trusting tenant identity from public request headers.
+- Moved route access control to module and permission middleware boundaries.
 
-### Added
-- **Multi-tenant Architecture**: Complete SaaS multi-tenancy implementation
-- **Subscription Management**: Support for multiple plans (Trial, Basic, Standard, Custom)
-- **Tenant Isolation**: Row-level data isolation between tenants
-- **Professional Pricing UI**: Modern pricing cards with SVG icons
-- **Development Tools**: Tenant switcher and debug tools for local development
-- **Feature Flags**: Per-tenant feature control (basic_crm, tire_hotel, reports, etc.)
-- **Trial Management**: 14-day trial periods with expiration tracking
-- **Proper Versioning**: Application version tracking and display
+### Multi-tenancy
+- Unified tenant context resolution across middleware, scopes, model creation, and validation.
+- Added hashed tenant API token storage and migration of legacy plaintext tenant keys.
+- Tightened tenant-scoped validation for customer, vehicle, invoice, payment, appointment, and work-order flows.
 
-### Enhanced
-- **Database Structure**: Added tenant relationships to all models
-- **Middleware**: Automatic tenant context resolution
-- **Design System**: Consistent Tailwind CSS styling with custom color palette
-- **Security**: Tenant-scoped queries and proper data isolation
+### Billing
+- Normalized invoice status handling to `draft`, `issued`, `partial`, `paid`, and `void`.
+- Replaced invoice numbering based on record counts with a transaction-safe per-tenant sequence.
+- Corrected finance search and dashboard queries to use canonical invoice state and `license_plate`.
 
-### Technical
-- **Database**: Tenant-aware migrations with proper indexes
-- **Models**: BelongsToTenant trait for shared functionality
-- **Middleware**: TenantMiddleware for context management
-- **Helpers**: Version and tenant helper functions
-- **UI/UX**: Professional multi-tenant interface
+### Lifecycle
+- Unified tenant provisioning for registration and social-auth company creation.
+- Replaced HTTP tenant deletion with transactional archive behavior in the admin UI.
+- Added audited CLI commands for super-admin bootstrap, API token rotation, and irreversible tenant purge.
 
-## [1.0.0] - 2025-01-08
+### Platform
+- Corrected tenant trial/subscription day calculations.
+- Reduced unnecessary tenant activity writes.
+- Standardized Resend configuration on `RESEND_API_KEY`.
+- Replaced stock framework docs with product-specific setup and security guidance.
 
-### Added
-- **Initial CRM Features**: Basic customer management and vehicle check-in
-- **Tires Hotel**: Tire storage and management system
-- **Dashboard**: Overview of business metrics
-- **Customer Management**: Full CRUD operations for customers
-- **Vehicle Check-in**: Service appointment management
-- **Professional UI**: Clean, modern interface with Tailwind CSS
-- **Responsive Design**: Mobile-friendly layout
-- **Database Foundation**: Core models and relationships
-
-### Features
-- Customer database with contact information
-- Vehicle registration and service history
-- Tire storage tracking
-- Service appointment scheduling
-- Clean, professional interface
-- Mobile-responsive design
-
----
-
-## Version Format
-
-We use [Semantic Versioning](https://semver.org/):
-
-- **MAJOR**: Breaking changes that require migration
-- **MINOR**: New features that are backward compatible
-- **PATCH**: Bug fixes and small improvements
-
-## Upcoming Versions
-
-- **v1.2.0**: Reports and analytics module
-- **v1.3.0**: Invoicing and billing system
-- **v1.4.0**: Calendar and scheduling
-- **v1.5.0**: Inventory management
-- **v2.0.0**: API v2 and mobile app support 
+### Documentation
+- Added an engineer-facing documentation set under `docs/` for architecture, workflows, code mapping, and operational process.
+- Added a decision log and engineering board so future changes leave behind durable project context.
+- Defined repository standards for documentation updates, changelog maintenance, and task tracking.

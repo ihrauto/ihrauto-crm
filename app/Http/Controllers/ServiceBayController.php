@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ServiceBay;
+use App\Support\TenantValidation;
 use Illuminate\Http\Request;
 
 class ServiceBayController extends Controller
@@ -86,7 +87,7 @@ class ServiceBayController extends Controller
     {
         $request->validate([
             'bays' => 'required|array',
-            'bays.*.id' => 'required|integer|exists:service_bays,id',
+            'bays.*.id' => ['required', 'integer', TenantValidation::exists('service_bays')],
             'bays.*.name' => 'required|string|max:100',
         ]);
 

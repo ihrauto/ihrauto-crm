@@ -2,17 +2,19 @@
 
 namespace Tests\Feature;
 
+use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Tenant;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class InventoryTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $user;
     protected Tenant $tenant;
@@ -20,15 +22,18 @@ class InventoryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(RolesAndPermissionsSeeder::class);
 
         // Create tenant and user
         $this->tenant = Tenant::factory()->create();
         $this->user = User::factory()->create([
             'tenant_id' => $this->tenant->id,
+            'role' => 'admin',
         ]);
+        $this->user->assignRole('admin');
     }
 
-    /** @test */
+    #[Test]
     public function user_can_view_inventory_page()
     {
         $response = $this->actingAs($this->user)
@@ -38,7 +43,7 @@ class InventoryTest extends TestCase
         $response->assertViewIs('products-services.index');
     }
 
-    /** @test */
+    #[Test]
     public function user_can_create_product_with_all_fields()
     {
         $productData = [
@@ -73,7 +78,7 @@ class InventoryTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_update_product_with_all_fields()
     {
         $product = Product::factory()->create([
@@ -107,7 +112,7 @@ class InventoryTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function search_is_case_insensitive()
     {
         Product::factory()->create([
@@ -131,7 +136,7 @@ class InventoryTest extends TestCase
         $response->assertDontSee('Brake Pad');
     }
 
-    /** @test */
+    #[Test]
     public function search_works_with_sku()
     {
         Product::factory()->create([
@@ -147,7 +152,7 @@ class InventoryTest extends TestCase
         $response->assertSee('Oil Filter');
     }
 
-    /** @test */
+    #[Test]
     public function user_can_download_import_template()
     {
         $response = $this->actingAs($this->user)
@@ -158,7 +163,7 @@ class InventoryTest extends TestCase
         $response->assertHeader('Content-Disposition', 'attachment; filename="products_template.csv"');
     }
 
-    /** @test */
+    #[Test]
     public function user_can_import_products_via_csv()
     {
         $csvContent = "Name,SKU,Price,Quantity,Min Stock\n";
@@ -184,7 +189,7 @@ class InventoryTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function product_requires_name_and_price()
     {
         $response = $this->actingAs($this->user)
@@ -196,7 +201,7 @@ class InventoryTest extends TestCase
         $response->assertSessionHasErrors(['name', 'price']);
     }
 
-    /** @test */
+    #[Test]
     public function status_must_be_valid_value()
     {
         $response = $this->actingAs($this->user)
@@ -211,7 +216,7 @@ class InventoryTest extends TestCase
         $response->assertSessionHasErrors(['status']);
     }
 
-    /** @test */
+    #[Test]
     public function products_are_tenant_isolated()
     {
         // Create product for our tenant

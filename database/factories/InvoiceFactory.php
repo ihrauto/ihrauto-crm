@@ -13,7 +13,7 @@ class InvoiceFactory extends Factory
 
     public function definition(): array
     {
-        $statuses = ['draft', 'issued', 'paid', 'cancelled'];
+        $statuses = [Invoice::STATUS_DRAFT, Invoice::STATUS_ISSUED, Invoice::STATUS_PARTIAL, Invoice::STATUS_PAID, Invoice::STATUS_VOID];
 
         return [
             'tenant_id' => Tenant::factory(),
@@ -39,7 +39,7 @@ class InvoiceFactory extends Factory
     {
         return $this->state(function (array $attributes) {
             return [
-                'status' => 'paid',
+                'status' => Invoice::STATUS_PAID,
                 'paid_amount' => $attributes['total'],
             ];
         });

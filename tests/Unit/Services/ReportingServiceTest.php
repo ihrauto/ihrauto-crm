@@ -9,6 +9,7 @@ use App\Models\Tire;
 use App\Models\User;
 use App\Services\ReportingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ReportingServiceTest extends TestCase
@@ -33,7 +34,7 @@ class ReportingServiceTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_kpis()
     {
         $kpis = $this->service->getKPIs();
@@ -44,7 +45,7 @@ class ReportingServiceTest extends TestCase
         $this->assertArrayHasKey('storage_utilization', $kpis);
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_monthly_revenue_with_growth()
     {
         // Create completed checkins for this month
@@ -67,7 +68,7 @@ class ReportingServiceTest extends TestCase
         $this->assertEquals(500, $result['current']);
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_service_completion_rate()
     {
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
@@ -97,7 +98,7 @@ class ReportingServiceTest extends TestCase
         $this->assertEquals(75.0, $result['rate']);
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_storage_utilization()
     {
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
@@ -119,7 +120,7 @@ class ReportingServiceTest extends TestCase
         $this->assertEquals(4, $result['used']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_performance_metrics_for_7_days()
     {
         $result = $this->service->getPerformanceMetrics();
@@ -135,7 +136,7 @@ class ReportingServiceTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_customer_analytics()
     {
         Customer::factory()->count(5)->create(['tenant_id' => $this->tenant->id]);
@@ -149,7 +150,7 @@ class ReportingServiceTest extends TestCase
         $this->assertArrayHasKey('top_customers', $result);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_system_alerts_collection()
     {
         $alerts = $this->service->getSystemAlerts();

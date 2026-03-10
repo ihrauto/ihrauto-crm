@@ -7,6 +7,7 @@ use App\Models\Checkin;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Services\InvoiceService;
+use App\Support\TenantValidation;
 use App\Traits\ChecksTechnicianAvailability;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -141,7 +142,7 @@ class WorkOrderController extends Controller
     {
         // If passing a checkin_id (legacy or direct link from checkin), handle it
         if ($request->has('checkin_id')) {
-            $checkin = Checkin::find($request->checkin_id);
+            $checkin = Checkin::query()->find($request->checkin_id);
             if ($checkin) {
                 if ($checkin->workOrder) {
                     return redirect()->route('work-orders.show', $checkin->workOrder);
@@ -168,13 +169,13 @@ class WorkOrderController extends Controller
     {
         // Handle "Schedule Job" form submission
         $validated = $request->validate([
-            'customer_id' => 'required|exists:customers,id',
-            'vehicle_id' => 'required|exists:vehicles,id',
+            'customer_id' => ['required', TenantValidation::exists('customers')],
+            'vehicle_id' => ['required', TenantValidation::exists('vehicles')],
             'scheduled_at' => 'required|date',
             'estimated_minutes' => 'nullable|integer',
             'service_bay' => 'nullable|integer|between:1,6',
             'service_description' => 'required|string',
-            'technician_id' => 'nullable|exists:users,id',
+            'technician_id' => ['nullable', TenantValidation::exists('users')],
         ]);
 
         // Check technician availability before assigning
@@ -183,7 +184,7 @@ class WorkOrderController extends Controller
         }
 
         $workOrder = WorkOrder::create([
-            'tenant_id' => auth()->user()->tenant_id, // Use authenticated user's tenant
+            'tenant_id' => tenant_id(),
             'checkin_id' => null, // Standalone schedule
             'customer_id' => $validated['customer_id'],
             'vehicle_id' => $validated['vehicle_id'],
