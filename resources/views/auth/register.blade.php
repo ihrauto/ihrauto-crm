@@ -1,7 +1,34 @@
+@php
+    $planDetails = [
+        'basic' => [
+            'name' => 'Basic',
+            'price' => 'EUR 49',
+            'billing' => 'per month after trial',
+            'description' => 'A compact setup for solo operators and small garages.',
+            'highlights' => ['1 user', '100 customers', 'appointments', 'work orders'],
+        ],
+        'standard' => [
+            'name' => 'Standard',
+            'price' => 'EUR 149',
+            'billing' => 'per month after trial',
+            'description' => 'The full operational package for growing workshops.',
+            'highlights' => ['5 users', 'tire hotel', 'finance dashboard', 'reports'],
+        ],
+        'custom' => [
+            'name' => 'Custom',
+            'price' => 'Custom',
+            'billing' => 'tailored rollout',
+            'description' => 'For high-volume workshops, groups, and custom integrations.',
+            'highlights' => ['unlimited users', 'API access', 'custom branding', 'dedicated support'],
+        ],
+    ];
+
+    $activePlan = $planDetails[$selectedPlan ?? 'basic'] ?? $planDetails['basic'];
+@endphp
 <x-guest-layout>
     <div class="text-center mb-8">
         <h2 class="text-2xl font-bold text-indigo-950 tracking-tight">Start your free trial</h2>
-        <p class="mt-2 text-sm text-gray-500">Create your workshop account in seconds</p>
+        <p class="mt-2 text-sm text-gray-500">Create your workshop account and continue with the selected plan</p>
         <div
             class="mt-4 inline-flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-semibold">
             <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -10,6 +37,33 @@
             </svg>
             14 days free • No credit card required
         </div>
+    </div>
+
+    <div class="mb-6 rounded-3xl border border-indigo-100 bg-white px-5 py-4 shadow-sm">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.25em] text-indigo-500">Selected plan</p>
+                <h3 class="mt-2 text-lg font-bold text-indigo-950">{{ $activePlan['name'] }}</h3>
+                <p class="mt-1 text-sm text-gray-500">{{ $activePlan['description'] }}</p>
+            </div>
+            <div class="text-right">
+                <div class="text-lg font-bold text-indigo-950">{{ $activePlan['price'] }}</div>
+                <div class="text-xs text-gray-500">{{ $activePlan['billing'] }}</div>
+            </div>
+        </div>
+
+        <div class="mt-4 flex flex-wrap gap-2">
+            @foreach ($activePlan['highlights'] as $highlight)
+                <span class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                    {{ $highlight }}
+                </span>
+            @endforeach
+        </div>
+
+        <a href="{{ route('home') }}#plans"
+            class="mt-4 inline-flex items-center text-xs font-bold uppercase tracking-[0.18em] text-indigo-600 hover:text-indigo-500">
+            Change plan
+        </a>
     </div>
 
     <!-- Google Sign Up (Primary) -->
@@ -42,7 +96,7 @@
 
     <form method="POST" action="{{ route('register') }}" class="space-y-5">
         @csrf
-        <input type="hidden" name="plan" value="{{ request('plan', 'basic') }}">
+        <input type="hidden" name="plan" value="{{ $selectedPlan ?? 'basic' }}">
 
         <!-- Name & Company (2 columns) -->
         <div class="grid grid-cols-2 gap-4">
