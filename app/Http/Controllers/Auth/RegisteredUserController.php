@@ -18,7 +18,15 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
-        return view('auth.register');
+        $selectedPlan = request('plan', 'basic');
+
+        if (! in_array($selectedPlan, ['basic', 'standard', 'custom'], true)) {
+            $selectedPlan = 'basic';
+        }
+
+        return view('auth.register', [
+            'selectedPlan' => $selectedPlan,
+        ]);
     }
 
     /**

@@ -30,6 +30,8 @@ All notable changes to IHRAUTO CRM are documented here.
 - Reduced unnecessary tenant activity writes.
 - Standardized Resend configuration on `RESEND_API_KEY`.
 - Replaced stock framework docs with product-specific setup and security guidance.
+- Rebuilt the public pricing page into a plan-aware product landing page with package-specific CTAs that flow directly into registration.
+- Aligned the public pricing UX to the existing indigo/navy application palette used across guest and dashboard surfaces.
 
 ### Documentation
 - Added an engineer-facing documentation set under `docs/` for architecture, workflows, code mapping, and operational process.

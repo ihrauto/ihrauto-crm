@@ -12,13 +12,14 @@ Entry points:
 Flow:
 
 1. User submits registration or completes Google auth.
-2. `RegisterTenantOwner` delegates provisioning work to `TenantProvisioningService`.
-3. `TenantProvisioningService` creates the tenant inside a database transaction.
-4. The service creates or attaches the owner user.
-5. The service assigns the admin role.
-6. The service seeds starter products and services.
-7. A default tenant API token is issued.
-8. Registration side effects such as `Registered` events fire after commit.
+2. When registration starts from the public pricing page, the selected `plan` is preserved on `/register?plan=...` and posted with the signup form.
+3. `RegisterTenantOwner` delegates provisioning work to `TenantProvisioningService`.
+4. `TenantProvisioningService` creates the tenant inside a database transaction.
+5. The service creates or attaches the owner user.
+6. The service assigns the admin role.
+7. The service seeds starter products and services.
+8. A default tenant API token is issued.
+9. Registration side effects such as `Registered` events fire after commit.
 
 Outcome:
 
