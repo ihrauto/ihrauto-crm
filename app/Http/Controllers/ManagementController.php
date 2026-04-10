@@ -4,14 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\ReportingService;
-use Spatie\Permission\Models\Role;
+use App\Support\TenantCache;
+use App\Support\TenantUserAccess;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ManagementController extends Controller
 {
     protected ReportingService $reportingService;
 
-    public function __construct(ReportingService $reportingService)
-    {
+    public function __construct(
+        ReportingService $reportingService,
+        private readonly TenantUserAccess $tenantUserAccess
+    ) {
         $this->reportingService = $reportingService;
     }
 
@@ -23,7 +28,9 @@ class ManagementController extends Controller
         $service_analytics = $this->reportingService->getServiceAnalytics();
         $tire_analytics = $this->reportingService->getTireAnalytics();
         $alerts = $this->reportingService->getSystemAlerts();
-        $users = \App\Models\User::all();
+        $users = \App\Models\User::where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return view('management', compact(
             'kpis',
@@ -41,7 +48,7 @@ class ManagementController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('perform-admin-actions');
 
         $customers = \App\Models\Customer::all();
-        $filename = 'crm-customers-' . date('Y-m-d') . '.csv';
+        $filename = 'crm-customers-'.date('Y-m-d').'.csv';
 
         $headers = [
             'Content-type' => 'text/csv',
@@ -75,7 +82,7 @@ class ManagementController extends Controller
         return view('management.settings');
     }
 
-    public function updateSettings(\Illuminate\Http\Request $request)
+    public function updateSettings(Request $request)
     {
         // Require admin permissions
         \Illuminate\Support\Facades\Gate::authorize('perform-admin-actions');
@@ -128,9 +135,9 @@ class ManagementController extends Controller
 
         // Helper to update features array
         $updateFeature = function ($featureKey, $isEnabled) use (&$features) {
-            if ($isEnabled && !in_array($featureKey, $features)) {
+            if ($isEnabled && ! in_array($featureKey, $features)) {
                 $features[] = $featureKey;
-            } elseif (!$isEnabled && in_array($featureKey, $features)) {
+            } elseif (! $isEnabled && in_array($featureKey, $features)) {
                 $features = array_diff($features, [$featureKey]);
             }
         };
@@ -149,18 +156,19 @@ class ManagementController extends Controller
         $tenant->settings = $settings;
 
         $tenant->save();
+        TenantCache::forgetTenant($tenant);
 
         return redirect()->route('management.settings')->with('success', 'Company information and settings updated successfully.');
     }
 
     public function notifications()
     {
-        return back()->with('info', 'Notification system is currently being configured.');
+        abort(404);
     }
 
     public function pricing()
     {
-        return back()->with('info', 'Pricing management module is coming soon.');
+        return redirect()->route('billing.pricing');
     }
 
     public function reports()
@@ -182,23 +190,27 @@ class ManagementController extends Controller
 
     public function analytics()
     {
-        return back()->with('info', 'Performance analytics dashboard is being updated.');
+        abort(404);
     }
 
     public function createUser()
     {
-        $roles = Role::all();
+        $roles = $this->tenantUserAccess->assignableRolesFor(auth()->user());
 
         return view('management.users.create', compact('roles'));
     }
 
-    public function storeUser(\Illuminate\Http\Request $request)
+    public function storeUser(Request $request)
     {
+        $allowedRoles = $this->tenantUserAccess->assignableRolesFor($request->user());
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'role' => 'required|string|exists:roles,name',
+            'role' => ['required', 'string', Rule::in($allowedRoles)],
+        ], [
+            'email.unique' => 'This email address is already in use on IHRAUTO CRM. User emails are unique across the whole platform.',
         ]);
 
         $user = new User;
@@ -208,8 +220,8 @@ class ManagementController extends Controller
         $user->role = $validated['role'];
 
         // Handle tenant assignment (if applicable to current user context)
-        if (auth()->check() && auth()->user()->tenant_id) {
-            $user->tenant_id = auth()->user()->tenant_id;
+        if (auth()->check() && tenant_id()) {
+            $user->tenant_id = tenant_id();
         }
 
         $user->save();
@@ -220,25 +232,33 @@ class ManagementController extends Controller
 
     public function editUser(User $user)
     {
-        $roles = Role::all();
+        $this->tenantUserAccess->ensureCanManageUser(auth()->user(), $user);
+
+        $roles = $this->tenantUserAccess->assignableRolesFor(auth()->user());
 
         return view('management.users.edit', compact('user', 'roles'));
     }
 
-    public function updateUser(\Illuminate\Http\Request $request, User $user)
+    public function updateUser(Request $request, User $user)
     {
+        $allowedRoles = $this->tenantUserAccess->assignableRolesFor($request->user());
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'role' => 'required|string|exists:roles,name',
+            'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
+            'role' => ['required', 'string', Rule::in($allowedRoles)],
             'password' => 'nullable|string|min:8',
+        ], [
+            'email.unique' => 'This email address is already in use on IHRAUTO CRM. User emails are unique across the whole platform.',
         ]);
+
+        $this->tenantUserAccess->ensureCanTransitionUserRole($request->user(), $user, $validated['role']);
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];
         $user->role = $validated['role'];
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
         }
 
@@ -251,54 +271,110 @@ class ManagementController extends Controller
     public function destroyUser(\App\Models\User $user)
     {
         \Illuminate\Support\Facades\Gate::authorize('delete-records');
-
-        if (auth()->id() === $user->id) {
-            return back()->with('error', 'You cannot delete your own account.');
-        }
+        $this->tenantUserAccess->ensureCanDeleteUser(auth()->user(), $user);
 
         $user->delete();
 
         return back()->with('success', 'User account deleted successfully.');
     }
 
+    /**
+     * Whitelist of fields per model that are safe to include in a tenant-side backup.
+     *
+     * CRITICAL SECURITY NOTE: the previous implementation used $record->toJson(),
+     * which serialised every fillable field. That included invite_token on User
+     * (password is already hidden), the free-form `data` blob on audit_logs (which
+     * may contain before/after snapshots of any column, including password hashes
+     * on user update events), and any future sensitive field added to a fillable.
+     *
+     * This list is an explicit allow-list. To add a field, you must list it here.
+     * Models not listed (User, TenantApiToken, AuditLog) are intentionally excluded
+     * from the tenant-downloadable backup.
+     */
+    private const BACKUP_SAFE_FIELDS = [
+        \App\Models\Customer::class => [
+            'id', 'name', 'email', 'phone', 'address', 'city', 'postal_code',
+            'notes', 'is_active', 'created_at', 'updated_at',
+        ],
+        \App\Models\Vehicle::class => [
+            'id', 'customer_id', 'license_plate', 'make', 'model', 'year',
+            'color', 'mileage', 'vin', 'created_at', 'updated_at',
+        ],
+        \App\Models\Checkin::class => [
+            'id', 'customer_id', 'vehicle_id', 'service_type', 'service_description',
+            'priority', 'status', 'checkin_time', 'checkout_time', 'estimated_cost',
+            'actual_cost', 'technician_notes', 'created_at', 'updated_at',
+        ],
+        \App\Models\WorkOrder::class => [
+            'id', 'checkin_id', 'customer_id', 'vehicle_id', 'technician_id',
+            'status', 'service_tasks', 'customer_issues', 'technician_notes',
+            'parts_used', 'started_at', 'completed_at', 'scheduled_at',
+            'estimated_minutes', 'service_bay', 'created_at', 'updated_at',
+        ],
+        \App\Models\Invoice::class => [
+            'id', 'invoice_number', 'work_order_id', 'customer_id', 'vehicle_id',
+            'status', 'issue_date', 'due_date', 'subtotal', 'tax_total',
+            'discount_total', 'total', 'paid_amount', 'notes',
+            'created_at', 'updated_at',
+        ],
+        \App\Models\Payment::class => [
+            'id', 'invoice_id', 'amount', 'method', 'payment_date',
+            'transaction_reference', 'notes', 'created_at',
+            // NOTE: idempotency_key is intentionally excluded — it is an internal
+            // implementation detail and may encode user_id in derived form.
+        ],
+        \App\Models\Product::class => [
+            'id', 'name', 'description', 'sku', 'price', 'cost', 'stock_quantity',
+            'min_stock_quantity', 'unit', 'is_active', 'category',
+            'created_at', 'updated_at',
+        ],
+        \App\Models\Service::class => [
+            'id', 'name', 'description', 'code', 'price', 'duration_minutes',
+            'category', 'is_active', 'created_at', 'updated_at',
+        ],
+        \App\Models\Tire::class => [
+            'id', 'customer_id', 'vehicle_id', 'brand', 'model', 'size', 'season',
+            'quantity', 'condition', 'storage_location', 'storage_date',
+            'status', 'notes', 'created_at', 'updated_at',
+        ],
+        \App\Models\Appointment::class => [
+            'id', 'customer_id', 'vehicle_id', 'title', 'start_time', 'end_time',
+            'status', 'type', 'notes', 'created_at', 'updated_at',
+        ],
+    ];
+
     public function downloadBackup()
     {
         \Illuminate\Support\Facades\Gate::authorize('perform-admin-actions');
 
-        $data = [
-            'metadata' => [
+        $filename = 'crm-backup-'.now()->format('Y-m-d-His').'.json';
+        $safeFields = self::BACKUP_SAFE_FIELDS;
+
+        return response()->streamDownload(function () use ($safeFields) {
+            echo '{"metadata":'.json_encode([
                 'generated_at' => now()->toIso8601String(),
-                'version' => '1.0',
+                'version' => '2.0',
                 'app_name' => config('app.name'),
-            ],
-            'users' => \App\Models\User::all(),
-            'customers' => \App\Models\Customer::all(),
-            'checkins' => \App\Models\Checkin::all(),
-            'tires' => \App\Models\Tire::all(),
-            'audit_logs' => \App\Models\AuditLog::all(),
-        ];
+                'note' => 'This backup contains business data only. '
+                    . 'User accounts, auth tokens, and audit logs are excluded by design.',
+            ]);
 
-        // Safely try to add other models if they exist
-        if (class_exists('App\Models\WorkOrder')) {
-            $data['work_orders'] = \App\Models\WorkOrder::all();
-        }
-        if (class_exists('App\Models\Invoice')) {
-            $data['invoices'] = \App\Models\Invoice::all();
-        }
-        if (class_exists('App\Models\Payment')) {
-            $data['payments'] = \App\Models\Payment::all();
-        }
-        if (class_exists('App\Models\Product')) {
-            $data['products'] = \App\Models\Product::all();
-        }
-        if (class_exists('App\Models\Service')) {
-            $data['services'] = \App\Models\Service::all();
-        }
+            foreach ($safeFields as $modelClass => $fields) {
+                $key = \Illuminate\Support\Str::snake(class_basename($modelClass)).'s';
+                echo ',"'.$key.'":[';
+                $first = true;
+                foreach ($modelClass::cursor() as $record) {
+                    if (! $first) {
+                        echo ',';
+                    }
+                    // Only export whitelisted fields.
+                    echo json_encode($record->only($fields));
+                    $first = false;
+                }
+                echo ']';
+            }
 
-        $filename = 'crm-backup-' . now()->format('Y-m-d-His') . '.json';
-
-        return response()->streamDownload(function () use ($data) {
-            echo json_encode($data, JSON_PRETTY_PRINT);
+            echo '}';
         }, $filename, ['Content-Type' => 'application/json']);
     }
 }
