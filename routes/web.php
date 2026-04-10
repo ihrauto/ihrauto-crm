@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\SocialAuthController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CheckinController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
@@ -30,11 +31,13 @@ if (app()->environment('local')) {
         Route::get('/tenant-info', [TenantSwitchController::class, 'info'])->name('tenant-info');
     });
 
+    // Mock checkout flow for local development only.
     Route::get('/subscription/checkout/{tenant}', [\App\Http\Controllers\SubscriptionController::class, 'checkout'])->name('subscription.checkout');
     Route::post('/subscription/process/{tenant}', [\App\Http\Controllers\SubscriptionController::class, 'process'])->name('subscription.process');
 }
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('/billing/plans', [BillingController::class, 'index'])->name('billing.pricing');
     Route::get('/subscription/onboarding', [\App\Http\Controllers\SubscriptionController::class, 'onboarding'])->name('subscription.onboarding');
     Route::post('/subscription/setup', [\App\Http\Controllers\SubscriptionController::class, 'storeSetup'])->name('subscription.setup');
     Route::post('/subscription/tour-complete', [\App\Http\Controllers\SubscriptionController::class, 'markTourComplete'])->name('subscription.tour-complete');
@@ -49,7 +52,7 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
 
     Route::middleware('module:access check-in')->group(function () {
         Route::get('/checkin', [CheckinController::class, 'index'])->name('checkin');
-        Route::post('/checkin', [CheckinController::class, 'store'])->name('checkin.store');
+        Route::post('/checkin', [CheckinController::class, 'store'])->middleware('throttle:10,1')->name('checkin.store');
         Route::get('/checkin/{checkin}', [CheckinController::class, 'show'])->name('checkin.show');
         Route::put('/checkin/{checkin}', [CheckinController::class, 'update'])->name('checkin.update');
     });
@@ -61,24 +64,15 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
         Route::put('/tires-hotel/{tire}', [TireHotelController::class, 'update'])->name('tires-hotel.update');
         Route::delete('/tires-hotel/{tire}', [TireHotelController::class, 'destroy'])->name('tires-hotel.destroy');
         Route::post('/tires-hotel/{tire}/generate-work-order', [TireHotelController::class, 'generateWorkOrder'])->name('tires-hotel.generate-work-order');
-        Route::get('/ajax/tires/search-by-registration', [TireHotelController::class, 'searchByRegistration'])->name('api.tires.search-by-registration');
-        Route::get('/ajax/tires/storage/check-availability', [TireHotelController::class, 'checkAvailability'])->name('api.tires.storage.check');
-        Route::get('/ajax/tires/{tire}', [TireHotelController::class, 'apiShow'])->name('api.tires.show');
+        Route::get('/ajax/tires/search-by-registration', [TireHotelController::class, 'searchByRegistration'])->name('tenant.ajax.tires.search-by-registration');
+        Route::get('/ajax/tires/storage/check-availability', [TireHotelController::class, 'checkAvailability'])->name('tenant.ajax.tires.storage.check');
+        Route::get('/ajax/tires/{tire}', [TireHotelController::class, 'apiShow'])->name('tenant.ajax.tires.show');
     });
 
     Route::middleware('module:access management')->group(function () {
         Route::get('/management', [ManagementController::class, 'index'])->name('management');
         Route::get('/management/export', [ManagementController::class, 'export'])->name('management.export');
-        Route::get('/management/notifications', [ManagementController::class, 'notifications'])->name('management.notifications');
-        Route::get('/management/pricing', [ManagementController::class, 'pricing'])->name('management.pricing');
         Route::get('/management/reports', [ManagementController::class, 'reports'])->name('management.reports');
-        Route::get('/management/analytics', [ManagementController::class, 'analytics'])->name('management.analytics');
-        Route::get('/management/roles', [\App\Http\Controllers\RoleController::class, 'index'])
-            ->middleware('permission:manage users')
-            ->name('management.roles.index');
-        Route::put('/management/roles/{role}', [\App\Http\Controllers\RoleController::class, 'update'])
-            ->middleware('permission:manage users')
-            ->name('management.roles.update');
 
         Route::middleware('permission:manage settings')->group(function () {
             Route::get('/management/settings', [ManagementController::class, 'settings'])->name('management.settings');
@@ -101,13 +95,11 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
     Route::middleware('module:access customers')->group(function () {
         Route::resource('customers', CustomerController::class);
         Route::prefix('ajax')->group(function () {
-            Route::get('/customers/search', [CustomerController::class, 'search'])->name('api.customers.search');
-            Route::get('/customers/{customer}', [CustomerController::class, 'apiShow'])->name('api.customers.show');
-            Route::get('/vehicles/by-customer/{customer}', function (\App\Models\Customer $customer) {
-                return $customer->vehicles()->get();
-            })->name('api.vehicles.by-customer');
+            Route::get('/customers/search', [CustomerController::class, 'search'])->name('tenant.ajax.customers.search');
+            Route::get('/customers/{customer}', [CustomerController::class, 'apiShow'])->name('tenant.ajax.customers.show');
+            Route::get('/vehicles/by-customer/{customer}', [CustomerController::class, 'vehiclesByCustomer'])->name('tenant.ajax.vehicles.by-customer');
         });
-        Route::get('/ajax/customer/{customer}/history', [CustomerController::class, 'history'])->name('api.customer.history');
+        Route::get('/ajax/customer/{customer}/history', [CustomerController::class, 'history'])->name('tenant.ajax.customer.history');
     });
 
     Route::middleware('module:access work-orders')->group(function () {
@@ -123,8 +115,15 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
             ->middleware('permission:delete records')
             ->name('work-orders.photos.destroy');
 
-        Route::resource('mechanics', \App\Http\Controllers\MechanicsController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
-        Route::post('/mechanics/{mechanic}/invite', [\App\Http\Controllers\MechanicsController::class, 'invite'])->name('mechanics.invite');
+        Route::middleware('permission:manage users')->group(function () {
+            Route::resource('mechanics', \App\Http\Controllers\MechanicsController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+            // Rate limit invite resends: 5 invites per 10-minute window per user.
+            // Each invite sends a transactional email, so abuse is a direct cost
+            // amplifier and harassment vector against a target email address.
+            Route::post('/mechanics/{mechanic}/invite', [\App\Http\Controllers\MechanicsController::class, 'invite'])
+                ->middleware('throttle:5,10')
+                ->name('mechanics.invite');
+        });
 
         Route::get('/work-bays', [\App\Http\Controllers\ServiceBayController::class, 'index'])->name('work-bays.index');
         Route::post('/work-bays', [\App\Http\Controllers\ServiceBayController::class, 'store'])->name('work-bays.store');
@@ -170,6 +169,7 @@ Route::middleware(['auth', 'role:super-admin'])->prefix('admin')->name('admin.')
     Route::get('/tenants', [\App\Http\Controllers\Admin\SuperAdminController::class, 'index'])->name('tenants.index');
     Route::post('/tenants/{tenant}/toggle', [\App\Http\Controllers\Admin\SuperAdminController::class, 'toggleActive'])->name('tenants.toggle');
     Route::post('/tenants/{tenant}/bonus', [\App\Http\Controllers\Admin\SuperAdminController::class, 'addBonusDays'])->name('tenants.bonus');
+    Route::post('/tenants/{tenant}/billing', [\App\Http\Controllers\Admin\SuperAdminController::class, 'updateBilling'])->name('tenants.billing');
     Route::post('/tenants/{tenant}/suspend', [\App\Http\Controllers\Admin\SuperAdminController::class, 'suspend'])->name('tenants.suspend');
     Route::post('/tenants/{tenant}/activate', [\App\Http\Controllers\Admin\SuperAdminController::class, 'activate'])->name('tenants.activate');
     Route::post('/tenants/{tenant}/note', [\App\Http\Controllers\Admin\SuperAdminController::class, 'addNote'])->name('tenants.note');
@@ -179,4 +179,4 @@ Route::middleware(['auth', 'role:super-admin'])->prefix('admin')->name('admin.')
     Route::get('/tenants/{tenant}', [\App\Http\Controllers\Admin\SuperAdminController::class, 'show'])->name('tenants.show');
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';
