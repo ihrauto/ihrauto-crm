@@ -27,16 +27,22 @@ Route::middleware('guest')->group(function () {
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
+    // Rate-limited to 3 requests per 5-minute window per IP. Password reset link
+    // requests are expensive (send email, write DB, user confusion if spammed).
+    // The previous 5/min limit permitted 300 emails per hour per IP; too generous.
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
         ->name('password.email')
-        ->middleware('throttle:5,1');
+        ->middleware('throttle:3,5');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
 
+    // Same rate limit as forgot-password. Brute-forcing the token would require
+    // ~2^256 attempts (Laravel tokens are signed hashes), but a slow limit
+    // protects against distributed token-guessing at scale.
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store')
-        ->middleware('throttle:5,1');
+        ->middleware('throttle:3,5');
 });
 
 Route::middleware('auth')->group(function () {
