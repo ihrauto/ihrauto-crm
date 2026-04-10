@@ -4,28 +4,13 @@
 
 @section('content')
     <div class="space-y-6">
-        <!-- Success/Error Messages -->
-        @if(session('success'))
-            <div
-                class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg flex items-center shadow-sm">
-                <svg class="w-5 h-5 mr-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                {{ session('success') }}
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center shadow-sm">
-                <svg class="w-5 h-5 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-                {{ session('error') }}
-            </div>
-        @endif
+        <x-flash-message type="success" />
+        <x-flash-message type="error" />
 
         <!-- Success Notification Bar (Hidden by default) -->
         <div id="success-notification"
+            role="status"
+            aria-live="polite"
             class="fixed top-0 left-0 right-0 z-[9999] transform -translate-y-full transition-transform duration-500 ease-in-out hidden">
             <div class="bg-indigo-900 text-white shadow-2xl border-b border-indigo-700">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -44,9 +29,11 @@
                                     created.</p>
                             </div>
                         </div>
-                        <button onclick="hideSuccessNotification()"
+                        <button type="button"
+                            x-on:click="$el.closest('[role=status]').remove()"
+                            aria-label="Dismiss notification"
                             class="text-indigo-300 hover:text-white transition-colors duration-200">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
@@ -729,55 +716,18 @@
     </div>
 
     <!-- Section Separator -->
-    <div class="py-8" id="dashboard-section">
-        <div class="flex items-center justify-center">
-            <div class="flex-grow border-t border-indigo-100"></div>
-            <div class="mx-6">
-                <h2 class="text-xs font-bold text-indigo-300 uppercase tracking-widest">Dashboard Overview</h2>
-            </div>
-            <div class="flex-grow border-t border-indigo-100"></div>
-        </div>
+    <div id="dashboard-section">
+        <x-section-separator label="Dashboard Overview" />
     </div>
 
     <!-- Check-in Information Section -->
     <div class="space-y-6" id="dashboard-content">
         <!-- Check-in Statistics -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            <x-card class="border-l-4 border-indigo-500 shadow-sm ring-1 ring-indigo-50">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-indigo-500">Today's Check-ins</p>
-                        <p class="text-2xl font-bold text-indigo-900">{{ $checkin_stats['today_checkins'] }}</p>
-                    </div>
-                </div>
-            </x-card>
-
-            <x-card class="border-l-4 border-indigo-400 shadow-sm ring-1 ring-indigo-50">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-indigo-500">In Progress</p>
-                        <p class="text-2xl font-bold text-indigo-900">{{ $checkin_stats['in_progress'] }}</p>
-                    </div>
-                </div>
-            </x-card>
-
-            <x-card class="border-l-4 border-indigo-300 shadow-sm ring-1 ring-indigo-50">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-indigo-500">Completed Today</p>
-                        <p class="text-2xl font-bold text-indigo-900">{{ $checkin_stats['completed'] }}</p>
-                    </div>
-                </div>
-            </x-card>
-
-            <x-card class="border-l-4 border-purple-400 shadow-sm ring-1 ring-indigo-50">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-indigo-500">Avg. Service Time</p>
-                        <p class="text-2xl font-bold text-indigo-900">{{ $checkin_stats['avg_time'] }}</p>
-                    </div>
-                </div>
-            </x-card>
+            <x-stat-card label="Today's Check-ins" :value="$checkin_stats['today_checkins']" borderColor="border-indigo-500" />
+            <x-stat-card label="In Progress" :value="$checkin_stats['in_progress']" borderColor="border-indigo-400" />
+            <x-stat-card label="Completed Today" :value="$checkin_stats['completed']" borderColor="border-indigo-300" />
+            <x-stat-card label="Avg. Service Time" :value="$checkin_stats['avg_time']" borderColor="border-purple-400" />
         </div>
 
         <!-- Active Check-ins and Service Bays -->
