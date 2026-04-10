@@ -15,6 +15,15 @@ class WorkOrderPhotoController extends Controller
      */
     public function store(Request $request, WorkOrder $workOrder)
     {
+        $this->authorize('create', WorkOrderPhoto::class);
+
+        // Defense in depth: verify work order tenant matches request tenant
+        abort_unless(
+            (int) $workOrder->tenant_id === (int) tenant_id(),
+            403,
+            'Cannot upload photos to a work order from another tenant.'
+        );
+
         $request->validate([
             'photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120', // 5MB max
             'type' => 'required|in:before,after',
@@ -22,10 +31,17 @@ class WorkOrderPhotoController extends Controller
         ]);
 
         $file = $request->file('photo');
-        $tenantId = auth()->user()->tenant_id;
+
+        // Validate file is a real image (defense against MIME spoofing)
+        $imageInfo = @getimagesize($file->getRealPath());
+        if ($imageInfo === false) {
+            return back()->with('error', 'The uploaded file is not a valid image.');
+        }
+
+        $tenantId = tenant_id();
 
         // Generate unique filename
-        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
 
         // Store in tenant-specific directory
         $path = "work-order-photos/{$tenantId}/{$workOrder->id}/{$filename}";
@@ -43,18 +59,25 @@ class WorkOrderPhotoController extends Controller
             'caption' => $request->caption,
         ]);
 
-        return back()->with('success', ucfirst($request->type) . ' photo uploaded successfully.');
+        return back()->with('success', ucfirst($request->type).' photo uploaded successfully.');
     }
 
     /**
-     * Delete a photo (only uploader or admin can delete).
+     * Delete a photo. Policy enforces:
+     *   - Same tenant as actor AND current request context
+     *   - Uploader OR admin/owner role
+     *   - Admin/owner required after the work order is completed/invoiced
      */
     public function destroy(WorkOrder $workOrder, WorkOrderPhoto $photo)
     {
-        // Authorization: Only uploader or admin can delete
-        if ($photo->user_id !== auth()->id() && !auth()->user()->hasRole(['admin', 'owner'])) {
-            abort(403, 'You can only delete your own photos.');
-        }
+        // Defense in depth: route parameters must match
+        abort_unless(
+            (int) $photo->work_order_id === (int) $workOrder->id,
+            404,
+            'Photo does not belong to this work order.'
+        );
+
+        $this->authorize('delete', $photo);
 
         // Delete file from storage
         Storage::disk('public')->delete($photo->path);

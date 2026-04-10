@@ -30,13 +30,21 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 
+        RateLimiter::for('login', function (Request $request) {
+            return Limit::perMinute(5)->by($request->input('email', '').'|'.$request->ip());
+        });
+
+        RateLimiter::for('register', function (Request $request) {
+            return Limit::perMinute(3)->by($request->ip());
+        });
+
         RateLimiter::for('tenant-api', function (Request $request) {
             $limit = tenant()?->api_rate_limit ?? 60;
             $identifier = $request->attributes->get('tenant_api_token_id')
                 ?? $request->attributes->get('tenant_api_token_prefix')
                 ?? $request->ip();
 
-            return Limit::perMinute((int) $limit)->by('tenant-api:' . $identifier);
+            return Limit::perMinute((int) $limit)->by('tenant-api:'.$identifier);
         });
 
         // Register observers
@@ -45,7 +53,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Define Gates for Role-Based Access Control
         \Illuminate\Support\Facades\Gate::define('view-financials', function ($user) {
-            return $user->can('view financials');
+            return $user->can('access finance');
         });
 
         \Illuminate\Support\Facades\Gate::define('delete-records', function ($user) {
@@ -65,5 +73,7 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Tire::class, \App\Policies\TirePolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Product::class, \App\Policies\ProductPolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Appointment::class, \App\Policies\AppointmentPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\Service::class, \App\Policies\ServicePolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\WorkOrderPhoto::class, \App\Policies\WorkOrderPhotoPolicy::class);
     }
 }
