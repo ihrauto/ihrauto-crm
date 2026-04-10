@@ -11,7 +11,7 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Customer::withCount('vehicles');
+        $query = Customer::with('vehicles')->withCount('vehicles');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -19,12 +19,12 @@ class CustomerController extends Controller
 
             $query->where(function ($q) use ($search, $normalizedSearch) {
                 // Case-insensitive search on name, phone, email
-                $q->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($search) . '%'])
-                    ->orWhereRaw('LOWER(phone) LIKE ?', ['%' . strtolower($search) . '%'])
-                    ->orWhereRaw('LOWER(email) LIKE ?', ['%' . strtolower($search) . '%'])
+                $q->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%'])
+                    ->orWhereRaw('LOWER(phone) LIKE ?', ['%'.strtolower($search).'%'])
+                    ->orWhereRaw('LOWER(email) LIKE ?', ['%'.strtolower($search).'%'])
                     // Search by license plate (normalized, case-insensitive)
                     ->orWhereHas('vehicles', function ($vehicleQuery) use ($normalizedSearch) {
-                        $vehicleQuery->whereRaw('UPPER(REPLACE(license_plate, \' \', \'\')) LIKE ?', ['%' . $normalizedSearch . '%']);
+                        $vehicleQuery->whereRaw('UPPER(REPLACE(license_plate, \' \', \'\')) LIKE ?', ['%'.$normalizedSearch.'%']);
                     });
             });
         }
@@ -41,6 +41,8 @@ class CustomerController extends Controller
 
     public function store(StoreCustomerRequest $request)
     {
+        $this->authorize('create', Customer::class);
+
         $customer = Customer::create($request->validated());
 
         return redirect()->route('customers.show', $customer)
@@ -49,6 +51,8 @@ class CustomerController extends Controller
 
     public function show(Customer $customer)
     {
+        $this->authorize('view', $customer);
+
         $customer->load(['vehicles', 'checkins.vehicle', 'tires.vehicle', 'invoices', 'quotes']);
 
         return view('customers.show', compact('customer'));
@@ -56,11 +60,15 @@ class CustomerController extends Controller
 
     public function edit(Customer $customer)
     {
+        $this->authorize('update', $customer);
+
         return view('customers.edit', compact('customer'));
     }
 
     public function update(UpdateCustomerRequest $request, Customer $customer)
     {
+        $this->authorize('update', $customer);
+
         $customer->update($request->validated());
 
         return redirect()->route('customers.show', $customer)
@@ -69,7 +77,28 @@ class CustomerController extends Controller
 
     public function destroy(Customer $customer)
     {
+        $this->authorize('delete', $customer);
         \Illuminate\Support\Facades\Gate::authorize('delete-records');
+
+        $dependencies = [
+            'vehicles' => $customer->vehicles()->count(),
+            'check-ins' => $customer->checkins()->count(),
+            'tire records' => $customer->tires()->count(),
+            'work orders' => \App\Models\WorkOrder::where('customer_id', $customer->id)->count(),
+            'invoices' => $customer->invoices()->count(),
+            'quotes' => $customer->quotes()->count(),
+            'payments' => $customer->payments()->count(),
+        ];
+
+        $blockingDependencies = collect($dependencies)
+            ->filter(fn (int $count) => $count > 0)
+            ->map(fn (int $count, string $label) => "{$count} {$label}")
+            ->values();
+
+        if ($blockingDependencies->isNotEmpty()) {
+            return redirect()->route('customers.show', $customer)
+                ->with('error', 'Cannot delete this customer while linked records exist: '.$blockingDependencies->join(', ').'. Remove or archive the linked data first.');
+        }
 
         $customer->delete();
 
@@ -81,7 +110,7 @@ class CustomerController extends Controller
     {
         $search = $request->get('query') ?? $request->get('q');
 
-        if (!$search || strlen($search) < 2) {
+        if (! $search || strlen($search) < 2) {
             return response()->json([]);
         }
 
@@ -99,8 +128,8 @@ class CustomerController extends Controller
                 $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchTerm}%"])
                     // Or by license plate
                     ->orWhereHas('vehicles', function ($vq) use ($normalizedPlate) {
-                    $vq->whereRaw("UPPER(REPLACE(license_plate, ' ', '')) LIKE ?", ["%{$normalizedPlate}%"]);
-                });
+                        $vq->whereRaw("UPPER(REPLACE(license_plate, ' ', '')) LIKE ?", ["%{$normalizedPlate}%"]);
+                    });
             })
             ->take(10)
             ->get(['id', 'name', 'phone', 'email']);
@@ -113,6 +142,11 @@ class CustomerController extends Controller
         $customer->load('vehicles');
 
         return response()->json($customer);
+    }
+
+    public function vehiclesByCustomer(Customer $customer)
+    {
+        return response()->json($customer->vehicles()->get());
     }
 
     /**
