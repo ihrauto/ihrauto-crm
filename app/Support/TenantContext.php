@@ -15,6 +15,27 @@ class TenantContext
         return App::bound('tenant') ? App::make('tenant') : null;
     }
 
+    /**
+     * Return the current tenant ID, or the authenticated user's tenant_id as a fallback.
+     *
+     * ARCHITECTURAL NOTE: the fallback to auth()->user()?->tenant_id is REQUIRED, not
+     * optional. Laravel's SubstituteBindings middleware (which performs route-model
+     * binding) runs BEFORE our TenantMiddleware is invoked, because TenantMiddleware
+     * is appended to the web group. During SubstituteBindings, `current()` returns
+     * null — without this fallback, TenantScope does not apply to route-bound models,
+     * enabling cross-tenant reads through route parameters (a bound Customer could
+     * belong to a different tenant than the authenticated user's).
+     *
+     * The fallback is safe because:
+     *   - An authenticated user's `tenant_id` is authoritative and cannot be forged
+     *     (the session cookie is signed and HTTP-only).
+     *   - `actingAs()` in tests sets the auth user before the request, so the fallback
+     *     works in test contexts too.
+     *
+     * For background jobs and console commands that need a tenant context, use
+     * `TenantContext::set()` explicitly — the fallback only applies when there is
+     * an authenticated web user.
+     */
     public function id(): ?int
     {
         return $this->current()?->id ?? auth()->user()?->tenant_id;
