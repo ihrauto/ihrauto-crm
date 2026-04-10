@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\TenantCache;
 use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -15,8 +16,7 @@ class TenantMiddleware
 {
     public function __construct(
         private readonly TenantContext $tenantContext
-    ) {
-    }
+    ) {}
 
     /**
      * Handle an incoming request.
@@ -30,6 +30,9 @@ class TenantMiddleware
             return $next($request);
         }
 
+        // Tenant context is request-scoped. Clear any stale bindings before resolving again.
+        $this->tenantContext->clear();
+
         // Superadmins bypass tenant middleware entirely
         try {
             if (Auth::check() && Auth::user()->hasRole('super-admin')) {
@@ -41,27 +44,37 @@ class TenantMiddleware
 
         $tenant = $this->resolveTenant($request);
 
-        if (!$tenant) {
+        if (! $tenant) {
             // If no tenant found, redirect to main site or return 404
             return $this->handleMissingTenant($request);
         }
 
         // Check if tenant is active
-        if (!$tenant->is_active) {
+        if (! $tenant->is_active) {
             return $this->handleInactiveTenant($request, $tenant);
         }
 
         // Check if tenant subscription is expired
-        if ($tenant->is_expired) {
+        if ($tenant->is_expired && ! $this->allowsExpiredTenantAccess($request)) {
             return $this->handleExpiredTenant($request, $tenant);
         }
 
         // Set tenant context
         $this->tenantContext->set($tenant, $request);
 
-        // In local development, auto-login as first tenant user if not authenticated
-        if (app()->environment('local') && !Auth::check()) {
-            // Use withoutGlobalScopes to prevent TenantScope infinite loop
+        // Auto-login for local development ONLY.
+        //
+        // SECURITY: triple-gated to make accidental production enablement impossible:
+        //   1. APP_ENV must be 'local' (not testing, not staging, not production)
+        //   2. A physical marker file storage/app/.auto_login_enabled must exist.
+        //      This file is gitignored and cannot be shipped in a Docker image
+        //      or deployment artifact.
+        //   3. AUTO_LOGIN_ENABLED config flag must be true (legacy belt-and-suspenders).
+        //
+        // The marker file requirement defeats config misconfiguration: even if
+        // someone sets AUTO_LOGIN_ENABLED=true in a production .env, no marker
+        // file exists on disk, so auto-login stays off.
+        if ($this->shouldAutoLogin() && ! Auth::check()) {
             $user = User::withoutGlobalScopes()->where('tenant_id', $tenant->id)->first();
             if ($user) {
                 Auth::login($user);
@@ -69,6 +82,22 @@ class TenantMiddleware
         }
 
         return $next($request);
+    }
+
+    /**
+     * Triple-check whether auto-login is allowed: env + marker file + config flag.
+     */
+    private function shouldAutoLogin(): bool
+    {
+        if (! app()->environment('local')) {
+            return false;
+        }
+
+        if (! file_exists(storage_path('app/.auto_login_enabled'))) {
+            return false;
+        }
+
+        return (bool) config('app.auto_login_enabled', false);
     }
 
     /**
@@ -94,7 +123,7 @@ class TenantMiddleware
         if (Auth::check() && Auth::user()->tenant_id) {
             $tenantId = Auth::user()->tenant_id;
 
-            return Cache::remember("tenant.id.{$tenantId}", 3600, function () use ($tenantId) {
+            return Cache::remember(TenantCache::tenantIdKey($tenantId), 3600, function () use ($tenantId) {
                 return Tenant::find($tenantId);
             });
         }
@@ -119,7 +148,7 @@ class TenantMiddleware
                 return null;
             }
 
-            return Cache::remember("tenant.subdomain.{$subdomain}", 3600, function () use ($subdomain) {
+            return Cache::remember(TenantCache::tenantSubdomainKey($subdomain), 3600, function () use ($subdomain) {
                 return Tenant::where('subdomain', $subdomain)->active()->first();
             });
         }
@@ -135,7 +164,7 @@ class TenantMiddleware
         $tenantId = $request->route('tenant');
 
         if ($tenantId && is_numeric($tenantId)) {
-            return Cache::remember("tenant.id.{$tenantId}", 3600, function () use ($tenantId) {
+            return Cache::remember(TenantCache::tenantIdKey($tenantId), 3600, function () use ($tenantId) {
                 return Tenant::find($tenantId);
             });
         }
@@ -155,7 +184,7 @@ class TenantMiddleware
     {
         $host = $request->getHost();
 
-        return Cache::remember("tenant.domain.{$host}", 3600, function () use ($host) {
+        return Cache::remember(TenantCache::tenantDomainKey($host), 3600, function () use ($host) {
             return Tenant::where('domain', $host)->active()->first();
         });
     }
@@ -168,7 +197,7 @@ class TenantMiddleware
         $tenantId = session('tenant_id');
 
         if ($tenantId) {
-            return Cache::remember("tenant.id.{$tenantId}", 3600, function () use ($tenantId) {
+            return Cache::remember(TenantCache::tenantIdKey($tenantId), 3600, function () use ($tenantId) {
                 return Tenant::find($tenantId);
             });
         }
@@ -233,6 +262,11 @@ class TenantMiddleware
             ], 403);
         }
 
+        if (Auth::check()) {
+            return redirect()->route('billing.pricing')
+                ->with('warning', 'Your trial or subscription has expired. Review plans and contact billing to restore access.');
+        }
+
         return response()->view('errors.tenant-expired', compact('tenant'), 403);
     }
 
@@ -262,6 +296,7 @@ class TenantMiddleware
             'auth/google',
             'auth/google/callback',
             'auth/create-company',
+            'invite',
         ];
 
         foreach ($authRoutes as $authRoute) {
@@ -271,7 +306,7 @@ class TenantMiddleware
         }
 
         // Development-only routes
-        if (!app()->environment('local')) {
+        if (! app()->environment('local')) {
             return false;
         }
 
@@ -291,5 +326,15 @@ class TenantMiddleware
         }
 
         return false;
+    }
+
+    /**
+     * Allow expired tenants to reach the manual billing page so they can recover access.
+     */
+    private function allowsExpiredTenantAccess(Request $request): bool
+    {
+        $path = trim($request->getPathInfo(), '/');
+
+        return $request->routeIs('billing.pricing') || $path === 'billing/plans';
     }
 }

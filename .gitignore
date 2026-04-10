@@ -18,7 +18,12 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/app/.auto_login_enabled
 /vendor
 Homestead.json
 Homestead.yaml
 Thumbs.db
+cookies.txt
+reproduce_issue.php
+seed_bom.php
+/database/*.sqlite
