@@ -349,21 +349,21 @@ class Tenant extends Model
      */
     public function canAddUser(): bool
     {
-        $count = Cache::remember("tenant_{$this->id}_user_count", 60, fn () => $this->users()->count());
+        $count = \App\Support\CachedQuery::remember("tenant_{$this->id}_user_count", 60, fn () => $this->users()->count());
 
         return $count < $this->max_users;
     }
 
     public function canAddCustomer(): bool
     {
-        $count = Cache::remember("tenant_{$this->id}_customer_count", 60, fn () => $this->customers()->count());
+        $count = \App\Support\CachedQuery::remember("tenant_{$this->id}_customer_count", 60, fn () => $this->customers()->count());
 
         return $count < $this->max_customers;
     }
 
     public function canAddVehicle(): bool
     {
-        $count = Cache::remember("tenant_{$this->id}_vehicle_count", 60, fn () => $this->vehicles()->count());
+        $count = \App\Support\CachedQuery::remember("tenant_{$this->id}_vehicle_count", 60, fn () => $this->vehicles()->count());
 
         return $count < $this->max_vehicles;
     }

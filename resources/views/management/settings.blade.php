@@ -265,6 +265,17 @@
                                         class="w-full bg-gray-50/50 border text-gray-900 text-sm font-medium border-gray-200 rounded-lg px-3 py-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-gray-300">
                                 </div>
 
+                                <div class="group">
+                                    <label for="auto_issue_drafts_after_days"
+                                        class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 group-focus-within:text-indigo-600 transition-colors">Auto-issue stale drafts after (days)</label>
+                                    <input type="number" name="auto_issue_drafts_after_days" id="auto_issue_drafts_after_days"
+                                        value="{{ auth()->user()->tenant?->settings['auto_issue_drafts_after_days'] ?? 0 }}"
+                                        min="0" max="60"
+                                        placeholder="0 = off"
+                                        class="w-full bg-gray-50/50 border text-gray-900 text-sm font-medium border-gray-200 rounded-lg px-3 py-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-gray-300">
+                                    <p class="mt-1 text-[10px] text-gray-500">Drafts untouched for this many days are issued automatically overnight. 0 disables the behaviour.</p>
+                                </div>
+
                                 <div class="group md:col-span-3">
                                     <label class="inline-flex items-center gap-2 text-sm text-gray-700">
                                         <input type="checkbox" name="low_stock_email" value="1"

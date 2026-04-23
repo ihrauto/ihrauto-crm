@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\Config;
 
 class TenantContext
 {
+    /**
+     * Scalability C-4: memoize the auth-user fallback so repeated id()
+     * calls inside a single request don't trigger a fresh User lookup
+     * each time. Reset by clear() to keep per-test isolation.
+     */
+    private ?int $fallbackTenantId = null;
+
+    private bool $fallbackResolved = false;
+
     public function current(): ?Tenant
     {
         return App::bound('tenant') ? App::make('tenant') : null;
@@ -38,7 +47,20 @@ class TenantContext
      */
     public function id(): ?int
     {
-        return $this->current()?->id ?? auth()->user()?->tenant_id;
+        // Fast path: tenant context already set by middleware.
+        if ($current = $this->current()) {
+            return $current->id;
+        }
+
+        // Fallback path: derive from the authenticated user. Memoized
+        // so route-model binding (which calls this for every bound
+        // model) doesn't re-query the User row on every call.
+        if (! $this->fallbackResolved) {
+            $this->fallbackTenantId = auth()->user()?->tenant_id;
+            $this->fallbackResolved = true;
+        }
+
+        return $this->fallbackTenantId;
     }
 
     public function apiToken(): ?TenantApiToken
@@ -103,6 +125,12 @@ class TenantContext
         }
 
         Config::set('tenant', null);
+
+        // Scalability C-4: reset the memoized fallback so tests and
+        // subsequent requests (under rare re-used worker scenarios)
+        // re-resolve instead of seeing stale state.
+        $this->fallbackTenantId = null;
+        $this->fallbackResolved = false;
     }
 
     private function configureTenantDatabase(Tenant $tenant): void

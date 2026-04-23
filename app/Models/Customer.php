@@ -8,10 +8,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\Notifiable;
 
 class Customer extends Model
 {
-    use Auditable, BelongsToTenant, HasFactory, SoftDeletes;
+    use Auditable, BelongsToTenant, HasFactory, Notifiable, SoftDeletes;
+
+    /**
+     * Notifiable reads this when sending mail. Customers aren't Users,
+     * so we bridge to Laravel's mail channel via their email column.
+     * Returns null when no email is on file — callers must handle that
+     * ahead of time (see InvoiceController::issueAndSend).
+     */
+    public function routeNotificationForMail($notification): ?string
+    {
+        return $this->email ?: null;
+    }
 
     /**
      * Soft-delete cascade.

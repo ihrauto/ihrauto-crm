@@ -46,6 +46,82 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Public print view opened via a signed URL — no login required.
+     *
+     * This is the link the customer clicks in the "invoice issued" email.
+     * `hasValidSignature()` proves the URL came from us and hasn't expired.
+     * The extra token path segment binds the signature to a stable per-
+     * invoice secret (see Invoice::publicPdfToken) so a signed URL for
+     * invoice A can't be retargeted to invoice B by editing the query.
+     *
+     * withoutGlobalScopes() is safe here: the request is unauthenticated
+     * so there's no tenant context to compare against, but the signature
+     * + token already prove authenticity.
+     */
+    public function publicPdf(string $token, int $invoice)
+    {
+        if (! request()->hasValidSignature()) {
+            abort(403, 'Link expired or invalid.');
+        }
+
+        $model = Invoice::withoutGlobalScopes()
+            ->with(['customer', 'items', 'vehicle', 'payments', 'tenant'])
+            ->findOrFail($invoice);
+
+        if (! hash_equals($model->publicPdfToken(), $token)) {
+            abort(403, 'Link token mismatch.');
+        }
+
+        if ($model->isDraft() || $model->isVoid()) {
+            abort(404);
+        }
+
+        return response()
+            ->view('finance.invoices.pdf', ['invoice' => $model, 'public' => true])
+            ->header('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /**
+     * Issue + email the customer. One-click convenience — issues the
+     * invoice (same service as the Issue button) and fires the
+     * InvoiceIssuedNotification to the customer's email. Transactional so
+     * a mail-queue failure doesn't leave a "silent issue".
+     */
+    public function issueAndSend(Invoice $invoice)
+    {
+        $this->authorize('issue', $invoice);
+
+        if (! $invoice->customer?->email) {
+            return back()->with(
+                'error',
+                "Cannot email invoice #{$invoice->invoice_number} — customer has no email on file."
+            );
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($invoice) {
+                $this->invoiceService->issueInvoice($invoice);
+
+                $invoice->refresh();
+                $invoice->customer->notify(new \App\Notifications\InvoiceIssuedNotification($invoice));
+            });
+
+            app(\App\Services\EventTracker::class)->trackSimple('invoice_issued_and_sent');
+
+            return back()->with(
+                'success',
+                "Invoice #{$invoice->invoice_number} issued and emailed to {$invoice->customer->email}."
+            );
+        } catch (\App\Exceptions\InvoiceImmutableException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Issued the invoice but the email could not be sent. Check the customer email and try again.');
+        }
+    }
+
+    /**
      * Show the form for editing the specified invoice.
      */
     public function edit(Invoice $invoice)

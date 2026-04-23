@@ -107,6 +107,9 @@ class ManagementController extends Controller
             'tax_rate' => 'required|numeric|min:0|max:100',
             'invoice_prefix' => 'nullable|string|max:10|regex:/^[A-Z0-9\-]+$/i',
             'default_due_days' => 'nullable|integer|min:0|max:365',
+            // 0 / null disables auto-issue. Cap at 60 days to keep the
+            // behaviour from silently issuing a forgotten year-old draft.
+            'auto_issue_drafts_after_days' => 'nullable|integer|min:0|max:60',
 
             // Notifications
             'low_stock_email' => 'nullable|boolean',
@@ -164,6 +167,10 @@ class ManagementController extends Controller
         if (array_key_exists('default_due_days', $validated) && $validated['default_due_days'] !== null) {
             $settings['default_due_days'] = (int) $validated['default_due_days'];
         }
+        // Store 0 rather than null for "disabled" so the scheduler's
+        // short-circuit check works the same whether the key was never
+        // saved or was saved as zero.
+        $settings['auto_issue_drafts_after_days'] = (int) ($validated['auto_issue_drafts_after_days'] ?? 0);
         $settings['low_stock_email'] = $request->boolean('low_stock_email');
         $tenant->settings = $settings;
 

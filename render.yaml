@@ -1,21 +1,30 @@
 # =============================================================================
 # Render Blueprint — IHRAUTO CRM
 # =============================================================================
-# PRODUCTION BLUEPRINT:
-#   - Paid always-on web service (starter)
-#   - Managed PostgreSQL with retention/PITR (basic-1gb or better)
-#   - Managed Redis-compatible key/value store for cache + queue
-#   - S3-compatible object storage for uploads and backups (configure secrets in Render dashboard)
+# Provisioned for the 200-tenant scalability target (see
+# docs/SCALABILITY-REVIEW-2026-04-23.md):
+#   - 3× web containers behind Render's load balancer
+#   - Dedicated backup-runner (isolates 30-min nightly DB dump)
+#   - PostgreSQL `standard` (200 connections, 10 GB storage)
+#   - Redis `standard` (5 GB)
+#   - Sessions on Redis, cache + queue on Redis
+#   - onOneServer() guards on every scheduled command (routes/console.php)
+#
+# Each `sync: false` entry means the secret is configured in the Render
+# dashboard, not checked in here.
 # =============================================================================
 
 services:
   - type: web
     name: ihrauto-crm
     env: docker
-    plan: starter
+    # Scalability C-1: `standard` (1 vCPU / 1 GB) × 3 instances to handle
+    # ~100 req/s peak at 200 tenants. Upgrade to `standard-2x` before
+    # 500 tenants.
+    plan: standard
     region: frankfurt
     branch: main
-    numInstances: 1
+    numInstances: 3
     healthCheckPath: /up
     envVars:
       - key: APP_KEY
@@ -30,6 +39,10 @@ services:
         value: stderr
       - key: LOG_LEVEL
         value: info
+      # Scalability B-6: 3 queue workers per container = 9 total workers
+      # across the fleet. Overrides the Dockerfile default.
+      - key: QUEUE_WORKERS
+        value: "3"
       # --- Database ---
       - key: DB_CONNECTION
         value: pgsql
@@ -53,9 +66,16 @@ services:
         fromDatabase:
           name: ihrauto-db
           property: password
+      # Scalability H-9: log slow queries so we can diagnose at scale.
+      - key: DB_SLOW_QUERY_LOG_MS
+        value: "500"
+      - key: DB_APP_NAME
+        value: ihrauto-crm-web
       # --- Session & Security ---
+      # Scalability B-1: Redis session store. `database` becomes a lock-
+      # contention hotspot at 200 tenants (every request writes a row).
       - key: SESSION_DRIVER
-        value: database
+        value: redis
       - key: SESSION_ENCRYPT
         value: "true"
       - key: SESSION_SECURE_COOKIE
@@ -160,6 +180,79 @@ services:
         sync: false  # Set this secret in Render dashboard
 
   # =========================================================================
+  # BACKUP RUNNER — dedicated small instance that runs scheduled DB backups
+  # Scalability C-6: isolates the 10–30 min nightly pg_dump from user-
+  # facing containers. If backup hangs, web stays fully responsive.
+  # =========================================================================
+  - type: worker
+    name: ihrauto-backup-runner
+    env: docker
+    plan: starter
+    region: frankfurt
+    branch: main
+    dockerCommand: sh -lc 'php /var/www/html/artisan schedule:work --verbose --no-interaction'
+    envVars:
+      - key: APP_KEY
+        fromService:
+          type: web
+          name: ihrauto-crm
+          envVarKey: APP_KEY
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: ihrauto-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ihrauto-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: ihrauto-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: ihrauto-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ihrauto-db
+          property: password
+      - key: DB_APP_NAME
+        value: ihrauto-crm-backup
+      - key: CACHE_STORE
+        value: redis
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: ihrauto-redis
+          property: connectionString
+      - key: BACKUP_DESTINATION_DISK
+        value: backups
+      - key: BACKUP_FILESYSTEM_DRIVER
+        value: s3
+      - key: BACKUP_FILESYSTEM_KEY
+        sync: false
+      - key: BACKUP_FILESYSTEM_SECRET
+        sync: false
+      - key: BACKUP_FILESYSTEM_REGION
+        sync: false
+      - key: BACKUP_FILESYSTEM_BUCKET
+        sync: false
+      - key: BACKUP_FILESYSTEM_ROOT
+        value: backups
+      - key: BACKUP_NOTIFICATION_EMAIL
+        value: info@ihrauto.ch
+      # Only the scheduler runs here — no queue worker, no Apache.
+      - key: QUEUE_WORKERS
+        value: "0"
+
+  # =========================================================================
   # STAGING — deploys from 'staging' branch with separate DB/Redis
   # =========================================================================
   - type: web
@@ -231,7 +324,9 @@ services:
 
   - type: keyvalue
     name: ihrauto-redis
-    plan: starter
+    # Scalability: `standard` gives us 5 GB — plenty for sessions + cache
+    # + rate-limit counters across 200 tenants (est. peak ~100 MB).
+    plan: standard
     region: frankfurt
     ipAllowList: []
 
@@ -245,7 +340,11 @@ databases:
   - name: ihrauto-db
     databaseName: ihrauto
     user: ihrauto_admin
-    plan: basic-1gb
+    # Scalability BL-1: `standard` raises max_connections to 200 and
+    # includes an integrated PgBouncer pool. At 200 tenants with 3 web
+    # containers × 25 Apache workers + queue/scheduler we peak around
+    # 80 backend connections — standard gives 2× headroom.
+    plan: standard
     region: frankfurt
 
   - name: ihrauto-db-staging

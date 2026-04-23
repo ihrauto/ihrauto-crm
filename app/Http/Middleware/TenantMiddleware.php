@@ -9,7 +9,6 @@ use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class TenantMiddleware
@@ -117,7 +116,7 @@ class TenantMiddleware
         if (Auth::check() && Auth::user()->tenant_id) {
             $tenantId = Auth::user()->tenant_id;
 
-            return Cache::remember(TenantCache::tenantIdKey($tenantId), 3600, function () use ($tenantId) {
+            return \App\Support\CachedQuery::remember(TenantCache::tenantIdKey($tenantId), 3600, function () use ($tenantId) {
                 return Tenant::find($tenantId);
             });
         }
@@ -142,7 +141,7 @@ class TenantMiddleware
                 return null;
             }
 
-            return Cache::remember(TenantCache::tenantSubdomainKey($subdomain), 3600, function () use ($subdomain) {
+            return \App\Support\CachedQuery::remember(TenantCache::tenantSubdomainKey($subdomain), 3600, function () use ($subdomain) {
                 return Tenant::where('subdomain', $subdomain)->active()->first();
             });
         }
@@ -158,7 +157,7 @@ class TenantMiddleware
         $tenantId = $request->route('tenant');
 
         if ($tenantId && is_numeric($tenantId)) {
-            return Cache::remember(TenantCache::tenantIdKey($tenantId), 3600, function () use ($tenantId) {
+            return \App\Support\CachedQuery::remember(TenantCache::tenantIdKey($tenantId), 3600, function () use ($tenantId) {
                 return Tenant::find($tenantId);
             });
         }
@@ -178,7 +177,7 @@ class TenantMiddleware
     {
         $host = $request->getHost();
 
-        return Cache::remember(TenantCache::tenantDomainKey($host), 3600, function () use ($host) {
+        return \App\Support\CachedQuery::remember(TenantCache::tenantDomainKey($host), 3600, function () use ($host) {
             return Tenant::where('domain', $host)->active()->first();
         });
     }
@@ -191,7 +190,7 @@ class TenantMiddleware
         $tenantId = session('tenant_id');
 
         if ($tenantId) {
-            return Cache::remember(TenantCache::tenantIdKey($tenantId), 3600, function () use ($tenantId) {
+            return \App\Support\CachedQuery::remember(TenantCache::tenantIdKey($tenantId), 3600, function () use ($tenantId) {
                 return Tenant::find($tenantId);
             });
         }
@@ -291,6 +290,10 @@ class TenantMiddleware
             'auth/google/callback',
             'auth/create-company',
             'invite',
+            // Public invoice PDF for customers. Signed + HMAC-bound so
+            // nothing else protects it — no tenant context to resolve
+            // since the visitor isn't authenticated.
+            'i/',
         ];
 
         foreach ($authRoutes as $authRoute) {

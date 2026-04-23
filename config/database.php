@@ -98,6 +98,15 @@ return [
             // plaintext against managed Postgres. Allow override via env for
             // local development where a self-signed cert may be in play.
             'sslmode' => env('DB_SSLMODE', 'require'),
+            'options' => array_filter([
+                // Scalability H-9: emit PG log events for any statement
+                // slower than DB_SLOW_QUERY_LOG_MS (default 500ms). Null env
+                // = disabled. application_name lets us filter logs per service.
+                env('DB_SLOW_QUERY_LOG_MS')
+                    ? '-c log_min_duration_statement='.(int) env('DB_SLOW_QUERY_LOG_MS')
+                    : null,
+                env('DB_APP_NAME') ? '-c application_name='.env('DB_APP_NAME') : null,
+            ]),
         ],
 
         'sqlsrv' => [

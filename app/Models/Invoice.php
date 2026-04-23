@@ -228,15 +228,65 @@ class Invoice extends Model
         return round((float) $this->total - (float) $this->paid_amount, 2);
     }
 
+    /**
+     * Stable per-invoice secret used to bind a signed URL to this invoice.
+     * hash_hmac ties the token to APP_KEY so nothing external can forge
+     * one. Including `issued_at` means voiding + reissuing produces a new
+     * token, which invalidates any previously sent link.
+     */
+    public function publicPdfToken(): string
+    {
+        return hash_hmac(
+            'sha256',
+            $this->id.'|'.$this->invoice_number.'|'.($this->issued_at?->toIso8601String() ?? ''),
+            config('app.key'),
+        );
+    }
+
+    /**
+     * Signed, expiring public URL pointing at the print-ready PDF view.
+     * Used in issued-invoice emails so customers can click through
+     * without an account. 60-day validity matches typical payment terms.
+     */
+    public function publicPdfUrl(int $daysValid = 60): string
+    {
+        return \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'invoices.public-pdf',
+            now()->addDays($daysValid),
+            ['token' => $this->publicPdfToken(), 'invoice' => $this->id],
+        );
+    }
+
+    /**
+     * Display label for the finance list. Returns a string that honours
+     * the invoice's LIFECYCLE first (draft / void) and falls back to a
+     * derived payment state for issued invoices.
+     *
+     * Previously this returned "unpaid" for draft invoices — technically
+     * true (no payment yet), but misleading in the UI: the UNPAID tab
+     * filters by the real status column, so a "UNPAID" label on a draft
+     * made the invoice look missing from its own tab.
+     */
     public function getPaymentStatusAttribute()
     {
+        // Lifecycle states always win — a draft is a draft, a void is a void,
+        // regardless of payment arithmetic.
+        if ($this->status === self::STATUS_DRAFT) {
+            return 'draft';
+        }
+
+        if ($this->status === self::STATUS_VOID) {
+            return 'void';
+        }
+
+        // Issued / partial / paid invoices: derive from payments.
         if ($this->paid_amount >= $this->total) {
             return 'paid';
         }
         if ($this->paid_amount > 0) {
             return 'partial';
         }
-        if ($this->due_date < now() && $this->status !== self::STATUS_DRAFT) {
+        if ($this->due_date && $this->due_date->lt(now())) {
             return 'overdue';
         }
 

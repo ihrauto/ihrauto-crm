@@ -3,10 +3,16 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class MechanicInviteNotification extends Notification
+/**
+ * Scalability (BL-5): implements ShouldQueue so the "invite mechanic"
+ * form submit returns immediately even if SMTP is slow. Mechanic
+ * onboarding is user-facing and should never hang on mail delivery.
+ */
+class MechanicInviteNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

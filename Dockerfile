@@ -110,7 +110,11 @@ RUN touch database/database.sqlite \
     && rm -f database/database.sqlite \
     && echo "BUILD: migration validation passed"
 
-# Supervisord (Apache + queue worker + scheduler).
+# Supervisord (Apache + queue workers + scheduler).
+# Scalability B-6: default to 3 queue workers per container. Override via
+# QUEUE_WORKERS env at orchestrator level. Supervisord reads this env var
+# to decide how many worker processes to spawn.
+ENV QUEUE_WORKERS=3
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Laravel writable dirs + permissions.

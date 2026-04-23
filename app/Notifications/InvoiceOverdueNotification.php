@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -13,8 +14,12 @@ use Illuminate\Notifications\Notification;
  * Sent to the tenant's billing contact (or the customer directly when the
  * tenant decides to forward it). The reminder is informational — it does
  * not change invoice state and does not record a follow-up automatically.
+ *
+ * Scalability (BL-5): implements ShouldQueue. The 08:30 daily scheduler
+ * can otherwise dispatch 20k sync SMTP calls at 200 tenants × 50 overdue
+ * × 2 admins and lock up the scheduler process for 30+ minutes.
  */
-class InvoiceOverdueNotification extends Notification
+class InvoiceOverdueNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

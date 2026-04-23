@@ -45,6 +45,13 @@ Route::middleware(['auth'])->group(function () {
 
 Route::view('/', 'pricing')->name('home');
 
+// Public, unauthenticated invoice view for the link we email customers.
+// Protected by `signed` middleware + a per-invoice HMAC token (see
+// Invoice::publicPdfToken). Light throttle to blunt token-guessing.
+Route::get('/i/{token}/{invoice}', [\App\Http\Controllers\InvoiceController::class, 'publicPdf'])
+    ->middleware(['signed', 'throttle:20,1'])
+    ->name('invoices.public-pdf');
+
 Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(function () {
     Route::middleware('module:access dashboard')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -154,6 +161,9 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
             ->middleware('throttle:10,1')
             ->name('invoices.bulk-issue');
         Route::post('/invoices/{invoice}/issue', [\App\Http\Controllers\InvoiceController::class, 'issue'])->name('invoices.issue');
+        Route::post('/invoices/{invoice}/issue-and-send', [\App\Http\Controllers\InvoiceController::class, 'issueAndSend'])
+            ->middleware('throttle:30,1')
+            ->name('invoices.issue-and-send');
         Route::post('/invoices/{invoice}/void', [\App\Http\Controllers\InvoiceController::class, 'void'])->name('invoices.void');
         Route::get('/invoices/{invoice}/pdf', [\App\Http\Controllers\InvoiceController::class, 'pdf'])->name('invoices.pdf');
         // Full quote CRUD. B-15: `convertToInvoice` is idempotent.

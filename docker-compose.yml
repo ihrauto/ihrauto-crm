@@ -1,0 +1,221 @@
+# =============================================================================
+# IHRAUTO CRM — self-hosted docker-compose stack
+# =============================================================================
+# Production-ready topology equivalent to the Render blueprint, for any
+# host that runs Docker (Hetzner, DigitalOcean, AWS, bare metal).
+#
+# Services (8 total):
+#   - web (×3 replicas)     — Apache + PHP + in-container queue workers
+#   - backup                — scheduler-only container, runs backups
+#   - postgres              — database
+#   - pgbouncer             — connection pooler in front of postgres
+#   - redis                 — cache + session + queue + rate-limiter
+#   - proxy (nginx)         — load balancer in front of the web replicas
+#
+# Bring it up:
+#     cp .env.production .env          # fill in the secrets first
+#     docker compose up -d
+#     docker compose exec web php artisan migrate --force
+#
+# Scale web horizontally by editing the `deploy.replicas` number below or
+# with:  docker compose up -d --scale web=5
+# =============================================================================
+
+name: ihrauto-crm
+
+x-app-env: &app-env
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_KEY: ${APP_KEY}
+  APP_URL: ${APP_URL}
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: info
+  # --- DB via PgBouncer ---
+  DB_CONNECTION: pgsql
+  DB_HOST: pgbouncer
+  DB_PORT: "6432"
+  DB_DATABASE: ${POSTGRES_DB:-ihrauto}
+  DB_USERNAME: ${POSTGRES_USER:-ihrauto}
+  DB_PASSWORD: ${POSTGRES_PASSWORD}
+  DB_SSLMODE: disable # Traffic is on an internal docker network
+  DB_SLOW_QUERY_LOG_MS: "500"
+  # --- Session / Cache / Queue on Redis ---
+  SESSION_DRIVER: redis
+  SESSION_ENCRYPT: "true"
+  SESSION_SECURE_COOKIE: "true"
+  CACHE_STORE: redis
+  QUEUE_CONNECTION: redis
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+  # --- Mail (Resend) ---
+  MAIL_MAILER: resend
+  RESEND_API_KEY: ${RESEND_API_KEY}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-noreply@ihrauto.ch}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:-IHRAUTO CRM}
+  # --- Backups to S3 ---
+  BACKUP_DESTINATION_DISK: backups
+  BACKUP_FILESYSTEM_DRIVER: s3
+  BACKUP_FILESYSTEM_KEY: ${S3_KEY}
+  BACKUP_FILESYSTEM_SECRET: ${S3_SECRET}
+  BACKUP_FILESYSTEM_REGION: ${S3_REGION}
+  BACKUP_FILESYSTEM_BUCKET: ${S3_BUCKET}
+  BACKUP_FILESYSTEM_ROOT: backups
+  BACKUP_NOTIFICATION_EMAIL: ${BACKUP_NOTIFICATION_EMAIL:-info@ihrauto.ch}
+  # --- Super-admin seeding (first boot only) ---
+  SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL:-info@ihrauto.ch}
+  SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD}
+
+services:
+  # ---------------------------------------------------------------------------
+  # Web — Apache + PHP-FPM, includes queue workers + scheduler. Replicated ×3.
+  # ---------------------------------------------------------------------------
+  web:
+    image: ihrauto-crm:latest
+    build: .
+    restart: unless-stopped
+    depends_on:
+      pgbouncer: { condition: service_started }
+      redis: { condition: service_started }
+    environment:
+      <<: *app-env
+      QUEUE_WORKERS: "3"
+      DB_APP_NAME: ihrauto-crm-web
+    # Scalability C-1: 3 replicas behind nginx.
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks: [ihrauto]
+
+  # ---------------------------------------------------------------------------
+  # Backup runner — scheduler-only. Runs nightly pg_dump in isolation so
+  # the 10–30 min DB-dump CPU spike doesn't slow down user-facing web.
+  # Scalability C-6.
+  # ---------------------------------------------------------------------------
+  backup:
+    image: ihrauto-crm:latest
+    build: .
+    restart: unless-stopped
+    depends_on:
+      pgbouncer: { condition: service_started }
+    environment:
+      <<: *app-env
+      # The backup container doesn't run Apache or queue workers.
+      DB_APP_NAME: ihrauto-crm-backup
+    command:
+      - sh
+      - -lc
+      - php /var/www/html/artisan schedule:work --verbose --no-interaction
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512M
+    networks: [ihrauto]
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — the source of truth. Tuned for 200 connections.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ihrauto}
+      POSTGRES_USER: ${POSTGRES_USER:-ihrauto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - log_min_duration_statement=500
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ihrauto}"]
+      interval: 10s
+      retries: 5
+    networks: [ihrauto]
+
+  # ---------------------------------------------------------------------------
+  # PgBouncer — connection pooler. Multiplexes many app connections over a
+  # small real backend pool. Scalability BL-1.
+  # ---------------------------------------------------------------------------
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DB_USER: ${POSTGRES_USER:-ihrauto}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB:-ihrauto}
+      POOL_MODE: transaction
+      DEFAULT_POOL_SIZE: "25"
+      MAX_CLIENT_CONN: "500"
+      AUTH_TYPE: scram-sha-256
+    networks: [ihrauto]
+
+  # ---------------------------------------------------------------------------
+  # Redis — cache, sessions, queue, rate-limit counters.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-}
+    volumes:
+      - redis-data:/data
+    networks: [ihrauto]
+
+  # ---------------------------------------------------------------------------
+  # nginx — TLS termination + load balancer for the ×3 web replicas.
+  # ---------------------------------------------------------------------------
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+    networks: [ihrauto]
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  ihrauto:
+    driver: bridge

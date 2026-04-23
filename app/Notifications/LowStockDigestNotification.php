@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Tenant;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
@@ -12,8 +13,11 @@ use Illuminate\Support\Collection;
  * Sent once per tenant per day when at least one product is at or below
  * its reorder threshold. Shape is a digest (all products in one mail)
  * rather than per-product noise.
+ *
+ * Scalability (BL-5): implements ShouldQueue. The low-stock scheduler
+ * otherwise fans out N_tenants × N_admins sync mails in its run slot.
  */
-class LowStockDigestNotification extends Notification
+class LowStockDigestNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

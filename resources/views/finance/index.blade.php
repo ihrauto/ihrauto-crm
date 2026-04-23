@@ -47,12 +47,23 @@
                 <div class="border-b border-gray-200">
                     <nav class="-mb-px flex space-x-8" aria-label="Tabs">
                         <a href="{{ route('finance.index', ['tab' => 'issued']) }}"
-                            class="{{ !in_array($activeTab, ['unpaid', 'paid', 'all']) ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                            class="{{ $activeTab === 'issued' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                             ISSUED
                         </a>
                         <a href="{{ route('finance.index', ['tab' => 'unpaid']) }}"
                             class="{{ $activeTab === 'unpaid' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                             UNPAID
+                        </a>
+                        <a href="{{ route('finance.index', ['tab' => 'draft']) }}"
+                            class="{{ $activeTab === 'draft' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                            DRAFT
+                            {{-- Uses the pre-computed $draftCount so the badge
+                                 shows on EVERY tab, not only when Draft itself
+                                 is active. $draftInvoices isn't populated on
+                                 other tabs any more (B-5 scalability branch). --}}
+                            @if(($draftCount ?? 0) > 0)
+                                <span class="ml-1 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{{ $draftCount }}</span>
+                            @endif
                         </a>
                         <a href="{{ route('finance.index', ['tab' => 'paid']) }}"
                             class="{{ $activeTab === 'paid' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
@@ -130,6 +141,89 @@
                         </div>
                         <div class="px-4 py-3 sm:px-6"></div>
 
+            @elseif($activeTab === 'draft')
+                <!-- DRAFT Invoices Table with bulk-select toolbar -->
+                <div x-data="{
+                        selected: [],
+                        all: {{ $draftInvoices->pluck('id')->toJson() }},
+                        toggleAll(e) { this.selected = e.target.checked ? [...this.all] : []; }
+                    }">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50/50 sm:px-6">
+                        <p class="text-sm text-gray-600">
+                            <span x-text="selected.length"></span> selected
+                            <span class="text-gray-400">/ {{ $draftInvoices->count() }} draft(s)</span>
+                        </p>
+                        <form method="post" action="{{ route('invoices.bulk-issue') }}" x-show="selected.length > 0">
+                            @csrf
+                            <template x-for="id in selected" :key="id">
+                                <input type="hidden" name="invoice_ids[]" :value="id">
+                            </template>
+                            <button type="submit"
+                                    class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+                                    onclick="return confirm('Issue all selected drafts?')">
+                                Issue selected (<span x-text="selected.length"></span>)
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-300">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="pl-4 py-3.5 sm:pl-6 w-8">
+                                        <input type="checkbox" @change="toggleAll($event)"
+                                               :checked="selected.length === all.length && all.length > 0"
+                                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                    </th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Invoice</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Customer</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Created</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Total</th>
+                                    <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6"><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white">
+                                @forelse($draftInvoices as $inv)
+                                    <tr>
+                                        <td class="pl-4 py-4 sm:pl-6">
+                                            <input type="checkbox" value="{{ $inv->id }}" x-model="selected"
+                                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">{{ $inv->invoice_number }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                            {{ $inv->customer?->name ?? 'Unknown' }}
+                                            @if($inv->customer?->email)
+                                                <span class="block text-xs text-gray-400">{{ $inv->customer->email }}</span>
+                                            @endif
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ $inv->created_at->format('d M Y') }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">CHF {{ number_format($inv->total, 2) }}</td>
+                                        <td class="whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-3">
+                                            @if($inv->customer?->email)
+                                                <form method="post" action="{{ route('invoices.issue-and-send', $inv) }}" class="inline">
+                                                    @csrf
+                                                    <button type="submit" class="text-indigo-600 hover:text-indigo-900" title="Issue & email to {{ $inv->customer->email }}">Issue &amp; send</button>
+                                                </form>
+                                            @endif
+                                            <form method="post" action="{{ route('invoices.issue', $inv) }}" class="inline">
+                                                @csrf
+                                                <button type="submit" class="text-gray-700 hover:text-gray-900">Issue</button>
+                                            </form>
+                                            <a href="{{ route('invoices.edit', $inv) }}" class="text-gray-600 hover:text-gray-900">Edit</a>
+                                            <a href="{{ route('invoices.show', $inv) }}" class="text-gray-600 hover:text-gray-900">View</a>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-3 py-8 text-center text-sm text-gray-500">No draft invoices.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-4 py-3 sm:px-6"></div>
+                </div>
+
             @elseif($activeTab === 'paid')
                     <!-- PAID Payments Table -->
                     <div class="overflow-x-auto">
@@ -198,6 +292,8 @@
                                                     'paid' => 'bg-green-50 text-green-700 ring-green-600/20',
                                                     'partial' => 'bg-yellow-50 text-yellow-800 ring-yellow-600/20',
                                                     'overdue' => 'bg-red-50 text-red-700 ring-red-600/20',
+                                                    'draft' => 'bg-slate-50 text-slate-700 ring-slate-500/20',
+                                                    'void' => 'bg-red-50 text-red-700 ring-red-600/20',
                                                     default => 'bg-gray-50 text-gray-600 ring-gray-500/10'
                                                 };
                                             @endphp
@@ -212,9 +308,17 @@
                                                 CHF {{ number_format($invoice->total, 2) }}
                                             @endif
                                         </td>
-                                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                            @if($invoice->balance > 0)
-                                                <button type="button" onclick="openPaymentModal({{ $invoice->id }}, {{ $invoice->balance }}, '{{ $invoice->invoice_number }} - {{ $invoice->customer->name }}')" class="text-indigo-600 hover:text-indigo-900 mr-2">Pay</button>
+                                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-2">
+                                            @if($invoice->isDraft())
+                                                {{-- Draft: the operator hasn't sent the invoice yet. "Pay" makes
+                                                     no sense — surface Issue + Edit instead. --}}
+                                                <form method="post" action="{{ route('invoices.issue', $invoice) }}" class="inline">
+                                                    @csrf
+                                                    <button type="submit" class="text-indigo-600 hover:text-indigo-900">Issue</button>
+                                                </form>
+                                                <a href="{{ route('invoices.edit', $invoice) }}" class="text-gray-600 hover:text-gray-900">Edit</a>
+                                            @elseif($invoice->balance > 0 && ! $invoice->isVoid())
+                                                <button type="button" onclick="openPaymentModal({{ $invoice->id }}, {{ $invoice->balance }}, '{{ $invoice->invoice_number }} - {{ $invoice->customer->name }}')" class="text-indigo-600 hover:text-indigo-900">Pay</button>
                                             @endif
                                             <a href="{{ route('invoices.show', $invoice) }}" class="text-gray-600 hover:text-gray-900">View</a>
                                         </td>
