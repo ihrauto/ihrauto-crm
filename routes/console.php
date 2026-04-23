@@ -21,6 +21,13 @@ Schedule::command('backup:run --only-db')->daily()->at('02:00')->onOneServer();
 Schedule::command('backup:clean')->daily()->at('03:00')->onOneServer();
 Schedule::command('backup:monitor')->daily()->at('03:30')->onOneServer();
 
+// Bug review OPS-08: independent health check on the latest backup so a
+// silent upload failure (rotated S3 creds, zero-byte dumps, stopped
+// scheduler) surfaces in Sentry within 26 hours instead of on restore day.
+// Runs after the nightly backup + clean so it probes the freshly-uploaded
+// file.
+Schedule::command('backup:verify')->dailyAt('04:15')->onOneServer();
+
 // B-14: overdue-invoice reminder nudge. Runs once a day at a sensible
 // time — debounce lives inside the command so operators don't get spammed.
 Schedule::command('invoices:send-overdue-reminders')->dailyAt('08:30')->onOneServer();

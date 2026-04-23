@@ -98,15 +98,21 @@ return [
             // plaintext against managed Postgres. Allow override via env for
             // local development where a self-signed cert may be in play.
             'sslmode' => env('DB_SSLMODE', 'require'),
-            'options' => array_filter([
-                // Scalability H-9: emit PG log events for any statement
-                // slower than DB_SLOW_QUERY_LOG_MS (default 500ms). Null env
-                // = disabled. application_name lets us filter logs per service.
-                env('DB_SLOW_QUERY_LOG_MS')
-                    ? '-c log_min_duration_statement='.(int) env('DB_SLOW_QUERY_LOG_MS')
-                    : null,
-                env('DB_APP_NAME') ? '-c application_name='.env('DB_APP_NAME') : null,
-            ]),
+            /*
+             * Bug review OPS-07: application_name is a first-class Laravel
+             * connection attribute (wired into the DSN by PostgresConnector),
+             * so it goes at the top level — NOT under `options`, which is
+             * strictly for `PDO::ATTR_*` integer-keyed attrs.
+             *
+             * Previously we tried to pass `-c log_min_duration_statement=...`
+             * and `-c application_name=...` as libpq command-line flags
+             * inside the `options` array. Laravel's PDO constructor ignored
+             * them silently (string-keyed PDO options are a no-op). Slow
+             * query logging now happens in PHP via a DB::listen registered
+             * in AppServiceProvider — portable across drivers and doesn't
+             * depend on PG server-side `log_min_duration_statement`.
+             */
+            'application_name' => env('DB_APP_NAME'),
         ],
 
         'sqlsrv' => [

@@ -1,6 +1,45 @@
 @extends('layouts.app')
 
 @section('content')
+    {{-- Bug review UX-04: loadVehicles() is declared at the TOP of the
+         section so the inline onchange="loadVehicles(...)" on the customer
+         select below finds it defined on first interaction. Previously the
+         script sat at the end of the file — works in most browsers, but
+         clicking the select on a fresh load before the parser reached the
+         script could throw ReferenceError and leave the vehicle dropdown
+         stuck on "Loading...". --}}
+    <script>
+        function loadVehicles(customerId) {
+            const vehicleSelect = document.getElementById('vehicle_id');
+
+            if (!customerId) {
+                vehicleSelect.innerHTML = '<option value="">Select a customer first</option>';
+                vehicleSelect.disabled = true;
+                return;
+            }
+
+            vehicleSelect.disabled = true;
+            vehicleSelect.innerHTML = '<option>Loading...</option>';
+
+            fetch(`/ajax/vehicles/by-customer/${customerId}`)
+                .then(response => response.json())
+                .then(data => {
+                    vehicleSelect.innerHTML = '<option value="">Select a vehicle</option>';
+                    data.forEach(vehicle => {
+                        const option = document.createElement('option');
+                        option.value = vehicle.id;
+                        option.textContent = `${vehicle.make} ${vehicle.model} (${vehicle.license_plate})`;
+                        vehicleSelect.appendChild(option);
+                    });
+                    vehicleSelect.disabled = false;
+                })
+                .catch(error => {
+                    window.appLogError('Error loading vehicles:', error);
+                    vehicleSelect.innerHTML = '<option>Error loading vehicles</option>';
+                });
+        }
+    </script>
+
     <div class="px-4 sm:px-6 lg:px-8">
         <div class="sm:flex sm:items-center">
             <div class="sm:flex-auto">
@@ -145,35 +184,4 @@
         </div>
     </div>
 
-    <script>
-        function loadVehicles(customerId) {
-            const vehicleSelect = document.getElementById('vehicle_id');
-
-            if (!customerId) {
-                vehicleSelect.innerHTML = '<option value="">Select a customer first</option>';
-                vehicleSelect.disabled = true;
-                return;
-            }
-
-            vehicleSelect.disabled = true;
-            vehicleSelect.innerHTML = '<option>Loading...</option>';
-
-            fetch(`/ajax/vehicles/by-customer/${customerId}`)
-                .then(response => response.json())
-                .then(data => {
-                    vehicleSelect.innerHTML = '<option value="">Select a vehicle</option>';
-                    data.forEach(vehicle => {
-                        const option = document.createElement('option');
-                        option.value = vehicle.id;
-                        option.textContent = `${vehicle.make} ${vehicle.model} (${vehicle.license_plate})`;
-                        vehicleSelect.appendChild(option);
-                    });
-                    vehicleSelect.disabled = false;
-                })
-                .catch(error => {
-                    window.appLogError('Error loading vehicles:', error);
-                    vehicleSelect.innerHTML = '<option>Error loading vehicles</option>';
-                });
-        }
-    </script>
 @endsection

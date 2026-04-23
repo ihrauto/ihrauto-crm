@@ -35,7 +35,9 @@ class LowStockReportCommand extends Command
         $totalAlerts = 0;
         $notified = 0;
 
-        Tenant::where('is_active', true)->chunkById(100, function ($tenants) use (
+        // Bug review DATA-12: skip expired tenants — they can't take
+        // action on the low-stock email anyway until they renew.
+        Tenant::notExpired()->chunkById(100, function ($tenants) use (
             $dryRun, $notify, &$totalAlerts, &$notified
         ) {
             foreach ($tenants as $tenant) {

@@ -51,23 +51,40 @@ class StockService
             return;
         }
 
-        // PASS 1 — validate every part has enough stock, locking each
-        // product row so another transaction can't drain it between check
-        // and decrement.
-        $validated = [];
-
+        // Bug review DATA-03: normalise + sort parts by product_id BEFORE
+        // taking row locks. Two concurrent deductions against an
+        // overlapping set of products would otherwise lock in different
+        // order — classic ABBA deadlock, which Postgres breaks by killing
+        // one transaction with "could not serialize access due to
+        // concurrent update". By always locking in ascending id order,
+        // concurrent callers serialise cleanly instead of deadlocking.
+        $normalised = [];
         foreach ($workOrder->parts_used as $part) {
             if (empty($part['product_id'])) {
                 continue;
             }
-
-            $product = Product::lockForUpdate()->find($part['product_id']);
-            if (! $product) {
-                continue;
-            }
-
             $qty = (int) ($part['qty'] ?? 1);
             if ($qty <= 0) {
+                continue;
+            }
+            $pid = (int) $part['product_id'];
+            // Collapse duplicate product_ids in the parts array into a
+            // single locked entry — prevents us from locking the same row
+            // twice and also makes the deduction sum correct.
+            $normalised[$pid] = ($normalised[$pid] ?? 0) + $qty;
+        }
+
+        ksort($normalised); // ascending product_id == stable global lock order
+
+        // PASS 1 — validate every part has enough stock, locking each
+        // product row so another transaction can't drain it between check
+        // and decrement. Locks are acquired in ascending product_id order
+        // across all callers — this prevents deadlock.
+        $validated = [];
+
+        foreach ($normalised as $productId => $qty) {
+            $product = Product::lockForUpdate()->find($productId);
+            if (! $product) {
                 continue;
             }
 

@@ -39,6 +39,7 @@ class CachedQuery
         int $lockSeconds = 10,
         int $waitSeconds = 5,
         int $jitterSeconds = 30,
+        int $nullTtlSeconds = 60,
     ): mixed {
         // Apply jitter at store time — followers reading from cache don't
         // do this; only the writer (leader) extends the TTL. This spreads
@@ -49,7 +50,29 @@ class CachedQuery
             ? $ttlSeconds + random_int(0, $jitterSeconds)
             : $ttlSeconds;
 
+        /*
+         * Bug review DATA-07: cache null results under a short TTL so
+         * lookups for non-existent keys don't re-hit the DB on every
+         * request. This is the classic tenant-middleware case — an
+         * attacker hitting evil.example.com with no matching tenant
+         * forces a full `SELECT * FROM tenants WHERE domain = ?` every
+         * time because `Cache::get` returning null treats the entry as
+         * "not cached". We distinguish "genuinely absent from cache"
+         * from "cached null" by using a sentinel value that's never a
+         * valid producer return.
+         *
+         * The nullTtlSeconds default (60s) is deliberately short — if
+         * the tenant IS later created (or the lookup key becomes
+         * meaningful), we don't want to keep returning the stale null
+         * for the full ttlSeconds. 60s is long enough to absorb a brute
+         * force, short enough to recover quickly.
+         */
+        $sentinel = self::nullSentinel();
+
         $hit = Cache::get($key);
+        if ($hit === $sentinel) {
+            return null;
+        }
         if ($hit !== null) {
             return $hit;
         }
@@ -64,12 +87,19 @@ class CachedQuery
             $lock->block($waitSeconds);
 
             $second = Cache::get($key);
+            if ($second === $sentinel) {
+                return null;
+            }
             if ($second !== null) {
                 return $second;
             }
 
             $value = $producer();
-            Cache::put($key, $value, $effectiveTtl);
+            if ($value === null) {
+                Cache::put($key, $sentinel, $nullTtlSeconds);
+            } else {
+                Cache::put($key, $value, $effectiveTtl);
+            }
 
             return $value;
         } catch (LockTimeoutException) {
@@ -80,5 +110,16 @@ class CachedQuery
         } finally {
             optional($lock)->release();
         }
+    }
+
+    /**
+     * Sentinel object used to distinguish "producer returned null" from
+     * "cache miss". Cache drivers serialize arrays faithfully, so an
+     * array with a fixed marker is stable across Redis / file / database
+     * stores.
+     */
+    private static function nullSentinel(): array
+    {
+        return ['__ihrauto_cached_null__' => true];
     }
 }

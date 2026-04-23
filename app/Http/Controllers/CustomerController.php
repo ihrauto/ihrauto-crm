@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Customer;
 use App\Services\CustomerMergeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CustomerController extends Controller
 {
@@ -82,27 +83,52 @@ class CustomerController extends Controller
         $this->authorize('delete', $customer);
         \Illuminate\Support\Facades\Gate::authorize('delete-records');
 
-        $dependencies = [
-            'vehicles' => $customer->vehicles()->count(),
-            'check-ins' => $customer->checkins()->count(),
-            'tire records' => $customer->tires()->count(),
-            'work orders' => \App\Models\WorkOrder::where('customer_id', $customer->id)->count(),
-            'invoices' => $customer->invoices()->count(),
-            'quotes' => $customer->quotes()->count(),
-            'payments' => $customer->payments()->count(),
-        ];
+        /*
+         * Bug review DATA-04: the dependency count + delete was a
+         * read-modify-write without a lock or enclosing transaction. Races:
+         *   - Two admins clicking "Delete" simultaneously both pass the
+         *     dependency check, both issue delete. One succeeds, the other
+         *     hits "model not found" — ugly but not data-corrupting.
+         *   - Worse: a new invoice / work order is created between our
+         *     count and our delete. The customer gets soft-deleted with
+         *     dependent rows referencing a dead customer, leaving orphan
+         *     data that surfaces later as a reporting bug.
+         *
+         * The fix wraps the whole probe + delete in a transaction with
+         * lockForUpdate on the customer row. Concurrent deletions now
+         * serialise; any caller trying to create a dependent row while we
+         * hold the lock either waits for our transaction to commit or
+         * rolls back when our delete wins.
+         */
+        $blockingDependencies = null;
 
-        $blockingDependencies = collect($dependencies)
-            ->filter(fn (int $count) => $count > 0)
-            ->map(fn (int $count, string $label) => "{$count} {$label}")
-            ->values();
+        DB::transaction(function () use ($customer, &$blockingDependencies) {
+            $locked = Customer::query()->lockForUpdate()->findOrFail($customer->id);
 
-        if ($blockingDependencies->isNotEmpty()) {
+            $dependencies = [
+                'vehicles' => $locked->vehicles()->count(),
+                'check-ins' => $locked->checkins()->count(),
+                'tire records' => $locked->tires()->count(),
+                'work orders' => \App\Models\WorkOrder::where('customer_id', $locked->id)->count(),
+                'invoices' => $locked->invoices()->count(),
+                'quotes' => $locked->quotes()->count(),
+                'payments' => $locked->payments()->count(),
+            ];
+
+            $blockingDependencies = collect($dependencies)
+                ->filter(fn (int $count) => $count > 0)
+                ->map(fn (int $count, string $label) => "{$count} {$label}")
+                ->values();
+
+            if ($blockingDependencies->isEmpty()) {
+                $locked->delete();
+            }
+        });
+
+        if ($blockingDependencies && $blockingDependencies->isNotEmpty()) {
             return redirect()->route('customers.show', $customer)
                 ->with('error', 'Cannot delete this customer while linked records exist: '.$blockingDependencies->join(', ').'. Remove or archive the linked data first.');
         }
-
-        $customer->delete();
 
         return redirect()->route('customers.index')
             ->with('success', 'Customer deleted successfully.');

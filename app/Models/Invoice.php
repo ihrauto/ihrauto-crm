@@ -161,10 +161,16 @@ class Invoice extends Model
 
     /**
      * Check if invoice can be voided.
+     *
+     * Bug review LOG-01: `paid_amount` is a decimal column. Loose `==` treated
+     * `"0"`, `"0.000"`, and `0.004` as equal to 0, which lets us void an
+     * invoice that already has a partial payment. Use a strict sub-rappen
+     * threshold that matches every other paid-amount check in the codebase
+     * (finance aggregations use `> 0.01`).
      */
     public function canBeVoided(): bool
     {
-        return $this->isIssued() && ! $this->isVoid() && $this->paid_amount == 0;
+        return $this->isIssued() && ! $this->isVoid() && (float) $this->paid_amount < 0.01;
     }
 
     // =============================================
@@ -286,7 +292,18 @@ class Invoice extends Model
         if ($this->paid_amount > 0) {
             return 'partial';
         }
-        if ($this->due_date && $this->due_date->lt(now())) {
+        /*
+         * Bug review LOG-10: compare date-only ends-of-day in the app
+         * timezone. `due_date` is cast to `date` (no time component), so
+         * `->lt(now())` used to flip to overdue right after midnight UTC
+         * — which could be hours before the user's local midnight if the
+         * server and tenant are in different time zones. The Swiss fleet
+         * runs in Europe/Zurich; the app timezone is set there. Comparing
+         * `endOfDay()` means an invoice due today stays "unpaid" (not
+         * "overdue") for the whole of today, flipping only after local
+         * midnight.
+         */
+        if ($this->due_date && $this->due_date->copy()->endOfDay()->lt(now())) {
             return 'overdue';
         }
 
@@ -312,6 +329,24 @@ class Invoice extends Model
     /**
      * Recalculate invoice totals.
      * Only allowed for draft invoices.
+     *
+     * Bug review LOG-05: Swiss VAT rounding per ESTV commercial practice.
+     *
+     *   Per VAT rate, we:
+     *     1. Sum the NET subtotals (per rate group) WITHOUT rounding
+     *     2. Apply the rate once on the summed net (VAT = net × rate)
+     *     3. Round the net and VAT subtotals to 2 decimals for display
+     *
+     *   The previous implementation rounded each line's total to 2 decimals
+     *   and then applied tax per-line, which compounds rounding error on
+     *   invoices with many small-value lines. Example:
+     *     10 lines @ 1.105 CHF:
+     *       old: each rounds to 1.11 → sum = 11.10, mismatch with accountant
+     *       new: sum = 11.05, tax calc on 11.05, exact match
+     *
+     *   Line-level totals are still persisted for display/audit, but the
+     *   invoice-level subtotal/tax_total/total comes from the aggregated
+     *   unrounded figures so the bottom line matches what ESTV expects.
      */
     public function recalculate()
     {
@@ -323,15 +358,14 @@ class Invoice extends Model
 
         $this->loadMissing('items');
 
-        $subtotal = 0;
-        $taxTotal = 0;
+        // Unrounded accumulators per VAT rate. Rate is the dictionary key
+        // so 0%, 2.6%, 3.8%, and 8.1% rolls accumulate independently.
+        $netByRate = [];
 
-        // B-07: recompute each line's `total` from (quantity * unit_price)
-        // rather than trusting the stored value. If the UI or an API caller
-        // sets a tampered total (negative, or unrelated to qty × price), the
-        // persistence step below rewrites it to the correct figure before
-        // roll-up — so tax/subtotal/total are always server-authoritative.
         foreach ($this->items as $item) {
+            // Line-level stored total stays at 2-decimal precision — it's
+            // what the invoice PDF shows. We recompute from qty × price
+            // so a tampered stored total is rewritten to ground truth.
             $lineTotal = round((float) $item->quantity * (float) $item->unit_price, 2);
 
             if ((float) $item->total !== $lineTotal) {
@@ -339,8 +373,20 @@ class Invoice extends Model
                 $item->save();
             }
 
-            $subtotal += $lineTotal;
-            $taxTotal += $lineTotal * ((float) $item->tax_rate / 100);
+            // Aggregate NET per rate BEFORE rounding. We use the
+            // pre-rounded qty × price value so many small rounding errors
+            // don't compound.
+            $rate = (float) $item->tax_rate;
+            $netByRate[(string) $rate] = ($netByRate[(string) $rate] ?? 0.0)
+                + ((float) $item->quantity * (float) $item->unit_price);
+        }
+
+        $subtotal = 0.0;
+        $taxTotal = 0.0;
+        foreach ($netByRate as $rateStr => $netSum) {
+            $rate = (float) $rateStr;
+            $subtotal += $netSum;
+            $taxTotal += $netSum * ($rate / 100.0);
         }
 
         $this->subtotal = round($subtotal, 2);

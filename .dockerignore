@@ -14,3 +14,31 @@ README.md
 .git
 .gitignore
 .gitattributes
+
+# Bug review OPS-09: NEVER ship the auto-login marker in a container
+# image. The AutoLoginGuard's triple-gate treats presence of this file as
+# one of three signals that passwordless login is allowed — shipping it to
+# prod would hand out session cookies to anyone hitting the first tenant
+# resolved. Gitignore already excludes it from source control, but `COPY .`
+# in the Dockerfile would still pick up a developer's local file.
+/storage/app/.auto_login_enabled
+
+# Local SQLite databases used only for dev / test runs.
+/database/*.sqlite
+/database/*.sqlite-journal
+
+# TLS cert material — never bake certs into images. Runtime volumes only.
+/docker/nginx/certs/*.pem
+/docker/nginx/certs/*.key
+/docker/nginx/certs/*.crt
+/docker/pgbouncer/userlist.txt
+/docker/pgbouncer/*.crt
+/docker/pgbouncer/*.key
+
+# Test + tooling caches
+/.phpunit.cache
+/coverage
+/tests/.phpunit.result.cache
+
+# Logs
+/storage/logs/*.log

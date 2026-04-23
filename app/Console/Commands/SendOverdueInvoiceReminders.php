@@ -34,7 +34,10 @@ class SendOverdueInvoiceReminders extends Command
         $processed = 0;
         $sent = 0;
 
-        Tenant::where('is_active', true)->chunkById(100, function ($tenants) use (
+        // Bug review DATA-12: iterate only over tenants that are active AND
+        // not expired — don't send dunning emails to tenants who are already
+        // locked out of the product.
+        Tenant::notExpired()->chunkById(100, function ($tenants) use (
             $dryRun, $debounceDays, &$processed, &$sent
         ) {
             foreach ($tenants as $tenant) {

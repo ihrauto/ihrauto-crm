@@ -23,6 +23,19 @@
 
 name: ihrauto-crm
 
+# Bug review OPS-11: apply bounded log rotation to every container. Docker's
+# default json-file driver keeps logs unbounded — a single spammy container
+# can fill the host's /var/lib/docker/containers volume. Cap each container
+# at ~300 MB total on-disk, old entries aged out automatically. Real log
+# aggregation (Loki, Papertrail, CloudWatch) lives in LOG_CHANNEL env; this
+# is just the local-disk safety net.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "3"
+    compress: "true"
+
 x-app-env: &app-env
   APP_ENV: production
   APP_DEBUG: "false"
@@ -90,11 +103,16 @@ services:
           memory: 1024M
         reservations:
           memory: 512M
+    # Bug review OPS-12: /health verifies DB + cache readiness (not just
+    # "PHP responds"), so a wedged-pool container gets pulled out of the
+    # load balancer rotation instead of continuing to serve 500s.
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost/up"]
+      test: ["CMD", "curl", "-fsS", "http://localhost/health"]
       interval: 30s
       timeout: 5s
       retries: 3
+    logging: *default-logging
+    logging: *default-logging
     networks: [ihrauto]
 
   # ---------------------------------------------------------------------------
@@ -121,6 +139,7 @@ services:
       resources:
         limits:
           memory: 512M
+    logging: *default-logging
     networks: [ihrauto]
 
   # ---------------------------------------------------------------------------
@@ -153,11 +172,19 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ihrauto}"]
       interval: 10s
       retries: 5
+    logging: *default-logging
     networks: [ihrauto]
 
   # ---------------------------------------------------------------------------
   # PgBouncer — connection pooler. Multiplexes many app connections over a
   # small real backend pool. Scalability BL-1.
+  #
+  # Bug review OPS-02:
+  #   The edoburu/pgbouncer image auto-generates /etc/pgbouncer/userlist.txt
+  #   from DB_USER + DB_PASSWORD at startup, so we don't need to mount one.
+  #   All tuning is passed via env vars rather than a custom ini file — see
+  #   docker/pgbouncer/pgbouncer.ini for reference documentation of every
+  #   setting we enable.
   # ---------------------------------------------------------------------------
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -170,10 +197,31 @@ services:
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_NAME: ${POSTGRES_DB:-ihrauto}
+      # Pool settings — tuned for ~80 app connections × 200 tenants.
       POOL_MODE: transaction
       DEFAULT_POOL_SIZE: "25"
+      RESERVE_POOL_SIZE: "5"
+      RESERVE_POOL_TIMEOUT: "3"
       MAX_CLIENT_CONN: "500"
+      # Timeouts — short server idle frees connections faster under load;
+      # query_timeout kills any runaway statement so one bad query can't
+      # hog the pool.
+      SERVER_IDLE_TIMEOUT: "240"
+      SERVER_LIFETIME: "3600"
+      CLIENT_IDLE_TIMEOUT: "0"
+      QUERY_TIMEOUT: "120"
+      # Auth — SCRAM passthrough; image syncs userlist.txt from DB_*.
       AUTH_TYPE: scram-sha-256
+      # Logging to stdout for container log aggregation.
+      LOG_CONNECTIONS: "1"
+      LOG_DISCONNECTIONS: "1"
+      LOG_POOLER_ERRORS: "1"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER:-ihrauto}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
     networks: [ihrauto]
 
   # ---------------------------------------------------------------------------
@@ -194,10 +242,18 @@ services:
       - ${REDIS_PASSWORD:-}
     volumes:
       - redis-data:/data
+    logging: *default-logging
     networks: [ihrauto]
 
   # ---------------------------------------------------------------------------
   # nginx — TLS termination + load balancer for the ×3 web replicas.
+  #
+  # Bug review OPS-01:
+  #   The entrypoint auto-generates self-signed certs on first boot if none
+  #   are present, then `exec nginx`. This keeps the stack bootable out of
+  #   the box. For production, drop real certs into ./docker/nginx/certs/
+  #   and set REQUIRE_REAL_CERTS=true so the container refuses to fall back
+  #   to self-signed.
   # ---------------------------------------------------------------------------
   proxy:
     image: nginx:1.27-alpine
@@ -207,14 +263,23 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      REQUIRE_REAL_CERTS: ${REQUIRE_REAL_CERTS:-false}
+    entrypoint: ["/docker-entrypoint-ihrauto.sh"]
+    command: ["nginx", "-g", "daemon off;"]
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/certs:/etc/nginx/certs:ro
+      - ./docker/nginx/entrypoint.sh:/docker-entrypoint-ihrauto.sh:ro
+      - nginx-certs:/etc/nginx/certs
     networks: [ihrauto]
 
 volumes:
   postgres-data:
   redis-data:
+  # nginx-certs holds TLS certs. Starts empty — first proxy boot writes
+  # self-signed certs here unless REQUIRE_REAL_CERTS=true. For real certs,
+  # populate via: docker compose cp fullchain.pem proxy:/etc/nginx/certs/
+  nginx-certs:
 
 networks:
   ihrauto:

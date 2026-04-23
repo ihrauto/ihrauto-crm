@@ -3,6 +3,144 @@
 @section('title', 'FINANCE')
 
 @section('content')
+    {{-- Bug review UX-02: payment-modal JS is declared at the TOP of the
+         section so every function is parsed before any inline onclick
+         handler below can fire. Function declarations reference DOM IDs
+         that are defined later in the markup; that's fine — getElementById
+         is evaluated at call time (click time), not at parse time. --}}
+    <script>
+        // State
+        let currentInvoiceId = null;
+
+        function openPaymentModal(invoiceId = null, amount = null, invoiceText = null) {
+            document.getElementById('payment-modal').classList.remove('hidden');
+            resetWizard();
+
+            const select = document.getElementById('invoice_id_select');
+            const hiddenInput = document.getElementById('invoice_id_hidden');
+            const lockedDisplay = document.getElementById('invoice_locked_display');
+            const lockedText = document.getElementById('locked_invoice_text');
+            const amountInput = document.getElementById('amount');
+
+            if (invoiceId) {
+                // Locked Mode
+                currentInvoiceId = invoiceId;
+                select.classList.add('hidden');
+                select.removeAttribute('name');
+                select.required = false;
+
+                lockedDisplay.classList.remove('hidden');
+                hiddenInput.setAttribute('name', 'invoice_id'); // Active
+                hiddenInput.value = invoiceId;
+                lockedText.textContent = invoiceText;
+
+                amountInput.value = amount;
+                amountInput.readOnly = true;
+                amountInput.classList.add('bg-gray-50', 'text-gray-500');
+            } else {
+                // Select Mode
+                currentInvoiceId = null;
+                select.classList.remove('hidden');
+                select.setAttribute('name', 'invoice_id'); // Active
+                select.required = true;
+                select.value = "";
+
+                lockedDisplay.classList.add('hidden');
+                hiddenInput.removeAttribute('name'); // Inactive
+                hiddenInput.value = "";
+
+                amountInput.value = "";
+                amountInput.readOnly = false;
+                amountInput.classList.remove('bg-gray-50', 'text-gray-500');
+            }
+        }
+
+        function closePaymentModal() {
+            document.getElementById('payment-modal').classList.add('hidden');
+        }
+
+        function resetWizard() {
+            document.getElementById('step-1').classList.remove('hidden');
+            document.getElementById('step-2').classList.add('hidden');
+            document.getElementById('modal-title').innerText = "Register Payment";
+        }
+
+        function goToStep2() {
+            const method = document.getElementById('method').value;
+            const amount = document.getElementById('amount').value;
+
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+
+            // UI Updates
+            document.getElementById('step-1').classList.add('hidden');
+            document.getElementById('step-2').classList.remove('hidden');
+            document.getElementById('modal-title').innerText = method === 'card' ? 'Payment Details' : 'Confirm Payment';
+            document.getElementById('pay-amount-display').innerText = "CHF " + amount;
+
+            // Toggle Details Sections
+            document.getElementById('details-card').classList.add('hidden');
+            document.getElementById('details-generic').classList.add('hidden');
+
+            if (method === 'card') {
+                document.getElementById('details-card').classList.remove('hidden');
+            } else {
+                document.getElementById('details-generic').classList.remove('hidden');
+                const refLabel = document.getElementById('generic-ref-label');
+                const refInput = document.getElementById('transaction_reference');
+
+                if (method === 'twint') {
+                    refLabel.innerText = "Twint Reference";
+                    refInput.placeholder = "e.g. 123 456";
+                } else if (method === 'bank_transfer') {
+                    refLabel.innerText = "Bank Transaction ID";
+                    refInput.placeholder = "e.g. EB123456";
+                } else {
+                    refLabel.innerText = "Reference (Optional)";
+                    refInput.placeholder = "Receipt #";
+                }
+            }
+        }
+
+        function goToStep1() {
+            document.getElementById('step-2').classList.add('hidden');
+            document.getElementById('step-1').classList.remove('hidden');
+            document.getElementById('modal-title').innerText = "Register Payment";
+        }
+
+        // Bug review UX-05: updateAmount now also syncs the hidden
+        // invoice_id field when the user switches selection mid-flow.
+        // Previously only the amount was updated; if the form was opened
+        // in "locked" mode and then the user somehow changed the visible
+        // select, the submit would target the original locked invoice
+        // while displaying the new balance. Keep both fields in lock-step.
+        function updateAmount() {
+            const select = document.getElementById('invoice_id_select');
+            const option = select.options[select.selectedIndex];
+            const hiddenInput = document.getElementById('invoice_id_hidden');
+
+            if (option && option.dataset.balance) {
+                document.getElementById('amount').value = option.dataset.balance;
+                // Keep the hidden input in sync in case the form is in a
+                // hybrid state — harmless when the select itself carries
+                // the invoice_id name.
+                if (hiddenInput) {
+                    hiddenInput.value = option.value;
+                }
+            }
+        }
+
+        function updateTransactionRef(cardVal) {
+            // Auto-fill transaction reference with last 4 digits
+            if (cardVal && cardVal.length > 4) {
+                const last4 = cardVal.slice(-4);
+                document.getElementById('transaction_reference').value = "Card Ending " + last4;
+            }
+        }
+    </script>
+
     <div class="space-y-8">
 
         <!-- Top Stats Overview -->
@@ -552,122 +690,12 @@
         </div>
     </div>
 
-    <script>
-        // State
-        let currentInvoiceId = null;
-
-        function openPaymentModal(invoiceId = null, amount = null, invoiceText = null) {
-            document.getElementById('payment-modal').classList.remove('hidden');
-            resetWizard();
-
-            const select = document.getElementById('invoice_id_select');
-            const hiddenInput = document.getElementById('invoice_id_hidden');
-            const lockedDisplay = document.getElementById('invoice_locked_display');
-            const lockedText = document.getElementById('locked_invoice_text');
-            const amountInput = document.getElementById('amount');
-
-            if (invoiceId) {
-                // Locked Mode
-                currentInvoiceId = invoiceId;
-                select.classList.add('hidden');
-                select.removeAttribute('name'); 
-                select.required = false;
-
-                lockedDisplay.classList.remove('hidden');
-                hiddenInput.setAttribute('name', 'invoice_id'); // Active
-                hiddenInput.value = invoiceId;
-                lockedText.textContent = invoiceText;
-
-                amountInput.value = amount;
-                amountInput.readOnly = true;
-                amountInput.classList.add('bg-gray-50', 'text-gray-500');
-            } else {
-                // Select Mode
-                currentInvoiceId = null;
-                select.classList.remove('hidden');
-                select.setAttribute('name', 'invoice_id'); // Active
-                select.required = true;
-                select.value = ""; 
-
-                lockedDisplay.classList.add('hidden');
-                hiddenInput.removeAttribute('name'); // Inactive
-                hiddenInput.value = "";
-
-                amountInput.value = "";
-                amountInput.readOnly = false;
-                amountInput.classList.remove('bg-gray-50', 'text-gray-500');
-            }
-        }
-
-        function closePaymentModal() {
-            document.getElementById('payment-modal').classList.add('hidden');
-        }
-
-        function resetWizard() {
-            document.getElementById('step-1').classList.remove('hidden');
-            document.getElementById('step-2').classList.add('hidden');
-            document.getElementById('modal-title').innerText = "Register Payment";
-        }
-
-        function goToStep2() {
-            const method = document.getElementById('method').value;
-            const amount = document.getElementById('amount').value;
-
-            if (!amount || amount <= 0) {
-                alert('Please enter a valid amount');
-                return;
-            }
-
-            // UI Updates
-            document.getElementById('step-1').classList.add('hidden');
-            document.getElementById('step-2').classList.remove('hidden');
-            document.getElementById('modal-title').innerText = method === 'card' ? 'Payment Details' : 'Confirm Payment';
-            document.getElementById('pay-amount-display').innerText = "CHF " + amount;
-
-            // Toggle Details Sections
-            document.getElementById('details-card').classList.add('hidden');
-            document.getElementById('details-generic').classList.add('hidden');
-
-            if (method === 'card') {
-                document.getElementById('details-card').classList.remove('hidden');
-            } else {
-                document.getElementById('details-generic').classList.remove('hidden');
-                const refLabel = document.getElementById('generic-ref-label');
-                const refInput = document.getElementById('transaction_reference');
-
-                if (method === 'twint') {
-                    refLabel.innerText = "Twint Reference";
-                    refInput.placeholder = "e.g. 123 456";
-                } else if (method === 'bank_transfer') {
-                    refLabel.innerText = "Bank Transaction ID";
-                    refInput.placeholder = "e.g. EB123456";
-                } else {
-                     refLabel.innerText = "Reference (Optional)";
-                     refInput.placeholder = "Receipt #";
-                }
-            }
-        }
-
-        function goToStep1() {
-            document.getElementById('step-2').classList.add('hidden');
-            document.getElementById('step-1').classList.remove('hidden');
-            document.getElementById('modal-title').innerText = "Register Payment";
-        }
-
-        function updateAmount() {
-            const select = document.getElementById('invoice_id_select');
-            const option = select.options[select.selectedIndex];
-            if(option && option.dataset.balance) {
-                document.getElementById('amount').value = option.dataset.balance;
-            }
-        }
-
-        function updateTransactionRef(cardVal) {
-            // Auto-fill transaction reference with last 4 digits
-            if (cardVal && cardVal.length > 4) {
-                const last4 = cardVal.slice(-4);
-                document.getElementById('transaction_reference').value = "Card Ending " + last4;
-            }
-        }
-    </script>
+    {{-- Bug review UX-02: payment-modal JS moved to the top of @section
+         so the function declarations are parsed before any inline onclick
+         handler (openPaymentModal, goToStep2, updateAmount, etc.) can be
+         invoked. Previously the script sat at the END of the file, which
+         worked in practice but left a theoretical race where a fast
+         click before the parser reached line 555 could throw
+         ReferenceError. See the old top-of-file block for the full
+         implementations. --}}
 @endsection

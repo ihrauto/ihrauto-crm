@@ -72,8 +72,16 @@
     </div>
 
     <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
-        <div class="pt-2 pb-3 space-y-1">
+    {{--
+        Bug review UX-10: close the mobile menu after a link tap.
+        `@click.away="open = false"` fires when the user taps outside the
+        menu area; `@click="open = false"` on each link ensures the menu
+        closes immediately on navigation tap too, so a slow SPA-style
+        page transition doesn't leave the menu hovering over the new page.
+    --}}
+    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden"
+         @click.away="open = false">
+        <div class="pt-2 pb-3 space-y-1" @click="open = false">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
@@ -86,7 +94,7 @@
                 <div class="font-medium text-sm text-gray-500">{{ Auth::user()?->email }}</div>
             </div>
 
-            <div class="mt-3 space-y-1">
+            <div class="mt-3 space-y-1" @click="open = false">
                 <x-responsive-nav-link :href="route('profile.edit')">
                     {{ __('Profile') }}
                 </x-responsive-nav-link>

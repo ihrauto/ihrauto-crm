@@ -33,6 +33,25 @@ class DashboardServiceTest extends TestCase
         $this->actingAs($this->user);
     }
 
+    /**
+     * Bug review UX-03 regression: DashboardService must not quietly
+     * return cross-tenant aggregates when called outside a tenant
+     * context. TenantScope silently skips the filter when no tenant is
+     * bound, so the service itself has to fail closed.
+     */
+    #[Test]
+    public function it_throws_when_no_tenant_is_bound()
+    {
+        \App\Support\TenantContext::class; // autoload
+        auth()->logout();
+        app(\App\Support\TenantContext::class)->clear();
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/tenant context/i');
+
+        $this->service->getStats();
+    }
+
     #[Test]
     public function it_returns_complete_stats_array()
     {

@@ -186,6 +186,33 @@ class WorkOrderService
         // is now a short pipeline of named steps so each concern is legible
         // and unit-testable in isolation.
         DB::transaction(function () use ($workOrder) {
+            /*
+             * Bug review LOG-04: guard against concurrent completion.
+             *
+             * Two mechanics tapping "Complete" on the same WO from two
+             * phones could previously both pass an unlocked status check,
+             * both call createFromWorkOrder(), and produce two invoices
+             * with sequential numbers — the second an orphan referencing
+             * the same WO. The lock+re-read serialises them: the second
+             * request sees status==completed and bails with a clear error.
+             */
+            $locked = WorkOrder::query()
+                ->withoutGlobalScopes() // completion can be called from jobs outside tenant context
+                ->lockForUpdate()
+                ->findOrFail($workOrder->id);
+
+            if ($locked->status === WorkOrderStatus::Completed->value) {
+                throw new \InvalidArgumentException(
+                    "Work order #{$locked->id} is already completed"
+                    .($locked->completed_at ? ' (at '.$locked->completed_at->toIso8601String().').' : '.')
+                );
+            }
+
+            // Re-hydrate the passed-in instance with the locked row's state
+            // so downstream steps see current values (e.g. started_at may
+            // have been nulled or updated between navigation and submit).
+            $workOrder->forceFill($locked->getAttributes())->exists = true;
+
             $completedAt = now();
 
             $this->assertCompletionTimestamps($workOrder, $completedAt);

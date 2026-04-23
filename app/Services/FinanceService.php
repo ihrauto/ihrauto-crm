@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\WorkOrder;
 use App\Support\CachedQuery;
+use App\Support\SqlPortability;
 use Illuminate\Support\Facades\DB;
 
 class FinanceService
@@ -44,13 +45,18 @@ class FinanceService
         $tenantId = tenant_id();
 
         return CachedQuery::remember("finance_monthly_revenue_{$tenantId}", 300, function () use ($months) {
+            // Bug review LOG-02: use driver-portable YYYY-MM expression instead
+            // of hard-coded Postgres TO_CHAR. Previously this crashed under
+            // SQLite (test runs, CI) with "no such function: TO_CHAR".
+            $monthExpr = SqlPortability::yearMonth('payment_date');
+
             $results = Payment::selectRaw("
-                    TO_CHAR(payment_date, 'YYYY-MM') as month,
+                    $monthExpr as month,
                     SUM(amount) as revenue
                 ")
                 ->where('payment_date', '>=', now()->subMonths($months)->startOfMonth())
-                ->groupByRaw("TO_CHAR(payment_date, 'YYYY-MM')")
-                ->orderByRaw("TO_CHAR(payment_date, 'YYYY-MM')")
+                ->groupByRaw($monthExpr)
+                ->orderByRaw($monthExpr)
                 ->get();
 
             // Fill in missing months with 0

@@ -122,19 +122,45 @@ RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions sto
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 775 storage bootstrap/cache
 
-# Minimal in-container health check so orchestrators can detect a wedged
-# Apache even when the platform health path returns success intermittently.
+# Bug review OPS-12: use the /health endpoint (readiness) instead of /up
+# (liveness) for container healthcheck. /health verifies the DB and cache
+# connections — a container whose DB pool is wedged now fails healthcheck
+# and the orchestrator removes it from the load balancer. /up returns 200
+# as long as the PHP process is responsive, which hides connection pool
+# exhaustion / stuck queue worker scenarios.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -fsS http://localhost/up || exit 1
+    CMD curl -fsS http://localhost/health || exit 1
 
 EXPOSE 80
 
+# Bug review OPS-03: bounded Postgres-wait loop. Previously this looped
+# forever on an unreachable DB; the orchestrator saw the container as
+# "running" and never restarted it. Now we cap the wait at DB_BOOT_WAIT_SECS
+# (default 120s) and exit non-zero so the orchestrator restarts us with a
+# fresh boot — which usually gives DNS / network more time to settle.
+#
+# Bug review OPS-06: validate QUEUE_WORKERS is a non-negative integer before
+# supervisord reads it. A non-numeric value causes supervisord's
+# ConfigParser to blow up with a cryptic traceback.
 CMD ["sh", "-lc", "\
 echo \"BOOT: Docker CMD started\"; \
+case \"${QUEUE_WORKERS:-3}\" in \
+  ''|*[!0-9]*) echo \"BOOT: FATAL: QUEUE_WORKERS must be a non-negative integer, got: '$QUEUE_WORKERS'\" >&2; exit 1 ;; \
+esac; \
 php artisan optimize:clear; \
-echo \"BOOT: waiting for Postgres\"; \
-until php -r 'try{$pdo=new PDO(\"pgsql:host=\".getenv(\"DB_HOST\").\";port=\".getenv(\"DB_PORT\").\";dbname=\".getenv(\"DB_DATABASE\"), getenv(\"DB_USERNAME\"), getenv(\"DB_PASSWORD\"));}catch(Exception $e){exit(1);}'; \
-do echo 'Waiting for Postgres...'; sleep 2; done; \
+DB_BOOT_WAIT_SECS=${DB_BOOT_WAIT_SECS:-120}; \
+echo \"BOOT: waiting for Postgres (timeout ${DB_BOOT_WAIT_SECS}s)\"; \
+WAITED=0; \
+until php -r 'try{$pdo=new PDO(\"pgsql:host=\".getenv(\"DB_HOST\").\";port=\".getenv(\"DB_PORT\").\";dbname=\".getenv(\"DB_DATABASE\"), getenv(\"DB_USERNAME\"), getenv(\"DB_PASSWORD\"));}catch(Exception $e){exit(1);}'; do \
+  if [ \"$WAITED\" -ge \"$DB_BOOT_WAIT_SECS\" ]; then \
+    echo \"BOOT: FATAL: Postgres unreachable after ${DB_BOOT_WAIT_SECS}s, aborting\" >&2; \
+    exit 1; \
+  fi; \
+  echo \"BOOT: waiting for Postgres (${WAITED}s / ${DB_BOOT_WAIT_SECS}s)...\"; \
+  sleep 2; \
+  WAITED=$((WAITED+2)); \
+done; \
+echo \"BOOT: Postgres reachable after ${WAITED}s\"; \
 echo \"BOOT: running migrate\"; \
 php artisan migrate --force; \
 echo \"BOOT: migrate finished with exit=$?\"; \

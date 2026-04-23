@@ -38,7 +38,24 @@ class ArchiveAuditLogsCommand extends Command
 
     public function handle(): int
     {
-        $days = max(30, (int) $this->option('days')); // never archive rows <30d old
+        /*
+         * Bug review LOG-07: don't silently clamp --days. Previously, if an
+         * operator ran `audit-logs:archive --days=10` we substituted 30
+         * without saying so — the operator assumed their intent was honored
+         * but the command did something different. Now we warn loudly on
+         * clamp and still proceed (preserving the safety floor).
+         */
+        $requestedDays = (int) $this->option('days');
+        if ($requestedDays < 30) {
+            $this->warn(
+                sprintf(
+                    '--days=%d is below the safety minimum of 30. Using 30 instead to avoid archiving '
+                    .'rows younger than a month. Pass --days=30 (or higher) explicitly to silence this warning.',
+                    $requestedDays
+                )
+            );
+        }
+        $days = max(30, $requestedDays);
         $chunkSize = max(100, (int) $this->option('chunk'));
         $dryRun = (bool) $this->option('dry-run');
 
@@ -85,13 +102,23 @@ class ArchiveAuditLogsCommand extends Command
             }
 
             DB::transaction(function () use ($ids, &$archived) {
-                // Insert-select from live to archive in a single SQL
-                // statement so we don't round-trip row-by-row.
+                // Insert-select from live to archive in a single SQL statement
+                // so we don't round-trip row-by-row.
+                //
+                // Bug review DATA-02: IDs are bound as placeholders rather
+                // than imploded into the SQL string. Today IDs are ints, so
+                // `implode(',')` is safe — but the pattern is the kind of
+                // thing that silently becomes SQL injection the day someone
+                // switches to UUID ids or copies this code to a spot where
+                // the list is user-controlled. Always use placeholders.
+                $idList = $ids->values()->all();
+                $placeholders = rtrim(str_repeat('?,', count($idList)), ',');
+
                 DB::statement(
-                    'INSERT INTO audit_logs_archive (id, tenant_id, user_id, action, model_type, model_id, changes, ip_address, created_at, updated_at, archived_at)
+                    "INSERT INTO audit_logs_archive (id, tenant_id, user_id, action, model_type, model_id, changes, ip_address, created_at, updated_at, archived_at)
                      SELECT id, tenant_id, user_id, action, model_type, model_id, changes, ip_address, created_at, updated_at, ? AS archived_at
-                     FROM audit_logs WHERE id IN ('.$ids->implode(',').')',
-                    [now()]
+                     FROM audit_logs WHERE id IN ($placeholders)",
+                    [now(), ...$idList]
                 );
 
                 $deleted = DB::table('audit_logs')->whereIn('id', $ids)->delete();

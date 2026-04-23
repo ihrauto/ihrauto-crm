@@ -261,10 +261,44 @@ class Tenant extends Model
 
     /**
      * Scopes
+     *
+     * Bug review DATA-12: `active()` intentionally checks ONLY is_active,
+     * not expiry. Tenants that let their trial lapse stay reachable (so
+     * the tenant middleware can route them to the billing page to
+     * renew). For callers that need "active AND currently paid", use
+     * `notExpired()` which adds the expiry filter.
      */
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Bug review DATA-12: strict scope for "tenant can use the product
+     * right now" — adds the trial / subscription expiry check on top of
+     * scopeActive(). Use this for background jobs that enumerate
+     * currently-paying tenants (billing, provisioning, notifications);
+     * do NOT use it from the request middleware because expired tenants
+     * still need to reach the billing-renewal endpoint.
+     */
+    public function scopeNotExpired($query)
+    {
+        return $query->where('is_active', true)
+            ->where(function ($q) {
+                $q->where(function ($trial) {
+                    $trial->where('is_trial', true)
+                        ->where(function ($ends) {
+                            $ends->whereNull('trial_ends_at')
+                                ->orWhere('trial_ends_at', '>=', now());
+                        });
+                })->orWhere(function ($subscribed) {
+                    $subscribed->where('is_trial', false)
+                        ->where(function ($ends) {
+                            $ends->whereNull('subscription_ends_at')
+                                ->orWhere('subscription_ends_at', '>=', now());
+                        });
+                });
+            });
     }
 
     public function scopeTrial($query)
@@ -346,24 +380,36 @@ class Tenant extends Model
 
     /**
      * Business Logic Methods
+     *
+     * Bug review DATA-05: the $forceFresh flag bypasses the 60-second
+     * count cache. PlanQuota::lockedQuotaExceeded uses this when it
+     * holds a FOR UPDATE lock on the tenant row — inside that critical
+     * section we must read the authoritative count, not a stale cached
+     * value, otherwise concurrent invite-accepts still overbook.
      */
-    public function canAddUser(): bool
+    public function canAddUser(bool $forceFresh = false): bool
     {
-        $count = \App\Support\CachedQuery::remember("tenant_{$this->id}_user_count", 60, fn () => $this->users()->count());
+        $count = $forceFresh
+            ? $this->users()->count()
+            : \App\Support\CachedQuery::remember("tenant_{$this->id}_user_count", 60, fn () => $this->users()->count());
 
         return $count < $this->max_users;
     }
 
-    public function canAddCustomer(): bool
+    public function canAddCustomer(bool $forceFresh = false): bool
     {
-        $count = \App\Support\CachedQuery::remember("tenant_{$this->id}_customer_count", 60, fn () => $this->customers()->count());
+        $count = $forceFresh
+            ? $this->customers()->count()
+            : \App\Support\CachedQuery::remember("tenant_{$this->id}_customer_count", 60, fn () => $this->customers()->count());
 
         return $count < $this->max_customers;
     }
 
-    public function canAddVehicle(): bool
+    public function canAddVehicle(bool $forceFresh = false): bool
     {
-        $count = \App\Support\CachedQuery::remember("tenant_{$this->id}_vehicle_count", 60, fn () => $this->vehicles()->count());
+        $count = $forceFresh
+            ? $this->vehicles()->count()
+            : \App\Support\CachedQuery::remember("tenant_{$this->id}_vehicle_count", 60, fn () => $this->vehicles()->count());
 
         return $count < $this->max_vehicles;
     }
@@ -451,8 +497,11 @@ class Tenant extends Model
 
     /**
      * Check if tenant can create a new work order (for BASIC plan monthly limit)
+     *
+     * Bug review DATA-05: $forceFresh bypasses any count cache in
+     * getMonthlyWorkOrderCount() when called under a tenant-row lock.
      */
-    public function canCreateWorkOrder(): bool
+    public function canCreateWorkOrder(bool $forceFresh = false): bool
     {
         if (in_array($this->plan, [self::PLAN_STANDARD, self::PLAN_CUSTOM])) {
             return true;
@@ -460,7 +509,7 @@ class Tenant extends Model
 
         $maxWorkOrders = $this->max_work_orders ?? 50;
 
-        return $this->getMonthlyWorkOrderCount() < $maxWorkOrders;
+        return $this->getMonthlyWorkOrderCount($forceFresh) < $maxWorkOrders;
     }
 
     /**
@@ -479,16 +528,24 @@ class Tenant extends Model
 
     /**
      * Get cached monthly work order count (60-second TTL).
+     *
+     * Bug review DATA-05: $forceFresh skips the cache so quota checks
+     * under a tenant-row lock see the authoritative count.
      */
-    protected function getMonthlyWorkOrderCount(): int
+    protected function getMonthlyWorkOrderCount(bool $forceFresh = false): int
     {
-        $key = "tenant_{$this->id}_wo_month_".now()->format('Y_m');
-
-        return Cache::remember($key, 60, fn () => $this->workOrders()
+        $produce = fn () => $this->workOrders()
             ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
-            ->count()
-        );
+            ->count();
+
+        if ($forceFresh) {
+            return $produce();
+        }
+
+        $key = "tenant_{$this->id}_wo_month_".now()->format('Y_m');
+
+        return Cache::remember($key, 60, $produce);
     }
 
     /**

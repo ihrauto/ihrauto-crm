@@ -15,10 +15,25 @@ class DashboardService
      *
      * D-14: wrapped with CachedQuery so a cold-cache expiry doesn't spawn
      * N concurrent recomputes for the same tenant.
+     *
+     * Bug review UX-03: assert we have a tenant context before running
+     * any aggregation. `TenantScope` silently skips the tenant filter
+     * when `tenant_id()` returns null (see app/Scopes/TenantScope.php:29),
+     * which means a scheduled job or CLI command that forgets to set
+     * the tenant would return aggregated numbers across ALL tenants.
+     * We'd rather fail loudly than silently leak.
      */
     public function getStats(): array
     {
         $tenantId = tenant_id();
+
+        if ($tenantId === null) {
+            throw new \LogicException(
+                'DashboardService::getStats() requires a resolved tenant context. '
+                .'TenantScope silently returns data across all tenants when no tenant '
+                .'is bound — fail loudly here rather than leak cross-tenant aggregates.'
+            );
+        }
 
         return CachedQuery::remember(
             "dashboard_stats_{$tenantId}",

@@ -87,10 +87,21 @@
                                 </div>
                             </div>
 
-                            <!-- Button: Opens Modal -->
+                            {{--
+                                Bug review UX-01: the notes were JSON-encoded
+                                into the attribute and JSON.parse'd in JS. That
+                                double-encoding round-trip is fragile: depending
+                                on how Blade + Laravel's Js::from interact with
+                                HTML-attribute escaping, notes containing a
+                                backslash, newline, or `</script>` could produce
+                                invalid JSON at parse time, silently killing the
+                                modal. Blade's default `{{ }}` already HTML-escapes
+                                the string safely for an attribute — just read it
+                                straight out of dataset as a plain string.
+                            --}}
                             <button onclick="openJobDetails(this)"
                                 data-job-id="{{ $activeJob->id }}"
-                                data-job-notes="{{ Js::from($activeJob->technician_notes ?? '') }}"
+                                data-job-notes="{{ $activeJob->technician_notes ?? '' }}"
                                 data-job-url="{{ route('work-orders.update', $activeJob) }}"
                                 data-job-edit-url="{{ route('work-orders.show', $activeJob) }}"
                                 class="w-full py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors shadow-sm text-sm">
@@ -160,7 +171,11 @@
             const fullEditLink = document.getElementById('full-edit-link');
 
             form.action = button.dataset.jobUrl;
-            notesField.value = JSON.parse(button.dataset.jobNotes);
+            // Bug review UX-01: dataset returns the HTML-decoded string
+            // directly. No JSON.parse — that used to throw SyntaxError on
+            // notes containing a newline, backslash, or closing script tag,
+            // leaving the modal stuck hidden.
+            notesField.value = button.dataset.jobNotes || '';
             fullEditLink.href = button.dataset.jobEditUrl;
 
             modal.classList.remove('hidden');

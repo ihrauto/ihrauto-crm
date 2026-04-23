@@ -42,7 +42,11 @@ class AutoIssueStaleDraftsCommand extends Command
         $processed = 0;
         $issued = 0;
 
-        Tenant::where('is_active', true)->chunkById(100, function ($tenants) use ($dryRun, &$processed, &$issued) {
+        // Bug review DATA-12: only auto-issue drafts for tenants whose
+        // subscription is still active. Auto-issuing an invoice for a
+        // locked-out tenant would send dunning emails to their customers
+        // with invoices the tenant can't currently manage.
+        Tenant::notExpired()->chunkById(100, function ($tenants) use ($dryRun, &$processed, &$issued) {
             foreach ($tenants as $tenant) {
                 $days = (int) ($tenant->settings['auto_issue_drafts_after_days'] ?? 0);
                 if ($days <= 0) {

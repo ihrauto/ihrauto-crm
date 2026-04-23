@@ -36,6 +36,49 @@ class AppServiceProvider extends ServiceProvider
                     'APP_DEBUG must not be true in production. Refusing to boot.'
                 );
             }
+
+            /*
+             * Bug review OPS-04: scheduler `->onOneServer()` locks live in
+             * the cache store. If cache.default is `array` or `file` in a
+             * multi-container deploy, every container runs every command
+             * (no lock coordination). That means backups run N times,
+             * audit archival deletes rows N times, notifications fire N
+             * times. We refuse to boot production unless an atomic cache
+             * store is configured.
+             */
+            $cacheStore = (string) config('cache.default');
+            $atomicStores = ['redis', 'memcached', 'database', 'dynamodb'];
+            if (! in_array($cacheStore, $atomicStores, true)) {
+                throw new \RuntimeException(
+                    "Cache store '{$cacheStore}' cannot back scheduler ->onOneServer() locks. "
+                    .'Production requires one of: '.implode(', ', $atomicStores).'. '
+                    .'Set CACHE_STORE=redis (recommended) in the environment.'
+                );
+            }
+
+            /*
+             * Bug review OPS-10: refuse to boot production with an
+             * unauthenticated Redis connection. The default .env has
+             * REDIS_PASSWORD=null which ships fine for local dev but is a
+             * gift to any lateral-movement attacker in production — session
+             * cookies, cache entries, and queue jobs live in Redis.
+             *
+             * We don't hard-fail if Redis isn't even configured (some
+             * tenants may run on a different cache backend), only if Redis
+             * IS in use and has no password.
+             */
+            if ($cacheStore === 'redis' || config('session.driver') === 'redis' || config('queue.default') === 'redis') {
+                $redisPass = (string) config('database.redis.default.password');
+                // Laravel interprets string "null" as the literal string, not null.
+                if ($redisPass === '' || $redisPass === 'null') {
+                    throw new \RuntimeException(
+                        'REDIS_PASSWORD is not set in production. Redis is used as a cache / '
+                        .'session / queue backend and an unauthenticated Redis on a shared '
+                        .'network is a P1 security issue. Set REDIS_PASSWORD to a strong '
+                        .'value (and configure the Redis server with --requirepass).'
+                    );
+                }
+            }
         }
 
         // S-07: resolve auto-login eligibility ONCE at boot instead of probing
@@ -45,8 +88,23 @@ class AppServiceProvider extends ServiceProvider
         // compile-time style guarantee rather than a middleware convention.
         config()->set('app.auto_login_verified', \App\Support\AutoLoginGuard::resolve());
 
+        /*
+         * Bug review OPS-23: two-layer login rate limit.
+         *
+         *   Layer 1 (per email+IP): 5/min — stops targeted password guessing
+         *     against a known account.
+         *   Layer 2 (per IP): 20/min — stops wide attacks that rotate through
+         *     many emails from the same source. Without this, a botnet could
+         *     try 5 guesses × 1000 emails/min from one IP.
+         *
+         * Laravel picks the most restrictive limit automatically when an
+         * array is returned from the RateLimiter::for callback.
+         */
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(5)->by($request->input('email', '').'|'.$request->ip());
+            return [
+                Limit::perMinute(5)->by('login:'.$request->input('email', '').'|'.$request->ip()),
+                Limit::perMinute(20)->by('login-ip:'.$request->ip()),
+            ];
         });
 
         RateLimiter::for('register', function (Request $request) {
@@ -95,5 +153,33 @@ class AppServiceProvider extends ServiceProvider
         // D-07: any backup failure also lands in Sentry (on top of the
         // e-mail notification already wired in config/backup.php).
         \Illuminate\Support\Facades\Event::subscribe(\App\Listeners\ReportBackupFailure::class);
+
+        /*
+         * Bug review OPS-07: slow-query logging via PHP rather than PG.
+         *
+         * The previous attempt sent `-c log_min_duration_statement=...` to
+         * PDO's `options` array, which PDO silently ignores for pgsql.
+         * Hooking DB::listen catches every query regardless of driver,
+         * works uniformly in dev/test/prod, and doesn't require
+         * CREATE EXTENSION or superuser privileges.
+         *
+         * Controlled by DB_SLOW_QUERY_LOG_MS (default unset = disabled).
+         * Recommended production value: 500. Logs go to the app logger
+         * under the 'slow_query' channel so ops can filter them.
+         */
+        $threshold = (int) env('DB_SLOW_QUERY_LOG_MS', 0);
+        if ($threshold > 0) {
+            \Illuminate\Support\Facades\DB::listen(function ($query) use ($threshold) {
+                if ($query->time >= $threshold) {
+                    \Illuminate\Support\Facades\Log::warning('slow_query', [
+                        'connection' => $query->connectionName,
+                        'time_ms' => round($query->time, 1),
+                        'sql' => $query->sql,
+                        'bindings' => $query->bindings,
+                        'tenant_id' => function_exists('tenant_id') ? tenant_id() : null,
+                    ]);
+                }
+            });
+        }
     }
 }

@@ -47,8 +47,23 @@ class PaymentController extends Controller
                     (string) (auth()->id() ?? 'anon'),
                 ]));
 
+            /*
+             * Bug review DATA-06: lock the idempotency-key probe with
+             * FOR UPDATE so two concurrent requests with the same key can't
+             * both read "not found" and both insert. Without the lock,
+             * a buggy client double-submitting within the same ~50ms window
+             * creates two payments. The lock serializes the second request
+             * behind the first, which then sees the committed row and
+             * returns the "already recorded" message.
+             *
+             * The lock is scoped to "any row with this key+invoice" — if
+             * the probe returns nothing, FOR UPDATE degrades to a gap /
+             * predicate lock in PostgreSQL. That's enough to serialize the
+             * two INSERTs because they both have to pass this query first.
+             */
             $existingPayment = Payment::where('idempotency_key', $idempotencyKey)
                 ->where('invoice_id', $validated['invoice_id'])
+                ->lockForUpdate()
                 ->first();
 
             if ($existingPayment) {

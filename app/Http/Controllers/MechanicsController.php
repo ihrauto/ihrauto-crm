@@ -52,32 +52,46 @@ class MechanicsController extends Controller
 
         $this->tenantUserAccess->ensureCanAssignRole($request->user(), 'technician');
 
-        // B-01: enforce plan user limit.
-        \App\Support\PlanQuota::assertCanAddUser();
+        /*
+         * Bug review DATA-05: wrap the quota check and the user insert in
+         * a single transaction so the quota check's tenant-row lock is
+         * held across the insert. Two parallel invite-accepts used to
+         * both pass the cached count<limit check, both create users, and
+         * overbook the seat count. With this transaction, the second
+         * invite either waits for the first to commit (and then sees
+         * count == limit and gets rejected) or serialises behind it.
+         */
+        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+            // B-01: enforce plan user limit — inside the transaction, so
+            // the tenant row is locked for the duration of the insert.
+            \App\Support\PlanQuota::assertCanAddUser();
 
-        $inviteToken = bin2hex(random_bytes(32));
+            $inviteToken = bin2hex(random_bytes(32));
 
-        // Create user — tenant_id / role / is_active are protected fields
-        // set via forceFill rather than mass assignment.
-        $user = new User;
-        $user->fill([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make(Str::random(64)),
-            'invite_token' => $inviteToken,
-            'invite_expires_at' => now()->addHours(48),
-        ]);
-        $user->forceFill([
-            'tenant_id' => tenant_id(),
-            'is_active' => false,
-            'role' => 'technician',
-        ])->save();
+            // Create user — tenant_id / role / is_active are protected fields
+            // set via forceFill rather than mass assignment.
+            $user = new User;
+            $user->fill([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make(Str::random(64)),
+                'invite_token' => $inviteToken,
+                'invite_expires_at' => now()->addHours(48),
+            ]);
+            $user->forceFill([
+                'tenant_id' => tenant_id(),
+                'is_active' => false,
+                'role' => 'technician',
+            ])->save();
 
-        // Ensure technician role exists and assign it
-        $technicianRole = Role::firstOrCreate(
-            ['name' => 'technician', 'guard_name' => 'web']
-        );
-        $user->assignRole($technicianRole);
+            // Ensure technician role exists and assign it
+            $technicianRole = Role::firstOrCreate(
+                ['name' => 'technician', 'guard_name' => 'web']
+            );
+            $user->assignRole($technicianRole);
+
+            return $user;
+        });
 
         return redirect()->route('mechanics.index')
             ->with('success', "Mechanic '{$user->name}' has been added successfully!");

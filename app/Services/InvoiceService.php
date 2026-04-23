@@ -18,9 +18,36 @@ class InvoiceService
     /**
      * Generate an invoice number for the current year.
      * Uses a transaction-safe approach to avoid duplicates.
+     *
+     * Bug review LOG-06: enforce that callers run us inside a transaction.
+     *
+     *   The lockForUpdate() here acquires a row-level lock on the
+     *   InvoiceSequence row. WITHOUT an enclosing transaction, Postgres
+     *   releases the lock as soon as the SELECT statement ends — meaning
+     *   two parallel calls can both read `last_number = N`, both compute
+     *   N+1, and both save N+1 to the sequence row. Two invoices get the
+     *   same number. The fix is to require callers to wrap the generate +
+     *   insert in a transaction; the lock is then held until that
+     *   transaction commits, serialising concurrent callers.
+     *
+     *   Callers already in a transaction include createFromWorkOrder and
+     *   createFromQuote (both are wrapped by completeWorkOrder /
+     *   convertQuote). We assert the contract here so any new caller that
+     *   forgets the transaction fails loudly in tests instead of silently
+     *   producing duplicate numbers in production.
      */
     public function generateInvoiceNumber(?int $tenantId = null): string
     {
+        if (DB::transactionLevel() === 0) {
+            throw new \LogicException(
+                'InvoiceService::generateInvoiceNumber() must be called inside a '
+                .'DB::transaction() so the lockForUpdate on the sequence row is held '
+                .'until the invoice row is persisted. Without the enclosing transaction '
+                .'the lock is released immediately and concurrent callers can produce '
+                .'duplicate invoice numbers.'
+            );
+        }
+
         $tenantId = $tenantId ?? tenant_id();
         $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
 
@@ -295,30 +322,74 @@ class InvoiceService
 
     /**
      * Recalculate invoice payment totals and keep the persisted status canonical.
+     *
+     * Bug review DATA-01:
+     *   Previously this was a read-modify-write without a lock. The race was:
+     *     T1 reads payments.sum = 100, computes paid_amount=100
+     *     T2 reads payments.sum = 120 (its own payment just committed),
+     *        computes paid_amount=120, writes paid_amount=120
+     *     T1 then writes paid_amount=100  ← overwrites the correct value
+     *   Symptom: invoice.paid_amount ≠ sum(payments.amount) after concurrent
+     *   writes. No visible error; reconciliation fails silently until a
+     *   human notices at year-end.
+     *
+     *   The fix: wrap the whole read-modify-write in a transaction and lock
+     *   the invoice row with SELECT ... FOR UPDATE. Concurrent syncs against
+     *   the same invoice now serialize; each one sees the committed state
+     *   of the previous sync before recomputing.
+     *
+     *   This is idempotent under nested transactions — if a caller (e.g.
+     *   PaymentController) already holds the lock and is mid-transaction,
+     *   re-acquiring the lock in the same transaction is a no-op in Postgres.
      */
     public function syncPaymentState(Invoice $invoice): Invoice
     {
-        if ($invoice->isVoid()) {
-            return $invoice;
-        }
+        return DB::transaction(function () use ($invoice) {
+            // Re-fetch under FOR UPDATE so the sum we're about to compute
+            // and the write we're about to issue are serialized against any
+            // other in-flight sync for this invoice.
+            $locked = Invoice::query()
+                ->withoutGlobalScopes() // observer path can be called outside tenant context
+                ->lockForUpdate()
+                ->findOrFail($invoice->id);
 
-        $paidAmount = round((float) $invoice->payments()->sum('amount'), 2);
-
-        $invoice->paid_amount = $paidAmount;
-
-        if ($invoice->status !== Invoice::STATUS_DRAFT) {
-            if ($paidAmount >= (float) $invoice->total) {
-                $invoice->status = Invoice::STATUS_PAID;
-            } elseif ($paidAmount > 0) {
-                $invoice->status = Invoice::STATUS_PARTIAL;
-            } else {
-                $invoice->status = Invoice::STATUS_ISSUED;
+            if ($locked->isVoid()) {
+                return $locked;
             }
-        }
 
-        $invoice->save();
+            $paidAmount = round((float) $locked->payments()->sum('amount'), 2);
 
-        return $invoice->fresh();
+            $locked->paid_amount = $paidAmount;
+
+            if ($locked->status !== Invoice::STATUS_DRAFT) {
+                if ($paidAmount >= (float) $locked->total) {
+                    // Bug review DATA-22: flag overpayment when paid_amount
+                    // clearly exceeds total. A ~1-rappen overage can come
+                    // from rounding and is fine; anything bigger is a
+                    // refund-owed situation and ops should know about it
+                    // so the refund can be processed promptly.
+                    if ($paidAmount > ((float) $locked->total) + 0.01) {
+                        \Illuminate\Support\Facades\Log::warning('invoice_overpaid', [
+                            'invoice_id' => $locked->id,
+                            'invoice_number' => $locked->invoice_number,
+                            'tenant_id' => $locked->tenant_id,
+                            'total' => (float) $locked->total,
+                            'paid_amount' => $paidAmount,
+                            'overpayment' => $paidAmount - (float) $locked->total,
+                        ]);
+                    }
+                    $locked->status = Invoice::STATUS_PAID;
+                } elseif ($paidAmount > 0) {
+                    $locked->status = Invoice::STATUS_PARTIAL;
+                } else {
+                    $locked->status = Invoice::STATUS_ISSUED;
+                }
+            }
+
+            $locked->save();
+
+            return $locked->fresh();
+        });
     }
 
     /**
