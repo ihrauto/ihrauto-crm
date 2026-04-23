@@ -49,16 +49,12 @@ jobs:
       - name: Prepare environment
         run: |
           cp .env.example .env
-          # Spatie Laravel Backup validates these at boot; .env.example
-          # intentionally leaves them blank. Override here so artisan commands
-          # that trigger config boot (key:generate, test) don't fail.
-          {
-            echo "MAIL_FROM_ADDRESS=ci@example.com"
-            echo "MAIL_FROM_NAME=\"IHRAUTO CI\""
-            echo "BACKUP_NOTIFICATION_TO=ci@example.com"
-            echo "BACKUP_NOTIFICATION_FROM_ADDRESS=ci@example.com"
-            echo "BACKUP_NOTIFICATION_FROM_NAME=\"IHRAUTO CI\""
-          } >> .env
+          # Spatie Laravel Backup validates notification emails at config
+          # boot. .env.example ships with BACKUP_NOTIFICATION_EMAIL=""
+          # (empty string — NOT null), so env() does not fall through to
+          # its default. Override the value so artisan can boot.
+          sed -i 's/^BACKUP_NOTIFICATION_EMAIL=.*/BACKUP_NOTIFICATION_EMAIL=ci@example.com/' .env
+          sed -i 's/^CRM_SUPPORT_EMAIL=.*/CRM_SUPPORT_EMAIL=ci@example.com/' .env
           php artisan key:generate --ansi
           touch database/database.sqlite
 
