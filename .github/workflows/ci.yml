@@ -46,6 +46,20 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Build frontend assets
+        # Blade views reference Vite-built assets; without a manifest, any
+        # controller test that renders a view throws ViewException. Build the
+        # frontend so `public/build/manifest.json` exists before tests run.
+        run: |
+          npm ci
+          npm run build
+
       - name: Prepare environment
         run: |
           cp .env.example .env
