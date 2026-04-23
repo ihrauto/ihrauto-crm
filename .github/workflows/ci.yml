@@ -17,7 +17,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.2', '8.3']
+        # Production runs on 8.4 (see Dockerfile) and composer.lock contains
+        # packages that require 8.4 (symfony/options-resolver v8). Keep the
+        # matrix narrow to the version we actually ship.
+        php: ['8.4']
 
     steps:
       - uses: actions/checkout@v4
@@ -65,14 +68,14 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.4'
           tools: composer:v2
 
       - name: Cache Composer dependencies
         uses: actions/cache@v4
         with:
           path: vendor
-          key: ${{ runner.os }}-php-8.2-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-php-8.4-${{ hashFiles('**/composer.lock') }}
 
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
@@ -89,7 +92,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.4'
           tools: composer:v2
 
       - name: Composer audit
