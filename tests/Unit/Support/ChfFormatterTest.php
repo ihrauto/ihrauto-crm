@@ -10,19 +10,19 @@ class ChfFormatterTest extends TestCase
     #[Test]
     public function it_formats_zero(): void
     {
-        $this->assertSame("CHF 0.00", chf(0));
+        $this->assertSame('CHF 0.00', chf(0));
     }
 
     #[Test]
     public function it_handles_null_as_zero(): void
     {
-        $this->assertSame("CHF 0.00", chf(null));
+        $this->assertSame('CHF 0.00', chf(null));
     }
 
     #[Test]
     public function it_formats_small_amounts(): void
     {
-        $this->assertSame("CHF 12.50", chf(12.5));
+        $this->assertSame('CHF 12.50', chf(12.5));
     }
 
     #[Test]
@@ -40,13 +40,13 @@ class ChfFormatterTest extends TestCase
     #[Test]
     public function it_rounds_to_two_decimals(): void
     {
-        $this->assertSame("CHF 0.30", chf(0.1 + 0.2));
+        $this->assertSame('CHF 0.30', chf(0.1 + 0.2));
     }
 
     #[Test]
     public function it_handles_negative_values(): void
     {
-        $this->assertSame("CHF -500.00", chf(-500));
+        $this->assertSame('CHF -500.00', chf(-500));
     }
 
     #[Test]
@@ -58,6 +58,6 @@ class ChfFormatterTest extends TestCase
     #[Test]
     public function it_accepts_string_numeric_input(): void
     {
-        $this->assertSame("CHF 42.00", chf("42"));
+        $this->assertSame('CHF 42.00', chf('42'));
     }
 }

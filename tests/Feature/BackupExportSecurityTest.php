@@ -54,6 +54,7 @@ class BackupExportSecurityTest extends TestCase
         // Capture streamed content
         ob_start();
         $response->sendContent();
+
         return ob_get_clean();
     }
 

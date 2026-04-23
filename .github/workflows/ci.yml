@@ -49,6 +49,16 @@ jobs:
       - name: Prepare environment
         run: |
           cp .env.example .env
+          # Spatie Laravel Backup validates these at boot; .env.example
+          # intentionally leaves them blank. Override here so artisan commands
+          # that trigger config boot (key:generate, test) don't fail.
+          {
+            echo "MAIL_FROM_ADDRESS=ci@example.com"
+            echo "MAIL_FROM_NAME=\"IHRAUTO CI\""
+            echo "BACKUP_NOTIFICATION_TO=ci@example.com"
+            echo "BACKUP_NOTIFICATION_FROM_ADDRESS=ci@example.com"
+            echo "BACKUP_NOTIFICATION_FROM_NAME=\"IHRAUTO CI\""
+          } >> .env
           php artisan key:generate --ansi
           touch database/database.sqlite
 
