@@ -14,6 +14,7 @@ class Invoice extends Model
     // =============================================
     // STATUS CONSTANTS (Single Source of Truth)
     // =============================================
+    // see fillable for last_reminder_sent_at (B-14 debounce marker).
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_ISSUED = 'issued';
@@ -67,6 +68,7 @@ class Invoice extends Model
         'voided_at',
         'voided_by',
         'void_reason',
+        'last_reminder_sent_at',
     ];
 
     protected $casts = [
@@ -75,6 +77,7 @@ class Invoice extends Model
         'locked_at' => 'datetime',
         'issued_at' => 'datetime',
         'voided_at' => 'datetime',
+        'last_reminder_sent_at' => 'datetime',
         'subtotal' => 'decimal:2',
         'tax_total' => 'decimal:2',
         'discount_total' => 'decimal:2',

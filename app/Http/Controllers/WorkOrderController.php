@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Models\WorkOrder;
 use App\Services\InvoiceService;
 use App\Services\WorkOrderService;
-use App\Support\TenantValidation;
 use App\Traits\ChecksTechnicianAvailability;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -173,25 +172,11 @@ class WorkOrderController extends Controller
         return view('work-orders.create', compact('customers', 'technicians', 'busy_technician_ids'));
     }
 
-    public function store(Request $request)
+    public function store(\App\Http\Requests\ScheduleWorkOrderRequest $request)
     {
         $this->authorize('create', WorkOrder::class);
 
-        // Handle "Schedule Job" form submission
-        $validated = $request->validate([
-            'customer_id' => ['required', TenantValidation::exists('customers')],
-            'vehicle_id' => ['required', TenantValidation::exists('vehicles')],
-            'scheduled_at' => 'required|date',
-            'estimated_minutes' => 'nullable|integer',
-            'service_bay' => 'nullable|integer|between:1,6',
-            'service_description' => 'required|string',
-            'technician_id' => ['nullable', TenantValidation::exists('users')],
-        ]);
-
-        // Check technician availability before assigning
-        if (! empty($validated['technician_id']) && $this->isTechnicianBusy($validated['technician_id'])) {
-            return back()->withInput()->with('error', 'Selected technician is currently busy with another job.');
-        }
+        $validated = $request->validated();
 
         // B-03: prevent double-booking on service bay / technician for the
         // same time slot.

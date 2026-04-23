@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Exceptions\InvoiceImmutableException;
 use App\Models\Invoice;
 use App\Models\InvoiceSequence;
+use App\Models\Quote;
 use App\Models\WorkOrder;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceService
 {
@@ -96,6 +98,85 @@ class InvoiceService
         $invoice->recalculate();
 
         return $invoice;
+    }
+
+    /**
+     * B-15: Convert an accepted quote into a DRAFT invoice.
+     *
+     * Idempotent: a quote that has already been converted returns the
+     * existing invoice rather than creating a duplicate. Wraps the copy in
+     * a DB transaction so item creation, quote status change, and link-back
+     * either all succeed or all revert.
+     *
+     * @throws \InvalidArgumentException when the quote isn't in a convertible state
+     */
+    public function createFromQuote(Quote $quote): Invoice
+    {
+        // Idempotency FIRST so a second call on an already-converted quote
+        // returns the existing invoice rather than tripping the status
+        // guard below (the quote's status is now 'converted').
+        $existing = Invoice::where('quote_id', $quote->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        if (! in_array($quote->status, ['draft', 'sent', 'accepted'], true)) {
+            throw new \InvalidArgumentException(
+                "Quote #{$quote->quote_number} cannot be converted from status '{$quote->status}'."
+            );
+        }
+
+        return DB::transaction(function () use ($quote) {
+            // Re-check inside the transaction to avoid a race where two
+            // concurrent conversion requests both pass the pre-check.
+            $existing = Invoice::where('quote_id', $quote->id)->lockForUpdate()->first();
+            if ($existing) {
+                return $existing;
+            }
+
+            $invoiceNumber = $this->generateInvoiceNumber($quote->tenant_id);
+            $dueDays = config('crm.invoice.default_due_days', 30);
+
+            $invoice = Invoice::create([
+                'tenant_id' => $quote->tenant_id,
+                'invoice_number' => $invoiceNumber,
+                'quote_id' => $quote->id,
+                'customer_id' => $quote->customer_id,
+                'vehicle_id' => $quote->vehicle_id,
+                'status' => Invoice::STATUS_DRAFT,
+                'issue_date' => now(),
+                'due_date' => now()->addDays($dueDays),
+                'paid_amount' => 0,
+                'notes' => "Generated from Quote #{$quote->quote_number}",
+                'created_by' => auth()->id(),
+            ]);
+
+            $quote->loadMissing('items');
+
+            if ($quote->items->isEmpty()) {
+                throw new \InvalidArgumentException(
+                    "Cannot convert Quote #{$quote->quote_number} — it has no line items."
+                );
+            }
+
+            $itemsData = $quote->items->map(fn ($item) => [
+                'description' => $item->description,
+                'quantity' => (int) $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'tax_rate' => (float) $item->tax_rate,
+                'total' => round((int) $item->quantity * (float) $item->unit_price, 2),
+            ])->all();
+
+            $invoice->items()->createMany($itemsData);
+            $invoice->recalculate();
+
+            // Mark quote as converted so it can't be re-used. `converted`
+            // is an accepted status in the 2025 migration; anything else
+            // would need a schema change.
+            $quote->update(['status' => 'converted']);
+
+            return $invoice->fresh('items');
+        });
     }
 
     /**

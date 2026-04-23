@@ -33,6 +33,26 @@ class Product extends Model
     }
 
     /**
+     * B-13: scope to products where stock has dropped at or below the
+     * tenant-configured reorder threshold. `min_stock_quantity = 0` means
+     * "don't alert" — only products with a positive threshold are eligible.
+     */
+    public function scopeLowStock($query)
+    {
+        return $query
+            ->whereNotNull('min_stock_quantity')
+            ->where('min_stock_quantity', '>', 0)
+            ->whereColumn('stock_quantity', '<=', 'min_stock_quantity');
+    }
+
+    public function isLowStock(): bool
+    {
+        return $this->min_stock_quantity !== null
+            && $this->min_stock_quantity > 0
+            && $this->stock_quantity <= $this->min_stock_quantity;
+    }
+
+    /**
      * Services that use this product.
      */
     public function services()

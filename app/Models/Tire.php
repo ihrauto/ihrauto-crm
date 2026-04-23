@@ -23,6 +23,7 @@ class Tire extends Model
         'quantity',
         'condition',
         'storage_location',
+        'storage_section_id',
         'storage_date',
         'last_inspection_date',
         'next_inspection_date',
@@ -52,6 +53,17 @@ class Tire extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    /**
+     * B-16: structured storage reference. Nullable until all tenants
+     * migrate from freeform `storage_location` strings. New UI should
+     * prefer this relation; legacy views may still render storage_location
+     * as a fallback.
+     */
+    public function storageSection(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\StorageSection::class);
     }
 
     public function getFullDescriptionAttribute(): string

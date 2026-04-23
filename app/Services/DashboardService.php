@@ -72,7 +72,9 @@ class DashboardService
             ->whereNotIn('status', ['completed', 'cancelled', 'failed'])
             ->count();
 
-        $lowStockCount = \App\Models\Product::whereColumn('stock_quantity', '<=', 'min_stock_quantity')->count();
+        // B-13: use the Product::lowStock scope so products with
+        // min_stock_quantity=0 ("don't alert") are excluded.
+        $lowStockCount = \App\Models\Product::lowStock()->count();
         $totalBays = config('crm.service_bays.count', 6);
         $freeBays = max(0, $totalBays - $activeJobs);
 

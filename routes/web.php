@@ -145,6 +145,9 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
             ->only(['show', 'edit', 'update', 'destroy']);
         Route::post('/invoices/{invoice}/issue', [\App\Http\Controllers\InvoiceController::class, 'issue'])->name('invoices.issue');
         Route::post('/invoices/{invoice}/void', [\App\Http\Controllers\InvoiceController::class, 'void'])->name('invoices.void');
+        // B-15: convert a quote into a draft invoice (idempotent).
+        Route::post('/quotes/{quote}/convert-to-invoice', [\App\Http\Controllers\QuoteController::class, 'convertToInvoice'])
+            ->name('quotes.convert-to-invoice');
         Route::get('/finance', [\App\Http\Controllers\FinanceController::class, 'index'])->name('finance.index');
         Route::resource('payments', \App\Http\Controllers\PaymentController::class)->middleware('throttle:30,1');
     });
