@@ -241,8 +241,37 @@
                                     <label for="tax_rate"
                                         class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 group-focus-within:text-indigo-600 transition-colors">Default
                                         Tax Rate (%)</label>
-                                    <input type="number" name="tax_rate" id="tax_rate" value="7.7" step="0.1"
+                                    <input type="number" name="tax_rate" id="tax_rate"
+                                        value="{{ number_format(auth()->user()->tenant?->taxRate() ?? (float) config('crm.tax_rate', 8.1), 2, '.', '') }}"
+                                        step="0.01" min="0" max="100"
                                         class="w-full bg-gray-50/50 border text-gray-900 text-sm font-medium border-gray-200 rounded-lg px-3 py-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-gray-300">
+                                </div>
+
+                                <div class="group">
+                                    <label for="invoice_prefix"
+                                        class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 group-focus-within:text-indigo-600 transition-colors">Invoice Prefix</label>
+                                    <input type="text" name="invoice_prefix" id="invoice_prefix"
+                                        value="{{ auth()->user()->tenant?->settings['invoice_prefix'] ?? config('crm.invoice.prefix', 'INV') }}"
+                                        maxlength="10" placeholder="INV"
+                                        class="w-full bg-gray-50/50 border text-gray-900 text-sm font-medium border-gray-200 rounded-lg px-3 py-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-gray-300">
+                                </div>
+
+                                <div class="group">
+                                    <label for="default_due_days"
+                                        class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 group-focus-within:text-indigo-600 transition-colors">Default Payment Terms (days)</label>
+                                    <input type="number" name="default_due_days" id="default_due_days"
+                                        value="{{ auth()->user()->tenant?->settings['default_due_days'] ?? config('crm.invoice.default_due_days', 30) }}"
+                                        min="0" max="365"
+                                        class="w-full bg-gray-50/50 border text-gray-900 text-sm font-medium border-gray-200 rounded-lg px-3 py-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-gray-300">
+                                </div>
+
+                                <div class="group md:col-span-3">
+                                    <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                                        <input type="checkbox" name="low_stock_email" value="1"
+                                            @checked(auth()->user()->tenant?->settings['low_stock_email'] ?? false)
+                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                        Email admins a daily low-stock digest when any product drops to its reorder threshold
+                                    </label>
                                 </div>
                             </div>
                         </div>

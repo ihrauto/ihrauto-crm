@@ -182,47 +182,140 @@ class WorkOrderService
      */
     public function completeWorkOrder(WorkOrder $workOrder): void
     {
-        // B-02: wrap the full completion in a single transaction so stock,
-        // status, checkin, and invoice creation are one atomic unit. Any
-        // throw (InsufficientStockException, invariant violation, DB error)
-        // rolls back everything — we never want the WO marked Completed
-        // with stock already decremented but the invoice creation failed.
+        // C-08: the full completion is one atomic unit (B-02), but the body
+        // is now a short pipeline of named steps so each concern is legible
+        // and unit-testable in isolation.
         DB::transaction(function () use ($workOrder) {
             $completedAt = now();
 
-            // Invariant: completed_at must not precede started_at. If the work
-            // order was never started, backfill started_at to match. Clock skew
-            // or a historical started_at from the future would violate the
-            // invariant — we reject it rather than silently swap timestamps.
-            if ($workOrder->started_at === null) {
-                $workOrder->started_at = $completedAt;
-            } elseif ($workOrder->started_at->gt($completedAt)) {
-                throw new \InvalidArgumentException(
-                    "Cannot complete work order: started_at ({$workOrder->started_at->toIso8601String()}) "
-                    .'is after completed_at ('.$completedAt->toIso8601String().'). '
-                    .'Check the clock and reopen the work order if needed.'
-                );
-            }
-
-            // Deduct stock first. processStockDeductions uses a two-pass
-            // validate-then-deduct under lockForUpdate, so it throws
-            // InsufficientStockException BEFORE mutating any rows. Doing this
-            // before the status change gives callers a clean "out of stock"
-            // error instead of a "mid-completion rollback" one.
+            $this->assertCompletionTimestamps($workOrder, $completedAt);
             $this->invoiceService->processStockDeductions($workOrder);
-
-            $workOrder->status = WorkOrderStatus::Completed->value;
-            $workOrder->completed_at = $completedAt;
-            $workOrder->save();
-
-            if ($workOrder->checkin) {
-                $workOrder->checkin->update([
-                    'status' => CheckinStatus::Completed->value,
-                    'checkout_time' => $completedAt,
-                ]);
-            }
-
+            $this->markCompleted($workOrder, $completedAt);
+            $this->closeAssociatedCheckin($workOrder, $completedAt);
             $this->invoiceService->createFromWorkOrder($workOrder);
         });
+    }
+
+    /**
+     * Invariant: completed_at must not precede started_at. If started_at is
+     * null we backfill to the completion time. If it's after completion
+     * (clock skew, bad historic data), we throw rather than silently swap.
+     */
+    protected function assertCompletionTimestamps(WorkOrder $workOrder, \Illuminate\Support\Carbon $completedAt): void
+    {
+        if ($workOrder->started_at === null) {
+            $workOrder->started_at = $completedAt;
+
+            return;
+        }
+
+        if ($workOrder->started_at->gt($completedAt)) {
+            throw new \InvalidArgumentException(
+                "Cannot complete work order: started_at ({$workOrder->started_at->toIso8601String()}) "
+                .'is after completed_at ('.$completedAt->toIso8601String().'). '
+                .'Check the clock and reopen the work order if needed.'
+            );
+        }
+    }
+
+    protected function markCompleted(WorkOrder $workOrder, \Illuminate\Support\Carbon $completedAt): void
+    {
+        $workOrder->status = WorkOrderStatus::Completed->value;
+        $workOrder->completed_at = $completedAt;
+        $workOrder->save();
+    }
+
+    protected function closeAssociatedCheckin(WorkOrder $workOrder, \Illuminate\Support\Carbon $completedAt): void
+    {
+        if (! $workOrder->checkin) {
+            return;
+        }
+
+        $workOrder->checkin->update([
+            'status' => CheckinStatus::Completed->value,
+            'checkout_time' => $completedAt,
+        ]);
+    }
+
+    /**
+     * C-01 deep: generate a work order from a check-in using the service
+     * catalogue to resolve tasks + parts. Idempotent — a checkin that
+     * already has a work order returns the existing one. Runs the plan
+     * quota guard and the checkin status update inside a single
+     * transaction so the two rows stay consistent.
+     */
+    public function generateFromCheckin(\App\Models\Checkin $checkin, ?int $technicianId = null): WorkOrder
+    {
+        $existing = WorkOrder::where('checkin_id', $checkin->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        \App\Support\PlanQuota::assertCanCreateWorkOrder();
+
+        return DB::transaction(function () use ($checkin, $technicianId) {
+            [$tasks, $partsUsed] = $this->resolveTasksAndParts($checkin->service_type);
+
+            $workOrder = WorkOrder::create([
+                'tenant_id' => $checkin->tenant_id,
+                'checkin_id' => $checkin->id,
+                'customer_id' => $checkin->customer_id,
+                'vehicle_id' => $checkin->vehicle_id,
+                'status' => WorkOrderStatus::Created->value,
+                'customer_issues' => $checkin->service_description,
+                'service_tasks' => $tasks,
+                'parts_used' => $partsUsed,
+                'technician_id' => $technicianId ?? auth()->id(),
+                'service_bay' => $checkin->service_bay,
+            ]);
+
+            $checkin->update(['status' => CheckinStatus::InProgress->value]);
+
+            return $workOrder;
+        });
+    }
+
+    /**
+     * Resolve a comma-separated service-name string (from the checkin form)
+     * into the [$tasks, $partsUsed] shape WorkOrder expects.
+     *
+     * @return array{0: array<int, array>, 1: array<int, array>}
+     */
+    protected function resolveTasksAndParts(?string $serviceType): array
+    {
+        $tasks = [];
+        $partsUsed = [];
+
+        if (empty($serviceType)) {
+            return [$tasks, $partsUsed];
+        }
+
+        foreach (explode(',', $serviceType) as $rawName) {
+            $name = trim($rawName);
+            if ($name === '') {
+                continue;
+            }
+
+            $service = \App\Models\Service::with('products')->where('name', $name)->first();
+
+            $tasks[] = [
+                'name' => $service?->name ?? ucfirst(str_replace('_', ' ', $name)),
+                'completed' => false,
+                'price' => $service?->price ?? 0,
+            ];
+
+            if ($service && $service->products->isNotEmpty()) {
+                foreach ($service->products as $product) {
+                    $partsUsed[] = [
+                        'product_id' => $product->id,
+                        'name' => $product->name,
+                        'qty' => $product->pivot->quantity,
+                        'price' => $product->price,
+                    ];
+                }
+            }
+        }
+
+        return [$tasks, $partsUsed];
     }
 }

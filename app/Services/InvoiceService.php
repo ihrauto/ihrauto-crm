@@ -11,16 +11,25 @@ use Illuminate\Support\Facades\DB;
 
 class InvoiceService
 {
+    public function __construct(
+        private readonly StockService $stockService = new StockService,
+    ) {}
+
     /**
      * Generate an invoice number for the current year.
      * Uses a transaction-safe approach to avoid duplicates.
      */
     public function generateInvoiceNumber(?int $tenantId = null): string
     {
-        $prefix = config('crm.invoice.prefix', 'INV');
+        $tenantId = $tenantId ?? tenant_id();
+        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+
+        // Per-tenant override: settings.invoice_prefix takes precedence over
+        // the platform default so tenants can brand their invoices (e.g.
+        // "RE" / "FK" in DE-CH). Falls back to config('crm.invoice.prefix').
+        $prefix = ($tenant?->settings['invoice_prefix'] ?? null) ?: config('crm.invoice.prefix', 'INV');
         $padding = config('crm.invoice.number_padding', 4);
         $year = now()->year;
-        $tenantId = $tenantId ?? tenant_id();
 
         $sequence = InvoiceSequence::query()
             ->where('tenant_id', $tenantId)
@@ -69,7 +78,9 @@ class InvoiceService
         // platform default. Keeps Swiss tenants on 8.1% while leaving room
         // for cross-border or Liechtenstein flows later.
         $taxRate = $workOrder->tenant?->taxRate() ?? (float) config('crm.tax_rate', 8.1);
-        $dueDays = config('crm.invoice.default_due_days', 30);
+        // Tenants can override default due days via settings JSON.
+        $dueDays = (int) ($workOrder->tenant?->settings['default_due_days']
+            ?? config('crm.invoice.default_due_days', 30));
 
         $invoice = Invoice::create([
             'tenant_id' => $workOrder->tenant_id,
@@ -135,7 +146,9 @@ class InvoiceService
             }
 
             $invoiceNumber = $this->generateInvoiceNumber($quote->tenant_id);
-            $dueDays = config('crm.invoice.default_due_days', 30);
+            // Tenants can override default due days via settings JSON.
+            $dueDays = (int) ($quote->tenant?->settings['default_due_days']
+                ?? config('crm.invoice.default_due_days', 30));
 
             $invoice = Invoice::create([
                 'tenant_id' => $quote->tenant_id,
@@ -380,123 +393,21 @@ class InvoiceService
     }
 
     /**
-     * Process stock deductions for parts used in a work order.
-     * MUST be called within a database transaction.
+     * C-07: delegate to StockService. Kept on InvoiceService so existing
+     * callers (WorkOrderService, tests, controllers) don't change.
      *
-     * Guarantees:
-     *   - Idempotent: re-running produces no duplicate deductions
-     *   - Atomic: either all parts are deducted or none are (exception)
-     *   - Never produces negative stock (throws InsufficientStockException first)
-     *   - Concurrent safe: uses lockForUpdate() on both the idempotency probe
-     *     and the product rows to prevent races
-     *
-     * @throws \App\Exceptions\InsufficientStockException when any part lacks stock
+     * @throws \App\Exceptions\InsufficientStockException
      */
     public function processStockDeductions(WorkOrder $workOrder): void
     {
-        if (! $workOrder->parts_used) {
-            return;
-        }
-
-        // Idempotency: skip if stock was already deducted for this work order.
-        // lockForUpdate() serializes concurrent callers so only one completes.
-        $alreadyDeducted = \App\Models\StockMovement::where('reference_type', WorkOrder::class)
-            ->where('reference_id', $workOrder->id)
-            ->where('type', 'sale')
-            ->lockForUpdate()
-            ->exists();
-
-        if ($alreadyDeducted) {
-            return;
-        }
-
-        // PASS 1: validate all parts have sufficient stock before mutating anything.
-        // Lock each product row so another transaction cannot drain stock between
-        // the check and the decrement.
-        $validatedParts = [];
-
-        foreach ($workOrder->parts_used as $part) {
-            if (empty($part['product_id'])) {
-                continue;
-            }
-
-            $product = \App\Models\Product::lockForUpdate()->find($part['product_id']);
-            if (! $product) {
-                continue;
-            }
-
-            $qty = (int) ($part['qty'] ?? 1);
-            if ($qty <= 0) {
-                continue;
-            }
-
-            if ($product->stock_quantity < $qty) {
-                throw new \App\Exceptions\InsufficientStockException(
-                    $product->name,
-                    (float) $product->stock_quantity,
-                    (float) $qty,
-                );
-            }
-
-            $validatedParts[] = ['product' => $product, 'qty' => $qty];
-        }
-
-        // PASS 2: apply deductions. All products are locked, stock is pre-validated.
-        foreach ($validatedParts as $entry) {
-            /** @var \App\Models\Product $product */
-            $product = $entry['product'];
-            $qty = $entry['qty'];
-
-            $product->decrement('stock_quantity', $qty);
-
-            \App\Models\StockMovement::create([
-                'tenant_id' => $workOrder->tenant_id,
-                'product_id' => $product->id,
-                'quantity' => -$qty,
-                'type' => 'sale',
-                'user_id' => auth()->id(),
-                'reference_type' => WorkOrder::class,
-                'reference_id' => $workOrder->id,
-                'notes' => "Used in Work Order #{$workOrder->id}",
-            ]);
-        }
+        $this->stockService->deductForWorkOrder($workOrder);
     }
 
     /**
-     * Reverse stock deductions (when voiding an invoice).
+     * C-07: delegate to StockService. See above.
      */
     protected function reverseStockDeductions(WorkOrder $workOrder): void
     {
-        if (! $workOrder->parts_used) {
-            return;
-        }
-
-        foreach ($workOrder->parts_used as $part) {
-            if (empty($part['product_id'])) {
-                continue;
-            }
-
-            $product = \App\Models\Product::find($part['product_id']);
-            if (! $product) {
-                continue;
-            }
-
-            $qty = (int) ($part['qty'] ?? 1);
-
-            // Restore Stock
-            $product->increment('stock_quantity', $qty);
-
-            // Log Reversal
-            \App\Models\StockMovement::create([
-                'tenant_id' => $workOrder->tenant_id,
-                'product_id' => $product->id,
-                'quantity' => $qty,
-                'type' => 'void_reversal',
-                'user_id' => auth()->id(),
-                'reference_type' => WorkOrder::class,
-                'reference_id' => $workOrder->id,
-                'notes' => 'Reversed due to voided invoice',
-            ]);
-        }
+        $this->stockService->reverseForWorkOrder($workOrder);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
@@ -11,6 +12,8 @@ use Illuminate\Http\Request;
 
 class CustomerController extends Controller
 {
+    use ApiResponse;
+
     /**
      * Defense-in-depth guard — see Api\CheckinController for rationale.
      */
@@ -28,17 +31,17 @@ class CustomerController extends Controller
     }
 
     /**
-     * Search customers by query
+     * Legacy-shape search endpoint used by the checkin Blade. Returns a
+     * bare array (no envelope) for backwards compatibility; do not migrate
+     * to apiOk() without coordinating with the Blade JS consumers.
      */
     public function search(Request $request): JsonResponse
     {
         $this->assertApiTenantContext($request);
 
-        // Accept both 'query' and 'q' for compatibility
         $searchQuery = $request->get('query') ?? $request->get('q');
         $limit = $request->get('limit', 10);
 
-        // Validate - minimum 2 characters
         if (! $searchQuery || strlen($searchQuery) < 2) {
             return response()->json([]);
         }
@@ -63,16 +66,14 @@ class CustomerController extends Controller
                 ->limit($limit)
                 ->get(['id', 'name', 'phone', 'email']);
 
-            // Return simple array for compatibility with checkin.blade.php JavaScript
             return response()->json($customers);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            report($e);
+
             return response()->json([]);
         }
     }
 
-    /**
-     * Get customer details
-     */
     public function show(Request $request, Customer $customer): JsonResponse
     {
         $this->assertApiTenantContext($request, $customer);
@@ -80,55 +81,46 @@ class CustomerController extends Controller
         try {
             $customer->load(['vehicles', 'checkins.vehicle']);
 
-            return response()->json([
-                'success' => true,
-                'data' => new CustomerResource($customer),
-            ]);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Customer not found',
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving customer',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+            return $this->apiOk(new CustomerResource($customer));
+        } catch (ModelNotFoundException) {
+            return $this->apiError('Customer not found', 404, 'not_found');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->apiError(
+                'Error retrieving customer',
+                500,
+                'internal_error',
+                ['exception' => $e->getMessage()],
+            );
         }
     }
 
-    /**
-     * Get vehicles for a specific customer
-     */
     public function vehicles(Request $request, Customer $customer): JsonResponse
     {
         $this->assertApiTenantContext($request, $customer);
 
         try {
-            $vehicles = $customer->vehicles()
-                ->where('is_active', true)
-                ->get();
+            $vehicles = $customer->vehicles()->where('is_active', true)->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => \App\Http\Resources\VehicleResource::collection($vehicles),
-                'meta' => [
+            return $this->apiOk(
+                \App\Http\Resources\VehicleResource::collection($vehicles),
+                [
                     'customer_id' => $customer->id,
                     'total' => $vehicles->count(),
-                ],
-            ]);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Customer not found',
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving customer vehicles',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+                ]
+            );
+        } catch (ModelNotFoundException) {
+            return $this->apiError('Customer not found', 404, 'not_found');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->apiError(
+                'Error retrieving customer vehicles',
+                500,
+                'internal_error',
+                ['exception' => $e->getMessage()],
+            );
         }
     }
 }

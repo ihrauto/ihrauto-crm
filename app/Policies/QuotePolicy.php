@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\Permission;
 use App\Models\Quote;
 use App\Models\User;
 
@@ -33,7 +34,7 @@ class QuotePolicy
             return false;
         }
 
-        return $user->can('delete records');
+        return $user->can(Permission::DELETE_RECORDS);
     }
 
     /**
@@ -44,6 +45,6 @@ class QuotePolicy
     public function convertToInvoice(User $user, Quote $quote): bool
     {
         return $user->tenant_id === $quote->tenant_id
-            && $user->can('access finance');
+            && $user->can(Permission::ACCESS_FINANCE);
     }
 }

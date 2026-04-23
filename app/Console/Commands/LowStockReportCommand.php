@@ -4,8 +4,11 @@ namespace App\Console\Commands;
 
 use App\Models\Product;
 use App\Models\Tenant;
+use App\Models\User;
+use App\Notifications\LowStockDigestNotification;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * B-13: daily low-stock report.
@@ -20,16 +23,21 @@ use Illuminate\Support\Facades\Log;
 class LowStockReportCommand extends Command
 {
     protected $signature = 'inventory:low-stock-report
-        {--dry-run : Show what would be reported without logging}';
+        {--dry-run : Show what would be reported without logging or notifying}
+        {--notify : Email each tenant\'s admin users with a low-stock digest}';
 
     protected $description = 'Scan all tenants for products at or below their reorder threshold.';
 
     public function handle(): int
     {
         $dryRun = (bool) $this->option('dry-run');
+        $notify = (bool) $this->option('notify');
         $totalAlerts = 0;
+        $notified = 0;
 
-        Tenant::where('is_active', true)->chunkById(100, function ($tenants) use ($dryRun, &$totalAlerts) {
+        Tenant::where('is_active', true)->chunkById(100, function ($tenants) use (
+            $dryRun, $notify, &$totalAlerts, &$notified
+        ) {
             foreach ($tenants as $tenant) {
                 $products = Product::withoutTenantScope()
                     ->where('tenant_id', $tenant->id)
@@ -66,10 +74,26 @@ class LowStockReportCommand extends Command
                         'threshold' => (int) $p->min_stock_quantity,
                     ])->all(),
                 ]);
+
+                // Only email when the operator explicitly opts in via --notify,
+                // or when the tenant has opted in via settings.low_stock_email.
+                $emailOptIn = (bool) ($tenant->settings['low_stock_email'] ?? false);
+                if ($notify || $emailOptIn) {
+                    $admins = User::withoutGlobalScopes()
+                        ->where('tenant_id', $tenant->id)
+                        ->where('is_active', true)
+                        ->role('admin')
+                        ->get();
+
+                    if ($admins->isNotEmpty()) {
+                        Notification::send($admins, new LowStockDigestNotification($tenant, $products));
+                        $notified += $admins->count();
+                    }
+                }
             }
         });
 
-        $this->info("Low-stock scan complete — {$totalAlerts} product(s) at or below threshold.");
+        $this->info("Low-stock scan complete — {$totalAlerts} product(s) at or below threshold, {$notified} admin(s) emailed.");
 
         return self::SUCCESS;
     }

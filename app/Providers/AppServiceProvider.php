@@ -68,11 +68,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Define Gates for Role-Based Access Control
         \Illuminate\Support\Facades\Gate::define('view-financials', function ($user) {
-            return $user->can('access finance');
+            return $user->can(\App\Enums\Permission::ACCESS_FINANCE);
         });
 
         \Illuminate\Support\Facades\Gate::define('delete-records', function ($user) {
-            return $user->can('delete records');
+            return $user->can(\App\Enums\Permission::DELETE_RECORDS);
         });
 
         \Illuminate\Support\Facades\Gate::define('perform-admin-actions', function ($user) {

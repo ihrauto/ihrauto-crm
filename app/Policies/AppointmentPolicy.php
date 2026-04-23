@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\Permission;
 use App\Models\Appointment;
 use App\Models\User;
 
@@ -48,7 +49,7 @@ class AppointmentPolicy
             return false;
         }
 
-        return $user->can('delete records');
+        return $user->can(Permission::DELETE_RECORDS);
     }
 
     /**

@@ -12,11 +12,17 @@ namespace App\Support;
  *
  * NORMALIZATION RULES:
  *   - Trim whitespace at both ends
- *   - Remove ALL internal whitespace
- *   - Uppercase ASCII letters
- *   - Preserve non-ASCII characters as-is (future EU plates may use them)
+ *   - Strip every character that isn't an ASCII letter or digit
+ *     (kills zero-width spaces, Cyrillic look-alikes, emoji, dashes)
+ *   - Uppercase
  *
- * Example: "  zh 123 456 "  →  "ZH123456"
+ * S-15: previously we only stripped whitespace, which left non-ASCII
+ * homoglyphs (e.g. Cyrillic "А" vs Latin "A") in place — two different
+ * byte sequences that look identical in the UI become two different
+ * vehicle rows for the same physical plate. Swiss and EU plates only
+ * use [A-Z0-9], so an ASCII allowlist is both safer and sufficient.
+ *
+ * Example: "  zh 123-456  "  →  "ZH123456"
  */
 class LicensePlate
 {
@@ -29,10 +35,12 @@ class LicensePlate
             return '';
         }
 
-        // Remove all whitespace (space, tab, newline, zero-width) and uppercase.
-        $stripped = preg_replace('/\s+/u', '', trim($plate));
+        // S-15: ASCII allowlist. Anything that isn't [A-Z0-9] (case-
+        // insensitive) is dropped — whitespace, punctuation, diacritics,
+        // and any unicode look-alike.
+        $stripped = preg_replace('/[^A-Za-z0-9]/u', '', $plate) ?? '';
 
-        return mb_strtoupper($stripped ?? '', 'UTF-8');
+        return strtoupper($stripped);
     }
 
     /**

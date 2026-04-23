@@ -45,10 +45,28 @@ class LicensePlateTest extends TestCase
     }
 
     #[Test]
-    public function it_preserves_non_ascii_characters(): void
+    public function it_strips_non_ascii_characters(): void
     {
-        // Some EU plates use special characters; don't strip them.
-        $this->assertSame('BÖ123', LicensePlate::normalize('bö 123'));
+        // S-15 changed this rule: any non-[A-Z0-9] character is stripped
+        // so Cyrillic / zero-width lookalikes can't produce duplicate
+        // vehicle rows for the same physical plate. Swiss & EU plates
+        // only use ASCII alphanumeric in practice.
+        $this->assertSame('B123', LicensePlate::normalize('bö 123'));
+    }
+
+    #[Test]
+    public function it_strips_zero_width_and_nbsp_characters(): void
+    {
+        $input = "ZH\u{200B}123\u{00A0}456";
+        $this->assertSame('ZH123456', LicensePlate::normalize($input));
+    }
+
+    #[Test]
+    public function it_strips_cyrillic_homoglyphs(): void
+    {
+        // Cyrillic "ВЕ" (U+0412 U+0415) looks like Latin "BE" but is a
+        // different byte sequence — must be stripped, not kept.
+        $this->assertSame('123', LicensePlate::normalize("\u{0412}\u{0415}123"));
     }
 
     #[Test]

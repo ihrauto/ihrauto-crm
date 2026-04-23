@@ -46,7 +46,10 @@ RUN composer install \
 # ------------------------------------------------------------------
 # Stage 3 — runtime (Apache + PHP)
 # ------------------------------------------------------------------
-FROM php:8.4-apache AS runtime
+# S-17: pin to a specific minor/patch tag for reproducible builds.
+# Update deliberately (quarterly + on security advisories); do not rely
+# on "php:8.4-apache" drifting us forward silently.
+FROM php:8.4.2-apache AS runtime
 
 # Runtime system deps only (no Node, no build toolchain).
 RUN apt-get update && apt-get install -y --no-install-recommends \

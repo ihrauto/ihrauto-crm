@@ -105,6 +105,11 @@ class ManagementController extends Controller
             // Financial Settings
             'currency' => 'required|string|size:3',
             'tax_rate' => 'required|numeric|min:0|max:100',
+            'invoice_prefix' => 'nullable|string|max:10|regex:/^[A-Z0-9\-]+$/i',
+            'default_due_days' => 'nullable|integer|min:0|max:365',
+
+            // Notifications
+            'low_stock_email' => 'nullable|boolean',
 
             // Modules
             'module_tire_hotel' => 'nullable|string',
@@ -153,6 +158,13 @@ class ManagementController extends Controller
         // Settings JSON for other config
         $settings = $tenant->settings ?? [];
         $settings['tax_rate'] = $validated['tax_rate'];
+        if (! empty($validated['invoice_prefix'])) {
+            $settings['invoice_prefix'] = strtoupper($validated['invoice_prefix']);
+        }
+        if (array_key_exists('default_due_days', $validated) && $validated['default_due_days'] !== null) {
+            $settings['default_due_days'] = (int) $validated['default_due_days'];
+        }
+        $settings['low_stock_email'] = $request->boolean('low_stock_email');
         $tenant->settings = $settings;
 
         $tenant->save();

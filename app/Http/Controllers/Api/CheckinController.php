@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CheckinResource;
 use App\Models\Checkin;
@@ -12,11 +13,13 @@ use Illuminate\Http\Request;
 
 class CheckinController extends Controller
 {
+    use ApiResponse;
+
     /**
-     * Defense-in-depth guard for API actions. The route-model-binding already
-     * invokes TenantScope, so cross-tenant resources should 404 there — but
-     * we re-check explicitly so a bug in the scope (or a future refactor that
-     * bypasses it) cannot leak data across tenants.
+     * Defense-in-depth guard for API actions. The route-model-binding
+     * already invokes TenantScope, so cross-tenant resources should 404
+     * there — we re-check explicitly so a bug in the scope (or a future
+     * refactor that bypasses it) cannot leak data across tenants.
      */
     private function assertApiTenantContext(Request $request, ?\Illuminate\Database\Eloquent\Model $resource = null): void
     {
@@ -27,15 +30,12 @@ class CheckinController extends Controller
         );
 
         if ($resource !== null && $resource->tenant_id !== tenant_id()) {
-            // 404 (not 403) to avoid leaking existence of a resource in
-            // another tenant.
+            // 404 (not 403) to avoid leaking the existence of a resource
+            // in another tenant.
             abort(404);
         }
     }
 
-    /**
-     * Get customer history
-     */
     public function getCustomerHistory(Request $request, Customer $customer): JsonResponse
     {
         $this->assertApiTenantContext($request, $customer);
@@ -47,92 +47,74 @@ class CheckinController extends Controller
                 ->limit(50)
                 ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'customer' => [
-                        'id' => $customer->id,
-                        'name' => $customer->name,
-                        'phone' => $customer->phone,
-                        'email' => $customer->email,
-                    ],
-                    'checkins' => CheckinResource::collection($checkins),
+            return $this->apiOk([
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
                 ],
-                'meta' => [
-                    'total' => $checkins->count(),
-                    'customer_id' => $customer->id,
-                ],
+                'checkins' => CheckinResource::collection($checkins),
+            ], [
+                'total' => $checkins->count(),
+                'customer_id' => $customer->id,
             ]);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Customer not found',
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch customer history',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+        } catch (ModelNotFoundException) {
+            return $this->apiError('Customer not found', 404, 'not_found');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->apiError(
+                'Failed to fetch customer history',
+                500,
+                'internal_error',
+                ['exception' => $e->getMessage()],
+            );
         }
     }
 
-    /**
-     * Get customer details with vehicles
-     */
     public function getCustomerDetails(Request $request, Customer $customer): JsonResponse
     {
         $this->assertApiTenantContext($request, $customer);
 
         try {
-            $customer->load(['vehicles' => function ($query) {
-                $query->where('is_active', true);
-            }]);
+            $customer->load(['vehicles' => fn ($q) => $q->where('is_active', true)]);
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'customer' => [
-                        'id' => $customer->id,
-                        'name' => $customer->name,
-                        'phone' => $customer->phone,
-                        'email' => $customer->email,
-                        'address' => $customer->address,
-                    ],
-                    'vehicles' => $customer->vehicles->map(function ($vehicle) {
-                        return [
-                            'id' => $vehicle->id,
-                            'license_plate' => $vehicle->license_plate,
-                            'display_name' => $vehicle->display_name,
-                            'make' => $vehicle->make,
-                            'model' => $vehicle->model,
-                            'year' => $vehicle->year,
-                            'color' => $vehicle->color,
-                        ];
-                    }),
+            return $this->apiOk([
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
+                    'address' => $customer->address,
                 ],
-                'meta' => [
-                    'customer_id' => $customer->id,
-                    'vehicles_count' => $customer->vehicles->count(),
-                ],
+                'vehicles' => $customer->vehicles->map(fn ($vehicle) => [
+                    'id' => $vehicle->id,
+                    'license_plate' => $vehicle->license_plate,
+                    'display_name' => $vehicle->display_name,
+                    'make' => $vehicle->make,
+                    'model' => $vehicle->model,
+                    'year' => $vehicle->year,
+                    'color' => $vehicle->color,
+                ]),
+            ], [
+                'customer_id' => $customer->id,
+                'vehicles_count' => $customer->vehicles->count(),
             ]);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Customer not found',
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch customer details',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+        } catch (ModelNotFoundException) {
+            return $this->apiError('Customer not found', 404, 'not_found');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->apiError(
+                'Failed to fetch customer details',
+                500,
+                'internal_error',
+                ['exception' => $e->getMessage()],
+            );
         }
     }
 
-    /**
-     * Get active checkins
-     */
     public function getActiveCheckins(Request $request): JsonResponse
     {
         $this->assertApiTenantContext($request);
@@ -143,25 +125,22 @@ class CheckinController extends Controller
                 ->latest('checkin_time')
                 ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => CheckinResource::collection($checkins),
-                'meta' => [
-                    'total' => $checkins->count(),
-                ],
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch active checkins',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+            return $this->apiOk(
+                CheckinResource::collection($checkins),
+                ['total' => $checkins->count()]
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->apiError(
+                'Failed to fetch active checkins',
+                500,
+                'internal_error',
+                ['exception' => $e->getMessage()],
+            );
         }
     }
 
-    /**
-     * Get checkins statistics
-     */
     public function getStatistics(Request $request): JsonResponse
     {
         $this->assertApiTenantContext($request);
@@ -175,19 +154,16 @@ class CheckinController extends Controller
                 'total_active' => Checkin::active()->count(),
             ];
 
-            return response()->json([
-                'success' => true,
-                'data' => $stats,
-                'meta' => [
-                    'generated_at' => now()->format('Y-m-d H:i:s'),
-                ],
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch statistics',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
-            ], 500);
+            return $this->apiOk($stats, ['generated_at' => now()->format('Y-m-d H:i:s')]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->apiError(
+                'Failed to fetch statistics',
+                500,
+                'internal_error',
+                ['exception' => $e->getMessage()],
+            );
         }
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\CheckinStatus;
 use App\Enums\WorkOrderStatus;
 use App\Http\Requests\UpdateWorkOrderRequest;
 use App\Models\Checkin;
@@ -215,58 +214,13 @@ class WorkOrderController extends Controller
 
     /**
      * Quick generate from Checkin List.
+     *
+     * Thin controller: all logic lives in WorkOrderService::generateFromCheckin.
+     * Returns the existing WO (idempotent) or the freshly-created one.
      */
     public function generate(Checkin $checkin)
     {
-        $existing = WorkOrder::where('checkin_id', $checkin->id)->first();
-        if ($existing) {
-            return redirect()->route('work-orders.show', $existing);
-        }
-
-        // Convert checkin services description/types to initial task list
-        $tasks = [];
-        $partsUsed = [];
-        if ($checkin->service_type) {
-            $serviceNames = explode(', ', $checkin->service_type);
-            foreach ($serviceNames as $name) {
-                $service = \App\Models\Service::with('products')->where('name', trim($name))->first();
-                $tasks[] = [
-                    'name' => ucfirst(str_replace('_', ' ', trim($name))),
-                    'completed' => false,
-                    'price' => $service ? $service->price : 0,
-                ];
-
-                // Collect parts from Service BOM
-                if ($service && $service->products->isNotEmpty()) {
-                    foreach ($service->products as $product) {
-                        $partsUsed[] = [
-                            'product_id' => $product->id,
-                            'name' => $product->name,
-                            'qty' => $product->pivot->quantity,
-                            'price' => $product->price,
-                        ];
-                    }
-                }
-            }
-        }
-
-        // B-01: enforce monthly work-order quota for BASIC plan tenants.
-        \App\Support\PlanQuota::assertCanCreateWorkOrder();
-
-        $workOrder = WorkOrder::create([
-            'tenant_id' => $checkin->tenant_id,
-            'checkin_id' => $checkin->id,
-            'customer_id' => $checkin->customer_id,
-            'vehicle_id' => $checkin->vehicle_id,
-            'status' => WorkOrderStatus::Created->value,
-            'customer_issues' => $checkin->service_description,
-            'service_tasks' => $tasks,
-            'parts_used' => $partsUsed,
-            'technician_id' => auth()->id(),
-            'service_bay' => $checkin->service_bay, // Copy bay from checkin
-        ]);
-
-        $checkin->update(['status' => CheckinStatus::InProgress->value]);
+        $workOrder = $this->workOrderService->generateFromCheckin($checkin);
 
         return redirect()->route('work-orders.show', $workOrder);
     }
@@ -367,5 +321,60 @@ class WorkOrderController extends Controller
         $workOrder->load(['customer', 'vehicle', 'technician', 'checkin']);
 
         return view('work-orders.details', compact('workOrder'));
+    }
+
+    /**
+     * Bulk-change the status of a set of work orders (e.g. mark 5 "created"
+     * jobs "cancelled" at once, or move "in_progress" jobs to
+     * "waiting_parts"). Each WO goes through the same validateStatusTransition
+     * guard as single-update — illegal transitions fail the whole batch
+     * (no partial commits).
+     *
+     * "completed" is intentionally NOT supported here: completion has real
+     * side effects (stock, invoice) that deserve an explicit per-WO flow.
+     */
+    public function bulkStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'work_order_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'work_order_ids.*' => ['integer'],
+            'status' => ['required', 'string', 'in:in_progress,waiting_parts,cancelled,scheduled'],
+        ]);
+
+        $workOrders = WorkOrder::whereIn('id', $validated['work_order_ids'])->get();
+
+        $updated = 0;
+        $skipped = 0;
+        $failed = [];
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($workOrders, $validated, &$updated, &$skipped, &$failed) {
+            foreach ($workOrders as $wo) {
+                if ($wo->status === $validated['status']) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $error = $this->workOrderService->changeStatus($wo, $validated['status']);
+                if ($error !== null) {
+                    $failed[] = "#{$wo->id} ({$error})";
+
+                    continue;
+                }
+
+                $wo->save();
+                $updated++;
+            }
+
+            if (! empty($failed)) {
+                // Atomicity: any illegal transition aborts the whole batch
+                // rather than leaving a mixed-state result.
+                throw new \RuntimeException('Illegal transition(s): '.implode('; ', $failed));
+            }
+        });
+
+        $message = "Updated {$updated} work order(s); skipped {$skipped} already at target status.";
+
+        return back()->with('success', $message);
     }
 }

@@ -140,12 +140,25 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
         Route::put('/ajax/appointments/{appointment}/reschedule', [\App\Http\Controllers\AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
     });
 
+    // Bulk work-order status change. Throttle-limited; "completed" is
+    // intentionally excluded — completion has real side-effects (stock,
+    // invoice) and needs the per-WO flow.
+    Route::post('/work-orders/bulk-status', [\App\Http\Controllers\WorkOrderController::class, 'bulkStatus'])
+        ->middleware('throttle:10,1')
+        ->name('work-orders.bulk-status');
+
     Route::middleware('module:access finance')->group(function () {
         Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)
             ->only(['show', 'edit', 'update', 'destroy']);
+        Route::post('/invoices/bulk-issue', [\App\Http\Controllers\InvoiceController::class, 'bulkIssue'])
+            ->middleware('throttle:10,1')
+            ->name('invoices.bulk-issue');
         Route::post('/invoices/{invoice}/issue', [\App\Http\Controllers\InvoiceController::class, 'issue'])->name('invoices.issue');
         Route::post('/invoices/{invoice}/void', [\App\Http\Controllers\InvoiceController::class, 'void'])->name('invoices.void');
-        // B-15: convert a quote into a draft invoice (idempotent).
+        Route::get('/invoices/{invoice}/pdf', [\App\Http\Controllers\InvoiceController::class, 'pdf'])->name('invoices.pdf');
+        // Full quote CRUD. B-15: `convertToInvoice` is idempotent.
+        Route::resource('quotes', \App\Http\Controllers\QuoteController::class);
+        Route::get('/quotes/{quote}/pdf', [\App\Http\Controllers\QuoteController::class, 'pdf'])->name('quotes.pdf');
         Route::post('/quotes/{quote}/convert-to-invoice', [\App\Http\Controllers\QuoteController::class, 'convertToInvoice'])
             ->name('quotes.convert-to-invoice');
         Route::get('/finance', [\App\Http\Controllers\FinanceController::class, 'index'])->name('finance.index');

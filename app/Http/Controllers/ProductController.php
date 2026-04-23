@@ -70,29 +70,39 @@ class ProductController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        // Validate removal doesn't exceed available stock
-        if ($validated['type'] === 'remove' && $validated['quantity'] > $product->stock_quantity) {
-            return back()->with('error', 'Cannot remove more stock than available ('.$product->stock_quantity.' in stock).');
+        $qty = $validated['type'] === 'remove' ? -$validated['quantity'] : $validated['quantity'];
+
+        try {
+            // D-03: lock the product row inside the transaction so two
+            // concurrent removals can't both pass the availability check
+            // and drive stock negative. The check used to happen outside
+            // the transaction — a classic TOCTOU race.
+            DB::transaction(function () use ($product, $qty, $validated) {
+                /** @var Product $locked */
+                $locked = Product::lockForUpdate()->findOrFail($product->id);
+
+                if ($qty < 0 && $locked->stock_quantity + $qty < 0) {
+                    throw new \DomainException(
+                        'Cannot remove more stock than available ('
+                        .$locked->stock_quantity.' in stock).'
+                    );
+                }
+
+                $locked->stock_quantity += $qty;
+                $locked->save();
+
+                StockMovement::create([
+                    'tenant_id' => tenant_id(),
+                    'product_id' => $locked->id,
+                    'quantity' => $qty,
+                    'type' => $validated['type'] === 'add' ? 'purchase' : 'correction',
+                    'user_id' => auth()->id(),
+                    'notes' => $validated['notes'] ?? 'Manual stock operation',
+                ]);
+            });
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
         }
-
-        $qty = $validated['quantity'];
-        if ($validated['type'] === 'remove') {
-            $qty = -$qty;
-        }
-
-        DB::transaction(function () use ($product, $qty, $validated) {
-            $product->stock_quantity += $qty;
-            $product->save();
-
-            StockMovement::create([
-                'tenant_id' => tenant_id(),
-                'product_id' => $product->id,
-                'quantity' => $qty,
-                'type' => $validated['type'] === 'add' ? 'purchase' : 'correction', // simplistic mapping
-                'user_id' => auth()->id(),
-                'notes' => $validated['notes'] ?? 'Manual stock operation',
-            ]);
-        });
 
         return redirect()->route('products-services.index', ['tab' => 'parts'])
             ->with('success', 'Stock updated successfully.');
