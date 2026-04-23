@@ -6,6 +6,15 @@
     <div class="space-y-6">
         <!-- Header Controls -->
         <div class="flex justify-end gap-3 mb-6">
+            <a href="{{ route('billing.pricing') }}"
+                class="inline-flex items-center justify-center px-4 py-2.5 border border-amber-200 text-sm font-semibold rounded-lg shadow-sm text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all hover:shadow-md">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                    </path>
+                </svg>
+                Plans & Billing
+            </a>
             <a href="{{ route('management.reports') }}"
                 class="inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-indigo-900 hover:bg-indigo-800 transition-all hover:shadow-lg hover:-translate-y-0.5">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,20 +169,6 @@
                         </span>
                         <span class="text-indigo-400">&rarr;</span>
                     </a>
-
-                    <a href="{{ route('management.roles.index') }}"
-                        class="flex items-center justify-between w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:from-purple-600 hover:to-indigo-700 transition-all shadow-sm">
-                        <span class="flex items-center">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
-                                </path>
-                            </svg>
-                            Roles & Permissions
-                        </span>
-                        <span class="text-white/70">&rarr;</span>
-                    </a>
-
 
                 </div>
 

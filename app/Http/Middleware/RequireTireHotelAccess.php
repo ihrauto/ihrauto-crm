@@ -27,9 +27,13 @@ class RequireTireHotelAccess
 
         // Check if tenant has Tire Hotel access (STANDARD or CUSTOM plans)
         if (! $tenant->hasTireHotel()) {
+            $message = in_array($tenant->plan, [\App\Models\Tenant::PLAN_STANDARD, \App\Models\Tenant::PLAN_CUSTOM], true)
+                ? 'Tire Hotel is currently disabled for this company.'
+                : 'Tire Hotel is not available on the Basic plan. Upgrade to Standard to unlock this feature.';
+
             return redirect()->route('dashboard')->with(
                 'error',
-                'Tire Hotel is not available on the Basic plan. Upgrade to Standard to unlock this feature.'
+                $message
             );
         }
 

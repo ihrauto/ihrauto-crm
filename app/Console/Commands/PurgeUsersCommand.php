@@ -35,6 +35,7 @@ class PurgeUsersCommand extends Command
 
         if ($tenants->isEmpty()) {
             $this->error('No tenants found.');
+
             return Command::FAILURE;
         }
 
@@ -61,7 +62,7 @@ class PurgeUsersCommand extends Command
 
         if ($dryRun) {
             $this->warn("\n⚠️  DRY RUN - No users were actually deleted.");
-            $this->info("Run without --dry-run to apply changes.");
+            $this->info('Run without --dry-run to apply changes.');
         }
 
         return Command::SUCCESS;
@@ -80,15 +81,16 @@ class PurgeUsersCommand extends Command
         // Users to delete (exclude protected)
         $usersToDelete = $query->whereNotIn('id', $protectedIds)->get();
 
-        $this->line("   Protected users: " . count($protectedIds));
-        $this->line("   Users to delete: " . $usersToDelete->count());
+        $this->line('   Protected users: '.count($protectedIds));
+        $this->line('   Users to delete: '.$usersToDelete->count());
 
         if ($usersToDelete->isEmpty()) {
             $this->line("   ✓ No users to delete\n");
+
             return ['deleted' => 0, 'protected' => count($protectedIds)];
         }
 
-        if (!$dryRun) {
+        if (! $dryRun) {
             DB::transaction(function () use ($usersToDelete, $tenant) {
                 foreach ($usersToDelete as $user) {
                     // Handle foreign key references before deletion
@@ -158,7 +160,7 @@ class PurgeUsersCommand extends Command
         foreach ($dependencies as $dep) {
             foreach ($dep['columns'] as $column) {
                 // Check if column exists (some might not)
-                if (!DB::getSchemaBuilder()->hasColumn($dep['table'], $column)) {
+                if (! DB::getSchemaBuilder()->hasColumn($dep['table'], $column)) {
                     continue;
                 }
 

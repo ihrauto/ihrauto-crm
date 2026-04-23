@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CheckinStatus;
+use App\Enums\WorkOrderStatus;
 use App\Http\Requests\UpdateWorkOrderRequest;
 use App\Models\Checkin;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Services\InvoiceService;
+use App\Services\WorkOrderService;
 use App\Support\TenantValidation;
 use App\Traits\ChecksTechnicianAvailability;
 use Illuminate\Http\Request;
@@ -16,18 +19,18 @@ class WorkOrderController extends Controller
 {
     use ChecksTechnicianAvailability;
 
-    protected InvoiceService $invoiceService;
-
-    public function __construct(InvoiceService $invoiceService)
-    {
-        $this->invoiceService = $invoiceService;
-    }
+    public function __construct(
+        protected InvoiceService $invoiceService,
+        protected WorkOrderService $workOrderService,
+    ) {}
 
     /**
      * Generate an invoice from a Work Order (Manual Action).
      */
     public function generateInvoice(WorkOrder $workOrder)
     {
+        $this->authorize('generateInvoice', $workOrder);
+
         if ($workOrder->invoice) {
             return redirect()->route('finance.index', ['tab' => 'invoices'])
                 ->with('info', "Invoice {$workOrder->invoice->invoice_number} already exists for this Work Order.");
@@ -42,7 +45,7 @@ class WorkOrderController extends Controller
                 ->with('success', 'Invoice generated from Work Order.');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to generate invoice: ' . $e->getMessage());
+            return back()->with('error', 'Failed to generate invoice: '.$e->getMessage());
         }
     }
 
@@ -50,12 +53,12 @@ class WorkOrderController extends Controller
     {
         $user = auth()->user();
 
-        $query = WorkOrder::whereNotIn('status', ['completed', 'cancelled'])
+        $query = WorkOrder::whereNotIn('status', [WorkOrderStatus::Completed->value, WorkOrderStatus::Cancelled->value])
             ->with(['vehicle', 'customer', 'technician'])
             ->latest();
 
         // Filter by ownership if user cannot view all work orders
-        if (!$user->can('view all work-orders')) {
+        if (! $user->can('view all work-orders')) {
             $query->where('technician_id', $user->id);
         }
 
@@ -65,7 +68,7 @@ class WorkOrderController extends Controller
 
         $active_orders = $query->get();
 
-        $completedQuery = WorkOrder::whereIn('status', ['completed', 'cancelled'])
+        $completedQuery = WorkOrder::whereIn('status', [WorkOrderStatus::Completed->value, WorkOrderStatus::Cancelled->value])
             ->with(['vehicle', 'customer', 'technician'])
             ->latest('completed_at');
 
@@ -74,7 +77,7 @@ class WorkOrderController extends Controller
         $completedQuery->whereDate('completed_at', $completedDate);
 
         // Also filter completed orders by ownership
-        if (!$user->can('view all work-orders')) {
+        if (! $user->can('view all work-orders')) {
             $completedQuery->where('technician_id', $user->id);
         }
 
@@ -85,11 +88,16 @@ class WorkOrderController extends Controller
 
     public function board()
     {
-        $technicians = User::with([
-            'workOrders' => function ($query) {
-                $query->where('status', 'in_progress')->latest();
-            },
-        ])->get();
+        $technicians = User::where('is_active', true)
+            ->with([
+                'workOrders' => function ($query) {
+                    $query->where('status', WorkOrderStatus::InProgress->value)
+                        ->with(['customer', 'vehicle'])
+                        ->latest();
+                },
+            ])
+            ->orderBy('name')
+            ->get();
 
         return view('work-orders.board', compact('technicians'));
     }
@@ -97,11 +105,11 @@ class WorkOrderController extends Controller
     public function employeeStats()
     {
         // Technicians go directly to their own stats page
-        if (!auth()->user()->can('access management')) {
+        if (! auth()->user()->can('access management')) {
             return redirect()->route('work-orders.employee-details', auth()->user());
         }
 
-        $users = User::all();
+        $users = User::where('is_active', true)->orderBy('name')->get();
 
         return view('work-orders.employee_stats', compact('users'));
     }
@@ -111,7 +119,7 @@ class WorkOrderController extends Controller
         $year = $request->input('year', now()->year);
         $month = $request->input('month');
 
-        $query = $user->workOrders()->where('status', 'completed');
+        $query = $user->workOrders()->where('status', WorkOrderStatus::Completed->value);
 
         if ($year) {
             $query->whereYear('completed_at', $year);
@@ -167,6 +175,8 @@ class WorkOrderController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', WorkOrder::class);
+
         // Handle "Schedule Job" form submission
         $validated = $request->validate([
             'customer_id' => ['required', TenantValidation::exists('customers')],
@@ -179,16 +189,31 @@ class WorkOrderController extends Controller
         ]);
 
         // Check technician availability before assigning
-        if (!empty($validated['technician_id']) && $this->isTechnicianBusy($validated['technician_id'])) {
+        if (! empty($validated['technician_id']) && $this->isTechnicianBusy($validated['technician_id'])) {
             return back()->withInput()->with('error', 'Selected technician is currently busy with another job.');
         }
+
+        // B-03: prevent double-booking on service bay / technician for the
+        // same time slot.
+        $conflict = app(\App\Services\WorkOrderService::class)->findScheduleConflict(
+            start: \Illuminate\Support\Carbon::parse($validated['scheduled_at']),
+            estimatedMinutes: (int) ($validated['estimated_minutes'] ?? 60),
+            technicianId: $validated['technician_id'] ?? null,
+            serviceBay: isset($validated['service_bay']) ? (int) $validated['service_bay'] : null,
+        );
+        if ($conflict !== null) {
+            return back()->withInput()->with('error', $conflict);
+        }
+
+        // B-01: enforce monthly work-order quota for BASIC plan tenants.
+        \App\Support\PlanQuota::assertCanCreateWorkOrder();
 
         $workOrder = WorkOrder::create([
             'tenant_id' => tenant_id(),
             'checkin_id' => null, // Standalone schedule
             'customer_id' => $validated['customer_id'],
             'vehicle_id' => $validated['vehicle_id'],
-            'status' => 'scheduled',
+            'status' => WorkOrderStatus::Scheduled->value,
             'scheduled_at' => $validated['scheduled_at'],
             'estimated_minutes' => $validated['estimated_minutes'],
             'service_bay' => $validated['service_bay'],
@@ -240,12 +265,15 @@ class WorkOrderController extends Controller
             }
         }
 
+        // B-01: enforce monthly work-order quota for BASIC plan tenants.
+        \App\Support\PlanQuota::assertCanCreateWorkOrder();
+
         $workOrder = WorkOrder::create([
             'tenant_id' => $checkin->tenant_id,
             'checkin_id' => $checkin->id,
             'customer_id' => $checkin->customer_id,
             'vehicle_id' => $checkin->vehicle_id,
-            'status' => 'created',
+            'status' => WorkOrderStatus::Created->value,
             'customer_issues' => $checkin->service_description,
             'service_tasks' => $tasks,
             'parts_used' => $partsUsed,
@@ -253,7 +281,7 @@ class WorkOrderController extends Controller
             'service_bay' => $checkin->service_bay, // Copy bay from checkin
         ]);
 
-        $checkin->update(['status' => 'in_progress']);
+        $checkin->update(['status' => CheckinStatus::InProgress->value]);
 
         return redirect()->route('work-orders.show', $workOrder);
     }
@@ -264,7 +292,7 @@ class WorkOrderController extends Controller
 
         $technicians = User::with([
             'workOrders' => function ($query) {
-                $query->where('status', 'in_progress')->latest();
+                $query->where('status', WorkOrderStatus::InProgress->value)->latest();
             },
         ])->get();
 
@@ -281,48 +309,33 @@ class WorkOrderController extends Controller
 
     public function update(UpdateWorkOrderRequest $request, WorkOrder $workOrder)
     {
-        // Update notes
-        if ($request->has('technician_notes')) {
-            $workOrder->technician_notes = $request->technician_notes;
-        }
+        $this->authorize('update', $workOrder);
 
-        // Update tasks (JSON)
-        if ($request->has('service_tasks')) {
-            $workOrder->service_tasks = $request->service_tasks;
-        }
-
-        // Update parts (JSON)
-        if ($request->has('parts_used')) {
-            $workOrder->parts_used = $request->parts_used;
-        }
+        // Apply field updates (notes, tasks, parts)
+        $this->workOrderService->applyUpdates($workOrder, $request->only([
+            'technician_notes', 'service_tasks', 'parts_used',
+        ]));
 
         // Assign technician
-        if ($request->has('technician_id') && $request->technician_id) {
-            $techId = $request->technician_id;
-
-            // Check availability
-            $isBusy = WorkOrder::where('technician_id', $techId)
-                ->where('status', 'in_progress')
-                ->where('id', '!=', $workOrder->id)
-                ->exists();
-
-            if ($isBusy) {
-                return back()->with('error', 'Technician is currently busy with another active job.');
+        if ($request->filled('technician_id')) {
+            $error = $this->workOrderService->assignTechnician($workOrder, $request->technician_id);
+            if ($error) {
+                return back()->with('error', $error);
             }
-
-            $workOrder->technician_id = $techId;
         }
 
         // Handle status changes
         if ($request->has('status')) {
-            $workOrder->status = $request->status;
+            $newStatus = $request->status;
 
-            if ($request->status === 'in_progress' && !$workOrder->started_at) {
-                $workOrder->started_at = now();
+            // Completion triggers a full workflow (stock deduction, invoice, checkin close)
+            if ($newStatus === WorkOrderStatus::Completed->value) {
+                return $this->handleCompletion($workOrder);
             }
 
-            if ($request->status === 'completed' && !$workOrder->completed_at) {
-                return $this->completeWorkOrder($workOrder);
+            $error = $this->workOrderService->changeStatus($workOrder, $newStatus);
+            if ($error) {
+                return back()->with('error', $error);
             }
         }
 
@@ -336,36 +349,18 @@ class WorkOrderController extends Controller
     }
 
     /**
-     * Handle work order completion with invoice generation.
+     * Handle work order completion: delegate to service, then redirect appropriately.
      */
-    protected function completeWorkOrder(WorkOrder $workOrder)
+    protected function handleCompletion(WorkOrder $workOrder)
     {
         try {
-            DB::transaction(function () use ($workOrder) {
-                $workOrder->save();
-
-                // Process stock deductions
-                $this->invoiceService->processStockDeductions($workOrder);
-
-                $workOrder->completed_at = now();
-
-                // Only update checkin if one exists (tire hotel jobs don't have check-ins)
-                if ($workOrder->checkin) {
-                    $workOrder->checkin->update(['status' => 'completed', 'checkout_time' => now()]);
-                }
-
-                $workOrder->save();
-
-                // Auto-Generate Invoice
-                $this->invoiceService->createFromWorkOrder($workOrder);
-            });
+            $this->workOrderService->completeWorkOrder($workOrder);
 
             $invoice = $workOrder->refresh()->invoice;
             if ($invoice) {
-                // Technicians go back to work orders, not finance
-                if (!auth()->user()->can('access finance')) {
+                if (! auth()->user()->can('access finance')) {
                     return redirect()->route('work-orders.index')
-                        ->with('success', "Work Order Completed! Invoice generated.");
+                        ->with('success', 'Work Order Completed! Invoice generated.');
                 }
 
                 return redirect()->route('finance.index', ['tab' => 'invoices'])
@@ -373,7 +368,6 @@ class WorkOrderController extends Controller
             }
 
             return back()->with('success', 'Work Order completed successfully');
-
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }

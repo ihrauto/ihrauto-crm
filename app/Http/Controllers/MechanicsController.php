@@ -3,19 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\TenantUserAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class MechanicsController extends Controller
 {
+    public function __construct(
+        private readonly TenantUserAccess $tenantUserAccess
+    ) {}
+
     /**
      * Display a listing of mechanics (users with technician role).
      */
     public function index()
     {
         $mechanics = User::query()
-            ->where('tenant_id', auth()->user()->tenant_id)
+            ->where('tenant_id', tenant_id())
             ->whereHas('roles', function ($query) {
                 $query->where('name', 'technician');
             })
@@ -44,14 +50,28 @@ class MechanicsController extends Controller
             'phone' => 'nullable|string|max:50',
         ]);
 
-        // Create user
-        $user = User::create([
+        $this->tenantUserAccess->ensureCanAssignRole($request->user(), 'technician');
+
+        // B-01: enforce plan user limit.
+        \App\Support\PlanQuota::assertCanAddUser();
+
+        $inviteToken = bin2hex(random_bytes(32));
+
+        // Create user — tenant_id / role / is_active are protected fields
+        // set via forceFill rather than mass assignment.
+        $user = new User;
+        $user->fill([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make('temppassword123'), // Temporary password
-            'tenant_id' => auth()->user()->tenant_id,
-            'is_active' => true,
+            'password' => Hash::make(Str::random(64)),
+            'invite_token' => $inviteToken,
+            'invite_expires_at' => now()->addHours(48),
         ]);
+        $user->forceFill([
+            'tenant_id' => tenant_id(),
+            'is_active' => false,
+            'role' => 'technician',
+        ])->save();
 
         // Ensure technician role exists and assign it
         $technicianRole = Role::firstOrCreate(
@@ -68,10 +88,7 @@ class MechanicsController extends Controller
      */
     public function destroy(User $mechanic)
     {
-        // Verify the mechanic belongs to the same tenant
-        if ($mechanic->tenant_id !== auth()->user()->tenant_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->tenantUserAccess->ensureMechanicTarget(auth()->user(), $mechanic);
 
         $name = $mechanic->name;
 
@@ -90,10 +107,7 @@ class MechanicsController extends Controller
      */
     public function show(User $mechanic)
     {
-        // Verify the mechanic belongs to the same tenant
-        if ($mechanic->tenant_id !== auth()->user()->tenant_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->tenantUserAccess->ensureMechanicTarget(auth()->user(), $mechanic);
 
         return view('mechanics.show', compact('mechanic'));
     }
@@ -103,10 +117,7 @@ class MechanicsController extends Controller
      */
     public function edit(User $mechanic)
     {
-        // Verify the mechanic belongs to the same tenant
-        if ($mechanic->tenant_id !== auth()->user()->tenant_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->tenantUserAccess->ensureMechanicTarget(auth()->user(), $mechanic);
 
         return view('mechanics.edit', compact('mechanic'));
     }
@@ -116,14 +127,11 @@ class MechanicsController extends Controller
      */
     public function update(Request $request, User $mechanic)
     {
-        // Verify the mechanic belongs to the same tenant
-        if ($mechanic->tenant_id !== auth()->user()->tenant_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->tenantUserAccess->ensureMechanicTarget(auth()->user(), $mechanic);
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $mechanic->id,
+            'email' => 'required|email|unique:users,email,'.$mechanic->id,
             'phone' => 'nullable|string|max:50',
             'hourly_rate' => 'nullable|numeric|min:0',
         ]);
@@ -144,10 +152,7 @@ class MechanicsController extends Controller
      */
     public function invite(User $mechanic)
     {
-        // Verify the mechanic belongs to the same tenant
-        if ($mechanic->tenant_id !== auth()->user()->tenant_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->tenantUserAccess->ensureMechanicTarget(auth()->user(), $mechanic);
 
         // Generate a unique token
         $token = bin2hex(random_bytes(32));

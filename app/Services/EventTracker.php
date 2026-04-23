@@ -9,10 +9,10 @@ class EventTracker
     /**
      * Track an event in the events table.
      *
-     * @param string $event Event name (e.g., 'checkin_created', 'invoice_issued')
-     * @param int|null $tenantId Tenant ID (optional, will use current tenant if null)
-     * @param int|null $userId User ID (optional, will use current user if null)
-     * @param array $meta Non-sensitive metadata (NO PII: names, emails, plates, invoices)
+     * @param  string  $event  Event name (e.g., 'checkin_created', 'invoice_issued')
+     * @param  int|null  $tenantId  Tenant ID (optional, will use current tenant if null)
+     * @param  int|null  $userId  User ID (optional, will use current user if null)
+     * @param  array  $meta  Non-sensitive metadata (NO PII: names, emails, plates, invoices)
      */
     public function track(string $event, ?int $tenantId = null, ?int $userId = null, array $meta = []): Event
     {

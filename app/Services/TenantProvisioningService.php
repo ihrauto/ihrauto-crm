@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Service;
 use App\Models\Product;
+use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -23,13 +23,16 @@ class TenantProvisioningService
                 plan: $data['plan'] ?? Tenant::PLAN_BASIC
             );
 
-            $user = User::create([
+            $user = new User;
+            $user->fill([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
+            ]);
+            $user->forceFill([
                 'tenant_id' => $tenant->id,
                 'is_active' => true,
-            ]);
+            ])->save();
 
             $this->assignAdminRole($user);
             $this->seedStarterCatalog($tenant);
@@ -113,7 +116,7 @@ class TenantProvisioningService
         $suffix = 1;
 
         while (Tenant::withoutTrashed()->where('slug', $slug)->exists() || Tenant::withoutTrashed()->where('subdomain', $slug)->exists()) {
-            $slug = $baseSlug . '-' . $suffix;
+            $slug = $baseSlug.'-'.$suffix;
             $suffix++;
         }
 
@@ -122,29 +125,15 @@ class TenantProvisioningService
 
     private function planLimits(string $plan): array
     {
-        return match ($plan) {
-            Tenant::PLAN_STANDARD => [
-                'max_users' => 5,
-                'max_customers' => 1000,
-                'max_vehicles' => 3000,
-                'max_work_orders' => null,
-                'features' => ['dashboard_basic', 'customer_management', 'vehicle_checkin', 'appointments', 'invoicing_basic', 'tire_hotel'],
-            ],
-            Tenant::PLAN_CUSTOM => [
-                'max_users' => 999999,
-                'max_customers' => 999999,
-                'max_vehicles' => 999999,
-                'max_work_orders' => null,
-                'features' => ['dashboard_basic', 'customer_management', 'vehicle_checkin', 'appointments', 'invoicing_basic', 'tire_hotel', 'reports'],
-            ],
-            default => [
-                'max_users' => 1,
-                'max_customers' => 100,
-                'max_vehicles' => 200,
-                'max_work_orders' => 50,
-                'features' => ['dashboard_basic', 'customer_management', 'vehicle_checkin', 'appointments', 'invoicing_basic'],
-            ],
-        };
+        $definition = Tenant::planDefinition($plan);
+
+        return [
+            'max_users' => $definition['limits']['max_users'],
+            'max_customers' => $definition['limits']['max_customers'],
+            'max_vehicles' => $definition['limits']['max_vehicles'],
+            'max_work_orders' => $definition['limits']['max_work_orders'],
+            'features' => $definition['features'],
+        ];
     }
 
     private function seedStarterCatalog(Tenant $tenant): void

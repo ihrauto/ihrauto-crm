@@ -536,7 +536,7 @@
                         events: {
                             url: '{{ route("appointments.events") }}',
                             failure: function () {
-                                console.error('Error loading appointments');
+                                window.appLogError('Error loading appointments');
                             }
                         },
 
@@ -659,7 +659,7 @@
                             throw new Error('Failed to reschedule');
                         }
                     } catch (error) {
-                        console.error('Reschedule error:', error);
+                        window.appLogError('Reschedule error:', error);
                         this.calendar.refetchEvents();
                     }
                 },

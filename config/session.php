@@ -169,7 +169,15 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // SECURITY: force secure cookies in production regardless of env var.
+    // A forgotten SESSION_SECURE_COOKIE=true in prod would otherwise leak
+    // session IDs over HTTP. Non-production environments may opt in via env.
+    //
+    // env() is used (not app()->environment()) because config files are
+    // loaded before the application container is bootstrapped.
+    'secure' => env('APP_ENV') === 'production'
+        ? true
+        : env('SESSION_SECURE_COOKIE', false),
 
     /*
     |--------------------------------------------------------------------------

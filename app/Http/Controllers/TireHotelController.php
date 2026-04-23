@@ -29,9 +29,8 @@ class TireHotelController extends Controller
         $stats = $this->tireStorageService->getStatistics();
         $storage_map = $this->tireStorageService->getStorageMap();
 
-        // TODO: Move these to service as well in next step
-        $upcoming_pickups = $this->getUpcomingPickups();
-        $maintenance_alerts = $this->getMaintenanceAlerts();
+        $upcoming_pickups = $this->tireStorageService->getUpcomingPickups();
+        $maintenance_alerts = $this->tireStorageService->getMaintenanceAlerts();
 
         $tires = Tire::with(['customer', 'vehicle'])->latest()->paginate(10);
 
@@ -58,6 +57,8 @@ class TireHotelController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Tire::class);
+
         // Simple routing based on form flags
         if ($request->filled('search_registration')) {
             return $this->storeSeasonChange($request);
@@ -96,8 +97,7 @@ class TireHotelController extends Controller
                 return back()->withInput()->with('error', 'Selected technician is currently busy with another job.');
             }
 
-            // Auto-Generate Work Order with technician assignment
-            $workOrder = $this->createTireWorkOrder($result['tire'], 'New Customer Storage', $technicianId);
+            $workOrder = $this->tireStorageService->createTireWorkOrder($result['tire'], 'New Customer Storage', $technicianId);
 
             // Track tire hotel created event
             app(\App\Services\EventTracker::class)->trackSimple('tirehotel_created');
@@ -109,11 +109,19 @@ class TireHotelController extends Controller
                 'Tires stored successfully. Work order created.'
             );
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
-            \Log::error('Error storing tires: ' . $e->getMessage());
+            \Log::error('Error storing tires', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            report($e);
 
-            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
+            // Never surface raw exception messages to end users.
+            return back()
+                ->withInput()
+                ->with('error', 'Could not save the tire storage record. Please try again or contact support if it persists.');
         }
     }
 
@@ -157,14 +165,14 @@ class TireHotelController extends Controller
             foreach ($tires as $tire) {
                 $tire->update([
                     'status' => 'ready_pickup',
-                    'notes' => $tire->notes . "\n[Changed Season]",
+                    'notes' => $tire->notes."\n[Changed Season]",
                 ]);
             }
 
             return back()->with('success', 'Season change recorded successfully.');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Error: ' . $e->getMessage());
+            return back()->with('error', 'Error: '.$e->getMessage());
         }
     }
 
@@ -187,14 +195,14 @@ class TireHotelController extends Controller
                 $q->whereRaw('LOWER(storage_location) LIKE ?', ["%{$searchTerm}%"])
                     // Customer Name (case-insensitive, partial match)
                     ->orWhereHas('customer', function ($cq) use ($searchTerm) {
-                    $cq->whereRaw('LOWER(name) LIKE ?', ["%{$searchTerm}%"]);
-                })
+                        $cq->whereRaw('LOWER(name) LIKE ?', ["%{$searchTerm}%"]);
+                    })
                     // Vehicle License Plate (case-insensitive)
                     ->orWhereHas('vehicle', function ($vq) use ($searchTerm) {
-                    $vq->whereRaw('LOWER(license_plate) LIKE ?', ["%{$searchTerm}%"])
-                        ->orWhereRaw('LOWER(make) LIKE ?', ["%{$searchTerm}%"])
-                        ->orWhereRaw('LOWER(model) LIKE ?', ["%{$searchTerm}%"]);
-                });
+                        $vq->whereRaw('LOWER(license_plate) LIKE ?', ["%{$searchTerm}%"])
+                            ->orWhereRaw('LOWER(make) LIKE ?', ["%{$searchTerm}%"])
+                            ->orWhereRaw('LOWER(model) LIKE ?', ["%{$searchTerm}%"]);
+                    });
             })
             ->get();
 
@@ -278,6 +286,8 @@ class TireHotelController extends Controller
 
     public function update(\App\Http\Requests\UpdateTireRequest $request, Tire $tire)
     {
+        $this->authorize('update', $tire);
+
         $tire->update($request->validated());
 
         return back()->with('success', 'Tire record updated successfully.');
@@ -300,86 +310,16 @@ class TireHotelController extends Controller
      */
     public function generateWorkOrder(Tire $tire)
     {
+        $this->authorize('update', $tire);
+
         try {
-            // Check if active WO exists? (Simplified: just create new for now)
-            $workOrder = $this->createTireWorkOrder($tire, 'Manual Generation');
+            $workOrder = $this->tireStorageService->createTireWorkOrder($tire, 'Manual Generation');
 
             return redirect()->route('work-orders.show', $workOrder)
                 ->with('success', "Work Order #{$workOrder->id} created for tire job.");
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to generate work order: ' . $e->getMessage());
+            return back()->with('error', 'Failed to generate work order: '.$e->getMessage());
         }
-    }
-
-    /**
-     * Internal helper to create Work Order for Tire Hotel
-     */
-    private function createTireWorkOrder(Tire $tire, string $serviceType = 'New Storage', ?int $technicianId = null)
-    {
-        // Define Services
-        // 1. Storage Fee
-        $storageFee = [
-            'name' => "Seasonal Storage Fee ({$tire->season})",
-            'price' => $tire->storage_fee > 0 ? $tire->storage_fee : config('crm.tire_hotel.default_storage_fee'),
-            'completed' => false,
-        ];
-
-        // 2. Labor (Tire Change) - Optional default?
-        // Let's assume if they are storing tires, they are likely swapping them.
-        $labor = [
-            'name' => 'Tire Change & Balancing (4 Wheels)',
-            'price' => config('crm.tire_hotel.default_tire_change_fee'),
-            'completed' => false,
-        ];
-
-        $serviceTasks = [$storageFee, $labor];
-
-        // Create Work Order
-        $workOrder = \App\Models\WorkOrder::create([
-            'tenant_id' => auth()->user()->tenant_id,
-            'customer_id' => $tire->customer_id,
-            'vehicle_id' => $tire->vehicle_id,
-            'technician_id' => $technicianId,
-            'status' => 'created', // Start as created
-            'started_at' => now(),
-            'service_tasks' => $serviceTasks,
-            'customer_issues' => "Customer requested tire storage ({$serviceType}).\nLocation: {$tire->storage_location}",
-            'technician_notes' => "Tires stored: {$tire->brand} {$tire->model} ($tire->size).",
-        ]);
-
-        return $workOrder;
-    }
-
-    // Temporary helpers until moved to Service
-    private function getUpcomingPickups()
-    {
-        // Simple logic: return tires marked as 'ready_pickup'
-        return Tire::with(['customer', 'vehicle'])
-            ->where('status', 'ready_pickup')
-            ->latest()
-            ->take(5)
-            ->get()
-            ->map(function ($tire) {
-                return [
-                    'customer_name' => $tire->customer->name ?? 'Unknown Customer',
-                    'vehicle' => $tire->vehicle->display_name ?? 'Unknown Vehicle',
-                    'urgency' => 'Ready Now',
-                ];
-            });
-    }
-
-    private function getMaintenanceAlerts()
-    {
-        // Logic: return tires needing maintenance or inspection
-        return Tire::with(['customer', 'vehicle'])
-            ->where('status', 'maintenance')
-            ->orWhere(function ($q) {
-                $q->where('status', 'stored')
-                    ->where('next_inspection_date', '<=', now()->addDays(7));
-            })
-            ->latest()
-            ->take(5)
-            ->get();
     }
 }

@@ -37,7 +37,7 @@
 
                 <!-- Plan Options -->
                 <div class="space-y-3 mb-6">
-                    <a href="{{ route('management.pricing') }}"
+                    <a href="{{ route('billing.pricing') }}"
                         class="block w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors">
                         View Plans & Subscribe
                     </a>
@@ -46,8 +46,8 @@
                 <!-- Footer -->
                 <div class="text-gray-400 text-sm">
                     <p>Need help? Contact us at</p>
-                    <a href="mailto:support@ihrauto.com" class="text-indigo-400 hover:text-indigo-300">
-                        support@ihrauto.com
+                    <a href="mailto:{{ config('crm.support.email') }}" class="text-indigo-400 hover:text-indigo-300">
+                        {{ config('crm.support.email') }}
                     </a>
                 </div>
 

@@ -25,6 +25,23 @@ class CheckModuleAccess
             abort(403, 'You do not have permission to access this module.');
         }
 
+        $tenant = tenant();
+        $featureMap = [
+            'access check-in' => 'vehicle_checkin',
+            'access tire-hotel' => 'tire_hotel',
+        ];
+
+        if ($tenant && isset($featureMap[$permission]) && ! $tenant->hasFeature($featureMap[$permission])) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'Module disabled',
+                    'message' => 'This module is disabled for the current tenant.',
+                ], 403);
+            }
+
+            return redirect()->route('dashboard')->with('error', 'This module is disabled for your company.');
+        }
+
         return $next($request);
     }
 }

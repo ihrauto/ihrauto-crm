@@ -950,7 +950,7 @@
                         }
                     })
                     .catch(error => {
-                        console.error('Error fetching customers:', error);
+                        window.appLogError('Error fetching customers:', error);
                         resultsDiv.classList.remove('hidden');
                         resultsDiv.innerHTML = '<div class="text-red-500 text-sm p-2">Error searching</div>';
                     })
@@ -1032,7 +1032,7 @@
                         }
                     })
                     .catch(e => {
-                        console.error('Error loading vehicles:', e);
+                        window.appLogError('Error loading vehicles:', e);
                         vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
                     });
             }

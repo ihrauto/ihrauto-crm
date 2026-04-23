@@ -3,7 +3,8 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Run the migrations.
      *
@@ -66,7 +67,7 @@ return new class extends Migration {
             DB::statement('PRAGMA foreign_keys=ON');
         } elseif (DB::connection()->getDriverName() === 'pgsql') {
             // PostgreSQL approach: Use ALTER COLUMN with TYPE and USING
-            DB::statement("ALTER TABLE tenants ALTER COLUMN plan TYPE VARCHAR(50)");
+            DB::statement('ALTER TABLE tenants ALTER COLUMN plan TYPE VARCHAR(50)');
             DB::statement("ALTER TABLE tenants ALTER COLUMN plan SET DEFAULT 'basic'");
             // Update old plan values to new ones
             DB::statement("UPDATE tenants SET plan = 'basic' WHERE plan = 'free'");

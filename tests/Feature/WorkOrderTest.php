@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Customer;
-use App\Models\User;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\WorkOrder;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -17,8 +17,11 @@ class WorkOrderTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Tenant $tenant;
+
     protected Customer $customer;
+
     protected Vehicle $vehicle;
 
     protected function setUp(): void
@@ -175,6 +178,41 @@ class WorkOrderTest extends TestCase
             ->get(route('work-orders.show', $theirWorkOrder));
 
         $response->assertNotFound();
+    }
+
+    #[Test]
+    public function work_order_update_accepts_scheduled_and_waiting_parts_statuses()
+    {
+        $workOrder = WorkOrder::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'status' => 'created',
+        ]);
+
+        $this->actingAs($this->user)
+            ->put(route('work-orders.update', $workOrder), [
+                'status' => 'scheduled',
+            ])
+            ->assertRedirect();
+
+        $workOrder->refresh();
+        $this->assertEquals('scheduled', $workOrder->status);
+
+        $this->actingAs($this->user)
+            ->put(route('work-orders.update', $workOrder), [
+                'status' => 'in_progress',
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($this->user)
+            ->put(route('work-orders.update', $workOrder), [
+                'status' => 'waiting_parts',
+            ])
+            ->assertRedirect();
+
+        $workOrder->refresh();
+        $this->assertEquals('waiting_parts', $workOrder->status);
     }
 
     #[Test]

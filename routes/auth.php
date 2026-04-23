@@ -60,16 +60,26 @@ Route::middleware('auth')->group(function () {
     Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
         ->name('password.confirm');
 
-    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
+    // Throttle confirm-password — brute-forcing the current user's password
+    // would otherwise re-elevate a session silently.
+    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store'])
+        ->middleware('throttle:6,1');
 
-    Route::put('password', [PasswordController::class, 'update'])->name('password.update');
+    // Throttle password updates — 5 per 15 min per authenticated user. Slows
+    // password-guessing attacks against current_password validation.
+    Route::put('password', [PasswordController::class, 'update'])
+        ->name('password.update')
+        ->middleware('throttle:5,15');
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
 });
 
-// Invite/Password Setup Routes (public, token-based)
-Route::get('invite/{token}', [\App\Http\Controllers\Auth\InviteController::class, 'showSetupForm'])
-    ->name('invite.setup');
-Route::post('invite/{token}', [\App\Http\Controllers\Auth\InviteController::class, 'setup'])
-    ->name('invite.setup.store');
+// Invite/Password Setup Routes (public, token-based). Throttle both paths
+// to slow token-guessing at scale, even though tokens are 64 hex chars.
+Route::middleware('throttle:10,5')->group(function () {
+    Route::get('invite/{token}', [\App\Http\Controllers\Auth\InviteController::class, 'showSetupForm'])
+        ->name('invite.setup');
+    Route::post('invite/{token}', [\App\Http\Controllers\Auth\InviteController::class, 'setup'])
+        ->name('invite.setup.store');
+});

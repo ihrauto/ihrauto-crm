@@ -85,19 +85,13 @@ class TenantMiddleware
     }
 
     /**
-     * Triple-check whether auto-login is allowed: env + marker file + config flag.
+     * Check whether auto-login is allowed. Triple-gate resolution lives in
+     * AutoLoginGuard and is resolved once at boot; the middleware is just a
+     * reader. See S-07.
      */
     private function shouldAutoLogin(): bool
     {
-        if (! app()->environment('local')) {
-            return false;
-        }
-
-        if (! file_exists(storage_path('app/.auto_login_enabled'))) {
-            return false;
-        }
-
-        return (bool) config('app.auto_login_enabled', false);
+        return \App\Support\AutoLoginGuard::verified();
     }
 
     /**

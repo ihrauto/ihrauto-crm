@@ -34,13 +34,32 @@ class SocialAuthController extends Controller
                 ->with('error', 'Failed to authenticate with Google. Please try again.');
         }
 
-        // Check if user already exists
-        $existingUser = User::withoutGlobalScopes()
+        // Look up the user by email.
+        //
+        // SECURITY: users.email is globally unique (see 0001_01_01_000000_create_users_table),
+        // so at most one matching record exists across all tenants.
+        //
+        // We bypass ONLY the TenantScope (pre-auth, no tenant context is set yet).
+        // We intentionally do NOT use withoutGlobalScopes() because that would also
+        // bypass SoftDeletes, allowing deleted users to log in.
+        $existingUser = User::withoutGlobalScope(\App\Scopes\TenantScope::class)
             ->where('email', $googleUser->getEmail())
             ->first();
 
         if ($existingUser) {
-            // Log in existing user
+            // Reject inactive users — they were suspended or haven't accepted an invite.
+            if (! $existingUser->is_active) {
+                return redirect()->route('login')
+                    ->with('error', 'This account is inactive. Please contact your administrator.');
+            }
+
+            // Reject users whose tenant is suspended or archived.
+            $tenant = \App\Models\Tenant::find($existingUser->tenant_id);
+            if ($tenant && ! $tenant->is_active) {
+                return redirect()->route('login')
+                    ->with('error', 'Your company account is not active. Please contact support.');
+            }
+
             Auth::login($existingUser, remember: true);
 
             return redirect()->intended(route('dashboard'));

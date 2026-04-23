@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\WorkOrderStatus;
 use App\Models\User;
 use App\Models\WorkOrder;
 
@@ -40,8 +41,7 @@ class WorkOrderPolicy
             return false;
         }
 
-        // Cannot update completed work orders
-        return $workOrder->status !== 'completed';
+        return $workOrder->status !== WorkOrderStatus::Completed->value;
     }
 
     /**
@@ -66,7 +66,11 @@ class WorkOrderPolicy
             return false;
         }
 
-        return in_array($workOrder->status, ['created', 'pending', 'in_progress']);
+        return in_array($workOrder->status, [
+            WorkOrderStatus::Created->value,
+            WorkOrderStatus::Pending->value,
+            WorkOrderStatus::InProgress->value,
+        ]);
     }
 
     /**
@@ -78,7 +82,7 @@ class WorkOrderPolicy
             return false;
         }
 
-        return ! $workOrder->invoice && $workOrder->status !== 'cancelled';
+        return ! $workOrder->invoice && $workOrder->status !== WorkOrderStatus::Cancelled->value;
     }
 
     /**

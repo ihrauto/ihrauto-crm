@@ -2,10 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Http\Middleware\TenantMiddleware;
-use App\Models\Tenant;
-use App\Models\User;
-use App\Support\TenantContext;
+use App\Support\AutoLoginGuard;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -46,12 +43,16 @@ class AutoLoginGuardTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * S-07: the middleware is now a thin reader of
+     * `config('app.auto_login_verified')`, which is resolved once at boot
+     * from AutoLoginGuard::resolve(). These tests drive the guard's
+     * resolver directly so they can still mutate the three gate inputs
+     * (env, config flag, marker file) and observe the decision.
+     */
     private function callShouldAutoLogin(): bool
     {
-        $middleware = new TenantMiddleware(app(TenantContext::class));
-        $reflection = new \ReflectionMethod($middleware, 'shouldAutoLogin');
-        $reflection->setAccessible(true);
-        return $reflection->invoke($middleware);
+        return AutoLoginGuard::resolve();
     }
 
     #[Test]

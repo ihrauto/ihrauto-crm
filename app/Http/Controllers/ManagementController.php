@@ -343,32 +343,59 @@ class ManagementController extends Controller
         ],
     ];
 
-    public function downloadBackup()
+    /**
+     * S-14: fields whose values must be masked if the operator asks for a
+     * "redacted" export. Customer contact details are PII — useful for the
+     * tenant but risky if the backup file is shared with third parties
+     * (bookkeepers, new staff, migration vendors). The redacted export keeps
+     * the record structure so data relationships still make sense.
+     */
+    private const BACKUP_PII_FIELDS = [
+        \App\Models\Customer::class => ['email', 'phone', 'address', 'city', 'postal_code', 'notes'],
+    ];
+
+    public function downloadBackup(Request $request)
     {
         \Illuminate\Support\Facades\Gate::authorize('perform-admin-actions');
 
         $filename = 'crm-backup-'.now()->format('Y-m-d-His').'.json';
         $safeFields = self::BACKUP_SAFE_FIELDS;
+        $redactPii = $request->boolean('redact_pii');
+        $piiFields = self::BACKUP_PII_FIELDS;
 
-        return response()->streamDownload(function () use ($safeFields) {
+        return response()->streamDownload(function () use ($safeFields, $redactPii, $piiFields) {
             echo '{"metadata":'.json_encode([
                 'generated_at' => now()->toIso8601String(),
                 'version' => '2.0',
                 'app_name' => config('app.name'),
+                'redacted' => $redactPii,
                 'note' => 'This backup contains business data only. '
-                    . 'User accounts, auth tokens, and audit logs are excluded by design.',
+                    .'User accounts, auth tokens, and audit logs are excluded by design.'
+                    .($redactPii ? ' Customer PII has been masked.' : ''),
             ]);
 
             foreach ($safeFields as $modelClass => $fields) {
                 $key = \Illuminate\Support\Str::snake(class_basename($modelClass)).'s';
+                $fieldsToRedact = $redactPii ? ($piiFields[$modelClass] ?? []) : [];
+
                 echo ',"'.$key.'":[';
                 $first = true;
                 foreach ($modelClass::cursor() as $record) {
                     if (! $first) {
                         echo ',';
                     }
-                    // Only export whitelisted fields.
-                    echo json_encode($record->only($fields));
+                    $row = $record->only($fields);
+
+                    // Replace each PII field with a structural placeholder so
+                    // the record shape stays usable for restore testing but
+                    // the sensitive value is gone.
+                    foreach ($fieldsToRedact as $piiField) {
+                        if (array_key_exists($piiField, $row) && $row[$piiField] !== null) {
+                            $row[$piiField] = '[redacted]';
+                        }
+                    }
+
+                    echo json_encode($row);
                     $first = false;
                 }
                 echo ']';

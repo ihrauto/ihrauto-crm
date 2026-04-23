@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tenant;
+use App\Support\TenantCache;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class SubscriptionController extends Controller
 {
     /**
      * Show the checkout page for a specific tenant plan.
+     *
+     * Local-only mock flow. Production billing is handled manually through
+     * the tenant-facing pricing page and super-admin billing controls.
      */
     public function checkout($tenantId)
     {
@@ -53,6 +58,9 @@ class SubscriptionController extends Controller
 
     /**
      * Process the mock payment.
+     *
+     * This endpoint is intentionally local-only and should never be used for
+     * production billing.
      */
     public function process(Request $request, $tenantId)
     {
@@ -65,44 +73,7 @@ class SubscriptionController extends Controller
 
         // 2. Switch Context & Update Plan
 
-        // Define limits based on plan
-        $limits = match ($plan) {
-            'basic' => [
-                'max_users' => 1,
-                'max_customers' => 100,
-                'max_vehicles' => 200,
-                'max_work_orders' => 50,
-            ],
-            'standard' => [
-                'max_users' => 5,
-                'max_customers' => 1000,
-                'max_vehicles' => 3000,
-                'max_work_orders' => null,
-            ],
-            'custom' => [ // Should be handled by sales, but for safety
-                'max_users' => 999999,
-                'max_customers' => 999999,
-                'max_vehicles' => 999999,
-                'max_work_orders' => null,
-            ],
-            default => [
-                'max_users' => 1,
-                'max_customers' => 100,
-                'max_vehicles' => 200,
-                'max_work_orders' => 50,
-            ],
-        };
-
-        $tenant->update([
-            'plan' => $plan,
-            'is_trial' => false,
-            'trial_ends_at' => null,
-            'subscription_ends_at' => now()->addMonth(),
-            'max_users' => $limits['max_users'],
-            'max_customers' => $limits['max_customers'],
-            'max_vehicles' => $limits['max_vehicles'],
-            'max_work_orders' => $limits['max_work_orders'],
-        ]);
+        $tenant->convertToSubscription($plan, now()->addMonth()->endOfDay());
 
         session(['tenant_id' => $tenant->id]);
 
@@ -119,8 +90,9 @@ class SubscriptionController extends Controller
     public function onboarding()
     {
         // Ensure we have a tenant selected
-        if (!tenant()) {
-            return redirect()->route('dev.tenant-switch');
+        if (! tenant()) {
+            return redirect()->route('home')
+                ->with('error', 'Please select a plan to continue.');
         }
 
         return view('subscription.onboarding', ['tenant' => tenant()]);
@@ -133,14 +105,14 @@ class SubscriptionController extends Controller
     {
         $tenant = tenant();
 
-        if (!$tenant) {
+        if (! $tenant) {
             return response()->json(['error' => 'No active tenant'], 404);
         }
 
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:50',
-            'email' => 'nullable|email|max:255',
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('tenants', 'email')->ignore($tenant->id)],
             'address' => 'nullable|string',
             'city' => 'nullable|string|max:100',
             'currency' => 'required|string|size:3',
@@ -171,7 +143,7 @@ class SubscriptionController extends Controller
         $tenant->update(['settings' => $settings]);
 
         // Clear cache so next request sees updated settings
-        \Illuminate\Support\Facades\Cache::forget("tenant.id.{$tenant->id}");
+        TenantCache::forgetTenant($tenant);
 
         // Track onboarding completion event
         app(\App\Services\EventTracker::class)->track('onboarding_completed', $tenant->id, auth()->id());
@@ -191,7 +163,7 @@ class SubscriptionController extends Controller
             $tenant->update(['settings' => $settings]);
 
             // Clear cache
-            \Illuminate\Support\Facades\Cache::forget("tenant.id.{$tenant->id}");
+            TenantCache::forgetTenant($tenant);
         }
 
         return response()->json(['success' => true]);

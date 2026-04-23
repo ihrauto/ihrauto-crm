@@ -212,9 +212,17 @@ class Invoice extends Model
     // ACCESSORS
     // =============================================
 
-    public function getBalanceAttribute()
+    /**
+     * Outstanding balance (total minus paid amount), rounded to 2 decimals.
+     *
+     * Why the round: subtracting two `decimal:2` cast values can produce
+     * binary floats like 99.99999999999999, which then fail strict equality
+     * checks and print ugly in the UI. Rounding here is the single canonical
+     * place that defines what "balance" means for this invoice.
+     */
+    public function getBalanceAttribute(): float
     {
-        return $this->total - $this->paid_amount;
+        return round((float) $this->total - (float) $this->paid_amount, 2);
     }
 
     public function getPaymentStatusAttribute()
@@ -265,9 +273,21 @@ class Invoice extends Model
         $subtotal = 0;
         $taxTotal = 0;
 
+        // B-07: recompute each line's `total` from (quantity * unit_price)
+        // rather than trusting the stored value. If the UI or an API caller
+        // sets a tampered total (negative, or unrelated to qty × price), the
+        // persistence step below rewrites it to the correct figure before
+        // roll-up — so tax/subtotal/total are always server-authoritative.
         foreach ($this->items as $item) {
-            $subtotal += $item->total;
-            $taxTotal += $item->total * ($item->tax_rate / 100);
+            $lineTotal = round((float) $item->quantity * (float) $item->unit_price, 2);
+
+            if ((float) $item->total !== $lineTotal) {
+                $item->total = $lineTotal;
+                $item->save();
+            }
+
+            $subtotal += $lineTotal;
+            $taxTotal += $lineTotal * ((float) $item->tax_rate / 100);
         }
 
         $this->subtotal = round($subtotal, 2);

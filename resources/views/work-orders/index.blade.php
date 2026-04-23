@@ -136,13 +136,13 @@
                             </svg>
                         </button>
                         <div x-show="dayOpen" @click.away="dayOpen = false" x-transition
-                            class="date-picker-dropdown" style="width: 260px;">
+                            class="date-picker-dropdown w-[260px]">
                             {{-- Month Header --}}
                             <div class="text-center font-semibold text-gray-800 pb-3 mb-3 border-b border-gray-100">
                                 <span x-text="months[selectedMonth - 1]"></span>
                             </div>
                             {{-- Weekday Headers --}}
-                            <div class="day-grid" style="margin-bottom: 8px;">
+                            <div class="day-grid mb-2">
                                 <template x-for="day in ['S', 'M', 'T', 'W', 'T', 'F', 'S']" :key="day">
                                     <div class="weekday-header" x-text="day"></div>
                                 </template>
@@ -170,7 +170,7 @@
                             </svg>
                         </button>
                         <div x-show="monthOpen" @click.away="monthOpen = false" x-transition
-                            class="date-picker-dropdown" style="width: 160px;">
+                            class="date-picker-dropdown w-[160px]">
                             <div class="month-grid">
                                 <template x-for="(mon, idx) in months" :key="idx">
                                     <button type="button" @click="selectMonth(idx + 1)"
@@ -193,7 +193,7 @@
                             </svg>
                         </button>
                         <div x-show="yearOpen" @click.away="yearOpen = false" x-transition
-                            class="date-picker-dropdown" style="width: 80px;">
+                            class="date-picker-dropdown w-[80px]">
                             <div class="year-grid">
                                 <template x-for="y in years" :key="y">
                                     <button type="button" @click="selectYear(y)"
@@ -330,7 +330,12 @@
                 selectedDay: parseInt(parts[2]) || new Date().getDate(),
                 selectedMonth: parseInt(parts[1]) || new Date().getMonth() + 1,
                 selectedYear: parseInt(parts[0]) || new Date().getFullYear(),
-                months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                // D.14 — month names come from the browser's native Intl API so
+                // they automatically match the current app locale without having
+                // to sync hardcoded arrays with lang files.
+                months: Array.from({length: 12}, (_, i) =>
+                    new Date(2000, i, 1).toLocaleString('{{ app()->getLocale() }}', { month: 'short' })
+                ),
                 years: [{{ date('Y') - 1 }}, {{ date('Y') }}, {{ date('Y') + 1 }}],
                 
                 navigateToDate() {

@@ -2,13 +2,12 @@
 
 namespace Tests\Feature;
 
-use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Product;
-use App\Models\User;
 use App\Models\Tenant;
+use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -17,6 +16,7 @@ class InventoryTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Tenant $tenant;
 
     protected function setUp(): void

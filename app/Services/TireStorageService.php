@@ -46,7 +46,7 @@ class TireStorageService
     public function getStorageMap(): Collection
     {
         // Explicitly filter by current tenant to avoid Global Scope issues
-        $tenantId = auth()->user()->tenant_id ?? tenant()->id;
+        $tenantId = tenant_id();
         $sections = \App\Models\StorageSection::where('tenant_id', $tenantId)->get();
 
         $map = [];
@@ -199,6 +199,8 @@ class TireStorageService
             }
         }
 
+        \App\Support\PlanQuota::assertCanAddCustomer();
+
         return Customer::create([
             'name' => $data['name'],
             'phone' => $data['phone'],
@@ -207,6 +209,8 @@ class TireStorageService
 
     private function createVehicle(Customer $customer, array $data)
     {
+        \App\Support\PlanQuota::assertCanAddVehicle();
+
         // Parse vehicle info similar to original controller logic
         $vehicleParts = array_map('trim', explode(',', $data['vehicle_info']));
         $model = $vehicleParts[0] ?? 'Unknown';
@@ -218,10 +222,75 @@ class TireStorageService
 
         return Vehicle::create([
             'customer_id' => $customer->id,
-            'license_plate' => strtoupper(trim($data['registration'])),
+            'license_plate' => \App\Support\LicensePlate::normalize($data['registration']),
             'make' => $make,
             'model' => $actualModel,
             'year' => $year,
         ]);
+    }
+
+    /**
+     * Create a work order for a tire hotel job (storage, season change, etc.).
+     */
+    public function createTireWorkOrder(Tire $tire, string $serviceType = 'New Storage', ?int $technicianId = null): \App\Models\WorkOrder
+    {
+        $storageFee = [
+            'name' => "Seasonal Storage Fee ({$tire->season})",
+            'price' => $tire->storage_fee > 0 ? $tire->storage_fee : config('crm.tire_hotel.default_storage_fee'),
+            'completed' => false,
+        ];
+
+        $labor = [
+            'name' => 'Tire Change & Balancing (4 Wheels)',
+            'price' => config('crm.tire_hotel.default_tire_change_fee'),
+            'completed' => false,
+        ];
+
+        return \App\Models\WorkOrder::create([
+            'tenant_id' => tenant_id(),
+            'customer_id' => $tire->customer_id,
+            'vehicle_id' => $tire->vehicle_id,
+            'technician_id' => $technicianId,
+            'status' => 'created',
+            'started_at' => now(),
+            'service_tasks' => [$storageFee, $labor],
+            'customer_issues' => "Customer requested tire storage ({$serviceType}).\nLocation: {$tire->storage_location}",
+            'technician_notes' => "Tires stored: {$tire->brand} {$tire->model} ({$tire->size}).",
+        ]);
+    }
+
+    /**
+     * Get tires that are ready for pickup.
+     */
+    public function getUpcomingPickups(): Collection
+    {
+        return Tire::with(['customer', 'vehicle'])
+            ->where('status', 'ready_pickup')
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(fn (Tire $tire) => [
+                'customer_name' => $tire->customer->name ?? 'Unknown Customer',
+                'vehicle' => $tire->vehicle->display_name ?? 'Unknown Vehicle',
+                'urgency' => 'Ready Now',
+            ]);
+    }
+
+    /**
+     * Get tires needing maintenance or upcoming inspection.
+     */
+    public function getMaintenanceAlerts(): Collection
+    {
+        return Tire::with(['customer', 'vehicle'])
+            ->where(function ($outer) {
+                $outer->where('status', 'maintenance')
+                    ->orWhere(function ($q) {
+                        $q->where('status', 'stored')
+                            ->where('next_inspection_date', '<=', now()->addDays(7));
+                    });
+            })
+            ->latest()
+            ->take(5)
+            ->get();
     }
 }

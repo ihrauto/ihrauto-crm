@@ -45,6 +45,7 @@
                 autocomplete="username"
                 class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-400 bg-white shadow-sm transition-all @error('email') border-red-400 focus:ring-red-200 @enderror"
                 placeholder="you@company.com">
+            <p class="mt-2 text-xs text-gray-500">IHRAUTO CRM uses one account per email across the whole platform.</p>
             @error('email')
                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
             @enderror

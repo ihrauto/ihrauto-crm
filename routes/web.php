@@ -93,6 +93,7 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
     });
 
     Route::middleware('module:access customers')->group(function () {
+        Route::post('/customers/merge', [CustomerController::class, 'merge'])->name('customers.merge');
         Route::resource('customers', CustomerController::class);
         Route::prefix('ajax')->group(function () {
             Route::get('/customers/search', [CustomerController::class, 'search'])->name('tenant.ajax.customers.search');
@@ -160,8 +161,14 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    // Throttle profile mutations — changing email is a high-value target (it
+    // feeds into password reset), and bulk PATCHes are never a legitimate flow.
+    Route::patch('/profile', [ProfileController::class, 'update'])
+        ->middleware('throttle:10,15')
+        ->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])
+        ->middleware('throttle:3,15')
+        ->name('profile.destroy');
 });
 
 Route::middleware(['auth', 'role:super-admin'])->prefix('admin')->name('admin.')->group(function () {

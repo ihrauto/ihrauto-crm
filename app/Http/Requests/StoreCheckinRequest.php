@@ -57,22 +57,20 @@ class StoreCheckinRequest extends FormRequest
                     'string',
                     'max:15',
                     function ($attribute, $value, $fail) {
-                        // Normalize license plate (remove spaces, convert to uppercase)
-                        $normalizedPlate = strtoupper(str_replace(' ', '', trim($value)));
+                        [$expr, $bindings] = \App\Support\LicensePlate::whereExpression($value);
 
-                        // Check if any existing vehicle has this normalized plate
-                        $existingVehicle = Vehicle::whereRaw("UPPER(REPLACE(license_plate, ' ', '')) = ?", [$normalizedPlate])
+                        $existingVehicle = Vehicle::whereRaw($expr, $bindings)
                             ->where('tenant_id', tenant_id())
                             ->first();
 
                         if ($existingVehicle) {
-                            $fail('A vehicle with license plate "' . $existingVehicle->license_plate . '" is already registered in our system.');
+                            $fail('A vehicle with license plate "'.$existingVehicle->license_plate.'" is already registered in our system.');
                         }
                     },
                 ],
                 'make' => 'required|string|max:50',
                 'model' => 'required|string|max:50',
-                'year' => 'required|integer|min:1900|max:' . (date('Y') + 1),
+                'year' => 'required|integer|min:'.\App\Models\Vehicle::MIN_YEAR.'|max:'.\App\Models\Vehicle::maxYear(),
                 'color' => 'nullable|string|max:30',
                 'mileage' => 'nullable|integer|min:0',
                 'services' => 'required|array|min:1',

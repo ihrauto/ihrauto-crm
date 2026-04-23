@@ -1,6 +1,6 @@
 # Engineering Board
 
-Last updated: 2026-03-10
+Last updated: 2026-03-12
 
 ## Now
 
@@ -16,6 +16,15 @@ Last updated: 2026-03-10
 
 ## Done
 
+- `ENG-003` Production launch hardening remediation
+  - Owner: engineering
+  - Outcome: locked tenant role assignment to launch-safe roles, removed tenant permission editing from the route surface, hardened mechanic invite/login lifecycle, made tenant/token revocation immediate via shared cache invalidation, fixed payment idempotency and check-in photo rollback behavior, aligned work-order status validation, enforced tenant module toggles at runtime, and replaced unsafe production startup seeding with a minimal bootstrap path.
+  - Verification: `php artisan test`, `php artisan route:cache`, `npm run build`, `npx eslint resources/js/**/*.js`, `./vendor/bin/pint --test`
+
+- `ENG-002` Production beta readiness finish pass
+  - Owner: engineering
+  - Outcome: replaced the placeholder tenant pricing path with a real manual-billing page, added super-admin billing controls, blocked destructive customer deletion when dependencies exist, wired cloud-ready storage/backup/runtime config, and added missing feature coverage for Check-in, Tire Hotel, and Management/Admin flows.
+  - Verification: `php artisan test`
 - `ENG-000` Documentation system bootstrap
   - Owner: engineering
   - Outcome: added architecture, workflow, code-map, function-index, changelog, decision-log, and task-tracking documentation structure to the repository.

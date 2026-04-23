@@ -1,3 +1,27 @@
+{{--
+  Accessible modal component with Alpine-powered focus trapping, ESC-to-close,
+  and backdrop click dismiss.
+
+  USE THIS COMPONENT FOR ALL NEW MODALS. The codebase still has some legacy
+  `<dialog>` + `showModal()` usages in products/services blades — these are
+  technically accessible (native HTML) but inconsistent with the rest of the
+  app. Prefer `<x-modal>` going forward so focus trap and transitions match.
+
+  USAGE:
+    <x-modal name="confirm-delete" max-width="md">
+        <div class="p-6">
+            <h3 id="modal-confirm-delete-title">Delete customer?</h3>
+            <form method="POST" action="{{ route('customers.destroy', $customer) }}">
+                @csrf @method('DELETE')
+                <x-primary-button>Delete</x-primary-button>
+                <x-secondary-button x-on:click="$dispatch('close')">Cancel</x-secondary-button>
+            </form>
+        </div>
+    </x-modal>
+
+  Open from elsewhere:
+    <button x-on:click="$dispatch('open-modal', 'confirm-delete')">Open</button>
+--}}
 @props([
     'name',
     'show' => false,
@@ -46,6 +70,9 @@ $maxWidth = [
     x-on:keydown.tab.prevent="$event.shiftKey || nextFocusable().focus()"
     x-on:keydown.shift.tab.prevent="prevFocusable().focus()"
     x-show="show"
+    role="dialog"
+    aria-modal="true"
+    :aria-label="$el.querySelector('[x-modal-title]')?.textContent || '{{ $name }}'"
     class="fixed inset-0 overflow-y-auto px-4 py-6 sm:px-0 z-50"
     style="display: {{ $show ? 'block' : 'none' }};"
 >

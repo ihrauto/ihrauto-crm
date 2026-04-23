@@ -94,7 +94,10 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => 'prefer',
+            // Require TLS by default so production can't silently downgrade to
+            // plaintext against managed Postgres. Allow override via env for
+            // local development where a self-signed cert may be in play.
+            'sslmode' => env('DB_SSLMODE', 'require'),
         ],
 
         'sqlsrv' => [

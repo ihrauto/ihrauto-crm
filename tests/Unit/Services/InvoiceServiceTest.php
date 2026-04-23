@@ -176,7 +176,7 @@ class InvoiceServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_creates_fallback_item_when_no_tasks_or_parts()
+    public function it_rejects_invoice_with_no_tasks_or_parts()
     {
         $workOrder = WorkOrder::factory()->create([
             'tenant_id' => $this->tenant->id,
@@ -187,11 +187,11 @@ class InvoiceServiceTest extends TestCase
             'parts_used' => null,
         ]);
 
-        DB::transaction(function () use ($workOrder) {
-            $invoice = $this->service->createFromWorkOrder($workOrder);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('no service tasks or parts recorded');
 
-            $this->assertEquals(1, $invoice->items->count());
-            $this->assertEquals('General Maintenance', $invoice->items->first()->description);
+        DB::transaction(function () use ($workOrder) {
+            $this->service->createFromWorkOrder($workOrder);
         });
     }
 
@@ -213,5 +213,144 @@ class InvoiceServiceTest extends TestCase
             $item = $invoice->items->first();
             $this->assertEquals(config('crm.tax_rate'), $item->tax_rate);
         });
+    }
+
+    #[Test]
+    public function it_throws_insufficient_stock_exception_when_quantity_exceeds_available()
+    {
+        $product = Product::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stock_quantity' => 5,
+        ]);
+
+        $workOrder = WorkOrder::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'parts_used' => [
+                ['name' => $product->name, 'qty' => 10, 'price' => 25, 'product_id' => $product->id],
+            ],
+        ]);
+
+        $this->expectException(\App\Exceptions\InsufficientStockException::class);
+
+        DB::transaction(function () use ($workOrder) {
+            $this->service->processStockDeductions($workOrder);
+        });
+    }
+
+    #[Test]
+    public function insufficient_stock_does_not_partially_deduct_other_products()
+    {
+        // Product A has enough stock, Product B does not.
+        // If A is processed before B, we must NOT deduct A when B fails.
+        $productA = Product::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Product A',
+            'stock_quantity' => 10,
+        ]);
+        $productB = Product::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Product B',
+            'stock_quantity' => 2,
+        ]);
+
+        $workOrder = WorkOrder::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'parts_used' => [
+                ['name' => 'Product A', 'qty' => 3, 'price' => 10, 'product_id' => $productA->id],
+                ['name' => 'Product B', 'qty' => 5, 'price' => 20, 'product_id' => $productB->id], // insufficient
+            ],
+        ]);
+
+        try {
+            DB::transaction(function () use ($workOrder) {
+                $this->service->processStockDeductions($workOrder);
+            });
+            $this->fail('Expected InsufficientStockException was not thrown');
+        } catch (\App\Exceptions\InsufficientStockException $e) {
+            // expected
+        }
+
+        // Neither product should have been deducted (atomic)
+        $productA->refresh();
+        $productB->refresh();
+        $this->assertEquals(10, $productA->stock_quantity, 'Product A was deducted despite exception');
+        $this->assertEquals(2, $productB->stock_quantity, 'Product B was modified despite exception');
+
+        // No stock movements should exist
+        $this->assertDatabaseMissing('stock_movements', [
+            'reference_type' => WorkOrder::class,
+            'reference_id' => $workOrder->id,
+        ]);
+    }
+
+    #[Test]
+    public function it_allows_deduction_when_stock_is_exactly_equal_to_quantity()
+    {
+        $product = Product::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stock_quantity' => 5,
+        ]);
+
+        $workOrder = WorkOrder::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'parts_used' => [
+                ['name' => $product->name, 'qty' => 5, 'price' => 25, 'product_id' => $product->id],
+            ],
+        ]);
+
+        DB::transaction(function () use ($workOrder) {
+            $this->service->processStockDeductions($workOrder);
+        });
+
+        $product->refresh();
+        $this->assertEquals(0, $product->stock_quantity);
+    }
+
+    #[Test]
+    public function stock_deductions_are_idempotent_when_called_twice()
+    {
+        $product = Product::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stock_quantity' => 10,
+        ]);
+
+        $workOrder = WorkOrder::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'parts_used' => [
+                ['name' => $product->name, 'qty' => 3, 'price' => 10, 'product_id' => $product->id],
+            ],
+        ]);
+
+        // First call: deducts stock
+        DB::transaction(function () use ($workOrder) {
+            $this->service->processStockDeductions($workOrder);
+        });
+
+        $product->refresh();
+        $this->assertEquals(7, $product->stock_quantity);
+
+        // Second call: must be a no-op
+        DB::transaction(function () use ($workOrder) {
+            $this->service->processStockDeductions($workOrder);
+        });
+
+        $product->refresh();
+        $this->assertEquals(7, $product->stock_quantity, 'Stock was double-deducted');
+
+        // Only one movement should exist
+        $this->assertEquals(
+            1,
+            \App\Models\StockMovement::where('reference_type', WorkOrder::class)
+                ->where('reference_id', $workOrder->id)
+                ->count()
+        );
     }
 }

@@ -105,6 +105,7 @@ class SeedDemoCatalogCommand extends Command
 
         if ($tenants->isEmpty()) {
             $this->error('No tenants found.');
+
             return Command::FAILURE;
         }
 
@@ -133,8 +134,9 @@ class SeedDemoCatalogCommand extends Command
                 ->where('sku', $productData['sku'])
                 ->exists();
 
-            if ($exists && !$force) {
+            if ($exists && ! $force) {
                 $this->line("   ⏭️  Product exists: {$productData['name']}");
+
                 continue;
             }
 
@@ -155,8 +157,9 @@ class SeedDemoCatalogCommand extends Command
                 ->where('code', $serviceData['code'])
                 ->exists();
 
-            if ($exists && !$force) {
+            if ($exists && ! $force) {
                 $this->line("   ⏭️  Service exists: {$serviceData['name']}");
+
                 continue;
             }
 

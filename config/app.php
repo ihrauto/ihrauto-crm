@@ -135,4 +135,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Auto-Login (Development Only)
+    |--------------------------------------------------------------------------
+    |
+    | When enabled in a LOCAL environment, the tenant middleware will
+    | automatically log in as the first tenant user. This MUST remain
+    | false in production. Requires APP_ENV=local as an additional guard.
+    |
+    */
+
+    'auto_login_enabled' => (bool) env('AUTO_LOGIN_ENABLED', false),
+
 ];

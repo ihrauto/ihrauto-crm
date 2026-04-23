@@ -17,6 +17,7 @@ class ProductServiceController extends Controller
         $products = Product::latest()
             ->when($search, function ($query, $search) {
                 $searchLower = strtolower($search);
+
                 return $query->where(function ($q) use ($searchLower) {
                     $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
                         ->orWhereRaw('LOWER(sku) LIKE ?', ["%{$searchLower}%"]);

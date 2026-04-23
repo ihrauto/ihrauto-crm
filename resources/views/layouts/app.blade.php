@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full" data-env="{{ app()->environment() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -88,12 +88,11 @@
         })();
     </script>
 </head>
-<body class="h-full font-sans antialiased text-slate-900 bg-purple-light-custom" 
-      x-data="{ 
+<body class="h-full font-sans antialiased text-slate-900 {{ request()->is('admin*') ? 'bg-white' : 'bg-purple-light-custom' }}"
+      x-data="{
           sidebarOpen: false,
           collapsed: document.documentElement.classList.contains('sidebar-collapsed'),
           init() {
-              // Enable transitions after a short delay to prevent flash on load
               setTimeout(() => document.body.classList.add('transitions-enabled'), 100);
           },
           toggleCollapse() {
@@ -102,8 +101,13 @@
               localStorage.setItem('sidebarCollapsed', this.collapsed);
           }
       }">
+    <!-- Skip to main content link for keyboard users -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:bg-indigo-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg">
+        Skip to main content
+    </a>
+
     <div class="min-h-screen flex">
-        
+
         <!-- Mobile Sidebar Backdrop -->
         <div x-show="sidebarOpen" 
              x-transition:enter="transition-opacity ease-linear duration-300"
@@ -118,11 +122,12 @@
 
         <!-- Sidebar -->
         @if(!request()->is('admin*'))
-        <nav :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" 
+        <nav :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+             aria-label="Main navigation"
              class="sidebar-nav bg-navy-custom flex-shrink-0 flex flex-col fixed inset-y-0 z-50 shadow-xl lg:translate-x-0">
             
             <!-- Close button (mobile only) -->
-            <button @click="sidebarOpen = false" class="absolute top-5 right-4 p-2 text-indigo-300 hover:text-white lg:hidden">
+            <button @click="sidebarOpen = false" aria-label="Close navigation menu" class="absolute top-5 right-4 p-2 text-indigo-300 hover:text-white lg:hidden">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -143,9 +148,11 @@
                 </div>
                 
                 <!-- Collapse Toggle Button (Desktop only) -->
-                <button @click="toggleCollapse()" 
+                <button @click="toggleCollapse()"
                         class="toggle-btn hidden lg:flex absolute -right-4 top-6 w-8 h-8 bg-indigo-600 hover:bg-indigo-500 rounded-full items-center justify-center text-white shadow-lg hover:scale-110 border-2 border-[#1E1B4B]"
-                        :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+                        :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                        :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                        aria-controls="nav-container">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path>
                     </svg>
@@ -307,64 +314,72 @@
         @endif
 
         <!-- Main Content -->
-        <main class="main-content flex-1 flex flex-col min-h-screen">
+        <main id="main-content" role="main" class="{{ request()->is('admin*') ? 'flex-1 flex flex-col min-h-screen w-full' : 'main-content flex-1 flex flex-col min-h-screen' }}">
             
             @if(request()->is('admin*'))
-            {{-- ADMIN HEADER: Minimal, control-panel style --}}
-            <header class="bg-white border-b border-gray-200 h-20 flex items-center justify-between px-6 fixed top-0 left-0 right-0 z-40">
-                {{-- Left: Branding + Navigation --}}
-                <div class="flex items-center space-x-6">
-                    {{-- Brand --}}
-                    <div class="flex items-center">
-                        <span class="text-lg font-bold text-indigo-900 tracking-tight">IHRAUTO</span>
-                    </div>
-                    
-                    {{-- Vertical Line Separator --}}
-                    <div class="h-8 w-px bg-indigo-200"></div>
-                    
-                    {{-- Navigation --}}
-                    <nav class="flex items-center space-x-6">
-                        <a href="{{ route('admin.dashboard') }}" 
-                           class="text-sm {{ request()->routeIs('admin.dashboard') ? 'text-indigo-600 font-bold' : 'text-indigo-400 hover:text-indigo-600 font-medium' }} transition-colors">
-                            Dashboard
-                        </a>
-                        <a href="{{ route('admin.tenants.index') }}" 
-                           class="text-sm {{ request()->routeIs('admin.tenants.*') ? 'text-indigo-600 font-bold' : 'text-indigo-400 hover:text-indigo-600 font-medium' }} transition-colors">
-                            Tenants
-                        </a>
-                    </nav>
-                </div>
-                
-                {{-- Right: Profile/Logout --}}
-                <div class="flex items-center">
-                    <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" @click.away="open = false" 
-                                class="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-900">
-                            <span>Account</span>
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </button>
-                        
-                        <div x-show="open" 
-                             x-transition:enter="transition ease-out duration-100"
-                             x-transition:enter-start="opacity-0 scale-95"
-                             x-transition:enter-end="opacity-100 scale-100"
-                             x-transition:leave="transition ease-in duration-75"
-                             x-transition:leave-start="opacity-100 scale-100"
-                             x-transition:leave-end="opacity-0 scale-95"
-                             class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md py-1 z-50" 
-                             style="display: none;">
-                            <div class="px-4 py-2 border-b border-gray-100">
-                                <p class="text-xs text-gray-400">Signed in as</p>
-                                <p class="text-sm font-medium text-gray-900 truncate">{{ auth()->user()->email ?? 'Admin' }}</p>
+            {{-- ADMIN HEADER: Plain operational shell --}}
+            <header class="sticky top-0 z-40 border-b border-slate-300 bg-white">
+                <div class="px-4 py-4 lg:px-6">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-8">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">IHRAUTO Admin</p>
+                                <p class="text-lg font-semibold text-slate-900">Platform Control</p>
                             </div>
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                    Sign Out
+
+                            <nav class="flex items-center gap-1">
+                                <a href="{{ route('admin.dashboard') }}"
+                                   class="rounded-md px-3 py-2 text-sm font-medium transition {{ request()->routeIs('admin.dashboard') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">
+                                    Overview
+                                </a>
+                                <a href="{{ route('admin.tenants.index') }}"
+                                   class="rounded-md px-3 py-2 text-sm font-medium transition {{ request()->routeIs('admin.tenants.*') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">
+                                    Tenants
+                                </a>
+                            </nav>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3 lg:justify-end">
+                            <a href="{{ route('health.check') }}" target="_blank"
+                                class="inline-flex items-center rounded-md border border-slate-400 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                                Health
+                            </a>
+
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click="open = !open" @click.away="open = false"
+                                    aria-label="Admin menu" aria-haspopup="true" :aria-expanded="open ? 'true' : 'false'"
+                                    class="flex items-center gap-3 rounded-md border border-slate-400 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50">
+                                    <div class="hidden sm:block">
+                                        <p class="font-medium text-slate-900">{{ auth()->user()->email ?? 'Admin' }}</p>
+                                    </div>
+                                    <svg class="h-4 w-4 text-slate-400 transition-transform duration-200" :class="{ 'rotate-180': open }"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
                                 </button>
-                            </form>
+
+                                <div x-show="open"
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="opacity-0 scale-95"
+                                     x-transition:enter-end="opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="opacity-100 scale-100"
+                                     x-transition:leave-end="opacity-0 scale-95"
+                                     class="absolute right-0 mt-2 w-56 overflow-hidden rounded-md border border-slate-300 bg-white py-2 shadow-lg"
+                                     style="display: none;">
+                                    <div class="border-b border-slate-100 px-4 py-3">
+                                        <p class="text-xs text-slate-500">Signed in as</p>
+                                        <p class="mt-1 truncate text-sm font-medium text-slate-900">{{ auth()->user()->email ?? 'Admin' }}</p>
+                                    </div>
+                                    <form method="POST" action="{{ route('logout') }}" class="p-2">
+                                        @csrf
+                                        <button type="submit"
+                                            class="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-50">
+                                            Sign Out
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -376,7 +391,7 @@
                 <!-- Mobile Menu Button + Title -->
                 <div class="flex items-center">
                     <!-- Hamburger Menu (mobile/tablet only) -->
-                    <button @click="sidebarOpen = true" class="p-2 mr-3 -ml-1 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg lg:hidden">
+                    <button @click="sidebarOpen = true" aria-label="Open navigation menu" class="p-2 mr-3 -ml-1 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg lg:hidden">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
@@ -399,7 +414,7 @@
                      
                     <!-- Notifications -->
                     <div class="relative" x-data="{ notifOpen: false }">
-                        <button @click="notifOpen = !notifOpen" class="relative p-2 text-indigo-300 hover:text-indigo-600 transition-colors rounded-full hover:bg-indigo-50">
+                        <button @click="notifOpen = !notifOpen" aria-label="Notifications" aria-haspopup="true" :aria-expanded="notifOpen ? 'true' : 'false'" class="relative p-2 text-indigo-300 hover:text-indigo-600 transition-colors rounded-full hover:bg-indigo-50">
                             <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
@@ -434,7 +449,7 @@
                     
                     <!-- Profile Dropdown -->
                     <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" @click.away="open = false" class="flex items-center space-x-2 text-sm font-semibold text-indigo-900 hover:text-indigo-700 transition-colors p-2 rounded-lg hover:bg-indigo-50">
+                        <button @click="open = !open" @click.away="open = false" aria-label="User menu" aria-haspopup="true" :aria-expanded="open ? 'true' : 'false'" class="flex items-center space-x-2 text-sm font-semibold text-indigo-900 hover:text-indigo-700 transition-colors p-2 rounded-lg hover:bg-indigo-50">
                             <span class="hidden sm:inline">Profile</span>
                             <svg class="w-4 h-4 text-indigo-400 transition-transform duration-200" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </button>
@@ -493,7 +508,7 @@
             </header>
             @endif
 
-            <div class="{{ request()->is('admin*') ? 'p-6 mt-20' : 'p-4 lg:p-10 mt-16 lg:mt-20' }}">
+            <div class="{{ request()->is('admin*') ? 'p-4 lg:p-6' : 'p-4 lg:p-10 mt-16 lg:mt-20' }}">
                  @if(isset($breadcrumbs))
                     <nav class="flex mb-6 lg:mb-8 text-sm text-indigo-400" aria-label="Breadcrumb">
                         <ol class="flex items-center space-x-2 lg:space-x-3 overflow-x-auto">

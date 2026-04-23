@@ -23,7 +23,7 @@ class UpdateTenantLastSeen
         if ($tenant) {
 
             // Throttle: only update if null or older than 5 minutes
-            if (!$tenant->last_seen_at || $tenant->last_seen_at->lt(now()->subMinutes(5))) {
+            if (! $tenant->last_seen_at || $tenant->last_seen_at->lt(now()->subMinutes(5))) {
                 $tenant->update(['last_seen_at' => now()]);
             }
         }

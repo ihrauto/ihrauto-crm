@@ -54,7 +54,7 @@ class TenantApiAuthTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $plainTextToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$plainTextToken)
             ->getJson('/api/v1/checkins/active');
 
         $response->assertOk();
@@ -78,11 +78,44 @@ class TenantApiAuthTest extends TestCase
             'license_plate' => 'ZH1001',
         ]);
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $plainTextToken)
+        $response = $this->withHeader('Authorization', 'Bearer '.$plainTextToken)
             ->getJson('/api/customers/search?query=legacy');
 
         $response->assertOk();
         $response->assertHeader('Deprecation', 'true');
         $response->assertHeader('Link', '</api/v1>; rel="successor-version"');
+    }
+
+    public function test_revoked_token_is_rejected_immediately_even_after_cache_warmup(): void
+    {
+        $tenant = Tenant::factory()->create();
+        [$tokenModel, $plainTextToken] = TenantApiToken::issue($tenant, 'revocation-test');
+
+        $this->withHeader('Authorization', 'Bearer '.$plainTextToken)
+            ->getJson('/api/v1/checkins/active')
+            ->assertOk();
+
+        $tokenModel->revoke();
+
+        $this->withHeader('Authorization', 'Bearer '.$plainTextToken)
+            ->getJson('/api/v1/checkins/active')
+            ->assertStatus(401);
+    }
+
+    public function test_suspended_tenant_token_is_rejected_immediately_even_after_cache_warmup(): void
+    {
+        $tenant = Tenant::factory()->create();
+        [, $plainTextToken] = TenantApiToken::issue($tenant, 'suspension-test');
+
+        $this->withHeader('Authorization', 'Bearer '.$plainTextToken)
+            ->getJson('/api/v1/checkins/active')
+            ->assertOk();
+
+        $tenant->suspend();
+
+        $this->withHeader('Authorization', 'Bearer '.$plainTextToken)
+            ->getJson('/api/v1/checkins/active')
+            ->assertStatus(403)
+            ->assertJsonPath('error', 'Tenant inactive');
     }
 }

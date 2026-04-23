@@ -1,22 +1,36 @@
+# =============================================================================
+# Render Blueprint — IHRAUTO CRM
+# =============================================================================
+# PRODUCTION BLUEPRINT:
+#   - Paid always-on web service (starter)
+#   - Managed PostgreSQL with retention/PITR (basic-1gb or better)
+#   - Managed Redis-compatible key/value store for cache + queue
+#   - S3-compatible object storage for uploads and backups (configure secrets in Render dashboard)
+# =============================================================================
+
 services:
   - type: web
     name: ihrauto-crm
     env: docker
-    plan: free
+    plan: starter
     region: frankfurt
     branch: main
     numInstances: 1
-    healthCheckPath: /health
+    healthCheckPath: /up
     envVars:
       - key: APP_KEY
         generateValue: true
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
-        value: false
+        value: "false"
+      - key: APP_URL
+        sync: false
       - key: LOG_CHANNEL
         value: stderr
-      # Database Configuration
+      - key: LOG_LEVEL
+        value: info
+      # --- Database ---
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
@@ -39,7 +53,36 @@ services:
         fromDatabase:
           name: ihrauto-db
           property: password
-      # Email Configuration (Resend)
+      # --- Session & Security ---
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_ENCRYPT
+        value: "true"
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: AUTO_LOGIN_ENABLED
+        value: "false"
+      # --- Cache / Queue ---
+      - key: CACHE_STORE
+        value: redis
+      - key: QUEUE_CONNECTION
+        value: redis
+      - key: REDIS_CLIENT
+        value: phpredis
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: ihrauto-redis
+          property: connectionString
+      # --- CORS ---
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false  # Set to your frontend domain(s) in Render dashboard
+      # --- Billing / Support ---
+      - key: CRM_SUPPORT_EMAIL
+        value: info@ihrauto.ch
+      - key: CRM_SUPPORT_PHONE
+        sync: false
+      # --- Email (Resend) ---
       - key: MAIL_MAILER
         value: resend
       - key: RESEND_API_KEY
@@ -48,19 +91,165 @@ services:
         value: noreply@ihrauto.ch
       - key: MAIL_FROM_NAME
         value: IHRAUTO CRM
-      # Super Admin Credentials (REQUIRED)
+      # --- Backup Notifications ---
+      - key: BACKUP_NOTIFICATION_EMAIL
+        value: info@ihrauto.ch
+      - key: BACKUP_DESTINATION_DISK
+        value: backups
+      - key: BACKUP_FILESYSTEM_DRIVER
+        value: s3
+      - key: BACKUP_FILESYSTEM_KEY
+        sync: false
+      - key: BACKUP_FILESYSTEM_SECRET
+        sync: false
+      - key: BACKUP_FILESYSTEM_REGION
+        sync: false
+      - key: BACKUP_FILESYSTEM_BUCKET
+        sync: false
+      - key: BACKUP_FILESYSTEM_ENDPOINT
+        sync: false
+      - key: BACKUP_FILESYSTEM_URL
+        sync: false
+      - key: BACKUP_FILESYSTEM_ROOT
+        value: backups
+      # --- Public File Storage ---
+      - key: FILESYSTEM_DISK
+        value: public
+      - key: PUBLIC_FILESYSTEM_DRIVER
+        value: s3
+      - key: PUBLIC_FILESYSTEM_KEY
+        sync: false
+      - key: PUBLIC_FILESYSTEM_SECRET
+        sync: false
+      - key: PUBLIC_FILESYSTEM_REGION
+        sync: false
+      - key: PUBLIC_FILESYSTEM_BUCKET
+        sync: false
+      - key: PUBLIC_FILESYSTEM_ENDPOINT
+        sync: false
+      - key: PUBLIC_FILESYSTEM_URL
+        sync: false
+      - key: PUBLIC_FILESYSTEM_ROOT
+        value: public
+      # --- Google OAuth ---
+      - key: GOOGLE_CLIENT_ID
+        sync: false  # Set in Render dashboard
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false  # Set in Render dashboard
+      - key: GOOGLE_REDIRECT_URL
+        sync: false  # Set to https://your-domain/auth/google/callback
+      # --- Monitoring ---
+      # --- CDN (optional) ---
+      - key: ASSET_URL
+        sync: false  # Set to CDN URL (e.g. https://cdn.ihrauto.ch) if using a CDN
+      # --- Monitoring ---
+      - key: SENTRY_LARAVEL_DSN
+        sync: false  # Set in Render dashboard
+      - key: SENTRY_RELEASE
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0.2"
+      # --- Super Admin (REQUIRED for initial seeding) ---
       - key: SUPERADMIN_EMAIL
         value: info@ihrauto.ch
       - key: SUPERADMIN_NAME
         value: Platform Owner
       - key: SUPERADMIN_PASSWORD
         sync: false  # Set this secret in Render dashboard
-      - key: STARTUP_COMMAND
-        value: php artisan migrate --force && apache2-foreground
+
+  # =========================================================================
+  # STAGING — deploys from 'staging' branch with separate DB/Redis
+  # =========================================================================
+  - type: web
+    name: ihrauto-crm-staging
+    env: docker
+    plan: starter
+    region: frankfurt
+    branch: staging
+    numInstances: 1
+    healthCheckPath: /up
+    envVars:
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_ENV
+        value: staging
+      - key: APP_DEBUG
+        value: "true"
+      - key: APP_URL
+        sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: debug
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: ihrauto-db-staging
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ihrauto-db-staging
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: ihrauto-db-staging
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: ihrauto-db-staging
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ihrauto-db-staging
+          property: password
+      - key: SESSION_DRIVER
+        value: database
+      - key: AUTO_LOGIN_ENABLED
+        value: "true"
+      - key: CACHE_STORE
+        value: redis
+      - key: QUEUE_CONNECTION
+        value: redis
+      - key: REDIS_CLIENT
+        value: phpredis
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: ihrauto-redis-staging
+          property: connectionString
+      - key: SENTRY_ENVIRONMENT
+        value: staging
+      - key: SUPERADMIN_EMAIL
+        value: info@ihrauto.ch
+      - key: SUPERADMIN_NAME
+        value: Platform Owner
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+
+  - type: keyvalue
+    name: ihrauto-redis
+    plan: starter
+    region: frankfurt
+    ipAllowList: []
+
+  - type: keyvalue
+    name: ihrauto-redis-staging
+    plan: free
+    region: frankfurt
+    ipAllowList: []
 
 databases:
   - name: ihrauto-db
     databaseName: ihrauto
     user: ihrauto_admin
+    plan: basic-1gb
+    region: frankfurt
+
+  - name: ihrauto-db-staging
+    databaseName: ihrauto_staging
+    user: ihrauto_staging
     plan: free
     region: frankfurt

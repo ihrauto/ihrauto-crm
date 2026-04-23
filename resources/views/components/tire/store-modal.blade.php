@@ -352,7 +352,7 @@
                         this.storage.isAvailable = false;
                     }
                 } catch (e) {
-                    console.error("Error fetching next slot:", e);
+                    window.appLogError("Error fetching next slot:", e);
                 } finally {
                     this.storage.isChecking = false;
                 }
@@ -370,7 +370,7 @@
                         ? '<span class="text-green-600 flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Available</span>'
                         : '<span class="text-red-500 flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Occupied</span>';
                 } catch (e) {
-                    console.error("Error checking availability:", e);
+                    window.appLogError("Error checking availability:", e);
                     this.storage.message = "Error checking availability";
                 } finally {
                     this.storage.isChecking = false;

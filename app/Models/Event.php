@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Event extends Model
 {
     use BelongsToTenant;
+
     protected $fillable = [
         'tenant_id',
         'user_id',

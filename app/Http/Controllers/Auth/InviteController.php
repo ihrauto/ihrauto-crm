@@ -14,12 +14,9 @@ class InviteController extends Controller
      */
     public function showSetupForm(string $token)
     {
-        $user = User::withoutGlobalScopes()
-            ->where('invite_token', $token)
-            ->where('invite_expires_at', '>', now())
-            ->first();
+        $user = $this->findUserByInviteToken($token);
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login')
                 ->withErrors(['email' => 'This invitation link is invalid or has expired.']);
         }
@@ -36,12 +33,9 @@ class InviteController extends Controller
      */
     public function setup(Request $request, string $token)
     {
-        $user = User::withoutGlobalScopes()
-            ->where('invite_token', $token)
-            ->where('invite_expires_at', '>', now())
-            ->first();
+        $user = $this->findUserByInviteToken($token);
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login')
                 ->withErrors(['email' => 'This invitation link is invalid or has expired.']);
         }
@@ -50,18 +44,57 @@ class InviteController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        // Set password and clear invite token
-        $user->update([
+        // Set password and clear invite token. `is_active` and `email_verified_at`
+        // are protected fields set via forceFill (not mass assignment) — invite
+        // acceptance is a trusted flow that legitimately activates the account.
+        $user->fill([
             'password' => Hash::make($request->password),
             'invite_token' => null,
             'invite_expires_at' => null,
-            'email_verified_at' => now(), // Mark as verified
         ]);
+        $user->forceFill([
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ])->save();
 
         // Log the user in
         auth()->login($user);
 
         return redirect()->route('dashboard')
             ->with('success', 'Your account has been activated! Welcome to IHR Auto CRM.');
+    }
+
+    /**
+     * Find a user by their invite token using timing-safe comparison.
+     *
+     * CRITICAL: direct `where('invite_token', $token)` is vulnerable to timing
+     * attacks — the DB comparison short-circuits on the first differing byte,
+     * leaking valid token prefixes. Instead, fetch all candidates (unexpired
+     * invites are a small set) and compare each with hash_equals(), which runs
+     * in constant time.
+     *
+     * withoutGlobalScopes() is intentional: invite acceptance happens before
+     * authentication, so tenant_id() is not yet set. Tokens are high-entropy
+     * secrets that act as the only authenticator.
+     */
+    private function findUserByInviteToken(string $token): ?User
+    {
+        if ($token === '' || mb_strlen($token) < 20) {
+            // Reject obviously-invalid tokens without hitting the DB
+            return null;
+        }
+
+        $candidates = User::withoutGlobalScopes()
+            ->whereNotNull('invite_token')
+            ->where('invite_expires_at', '>', now())
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            if (hash_equals((string) $candidate->invite_token, $token)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }

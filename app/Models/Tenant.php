@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Support\TenantCache;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class Tenant extends Model
@@ -38,6 +40,99 @@ class Tenant extends Model
         self::PLAN_STANDARD,
         self::PLAN_CUSTOM,
     ];
+
+    public static function planCatalog(): array
+    {
+        return [
+            self::PLAN_BASIC => [
+                'name' => 'Basic',
+                'price' => 49,
+                'price_label' => 'EUR 49',
+                'billing_label' => '/month',
+                'description' => 'For lean teams that need customer intake, work orders, and invoicing in one place.',
+                'highlights' => ['1 user', '100 customers', '200 vehicles', '50 work orders / month'],
+                'limits' => [
+                    'max_users' => 1,
+                    'max_customers' => 100,
+                    'max_vehicles' => 200,
+                    'max_work_orders' => 50,
+                ],
+                'features' => [
+                    'dashboard_basic',
+                    'customer_management',
+                    'vehicle_checkin',
+                    'work_orders_limited',
+                    'appointments',
+                    'invoicing_basic',
+                ],
+            ],
+            self::PLAN_STANDARD => [
+                'name' => 'Standard',
+                'price' => 149,
+                'price_label' => 'EUR 149',
+                'billing_label' => '/month',
+                'description' => 'For growing garages that need shared visibility across service, finance, and storage.',
+                'highlights' => ['5 users', '1,000 customers', '3,000 vehicles', 'Unlimited work orders'],
+                'limits' => [
+                    'max_users' => 5,
+                    'max_customers' => 1000,
+                    'max_vehicles' => 3000,
+                    'max_work_orders' => null,
+                ],
+                'features' => [
+                    'dashboard_full',
+                    'customer_management',
+                    'vehicle_checkin',
+                    'work_orders_unlimited',
+                    'appointments',
+                    'invoicing_custom',
+                    'tire_hotel',
+                    'multi_user',
+                    'staff_management',
+                    'advanced_reports',
+                    'email_support',
+                ],
+            ],
+            self::PLAN_CUSTOM => [
+                'name' => 'Custom',
+                'price' => null,
+                'price_label' => 'Custom',
+                'billing_label' => 'plan',
+                'description' => 'For workshop groups, custom rollout needs, and businesses that need deeper integration support.',
+                'highlights' => ['Unlimited users', 'Unlimited customers', 'Unlimited vehicles', 'Unlimited work orders'],
+                'limits' => [
+                    'max_users' => 999999,
+                    'max_customers' => 999999,
+                    'max_vehicles' => 999999,
+                    'max_work_orders' => null,
+                ],
+                'features' => [
+                    'dashboard_full',
+                    'dashboard_custom',
+                    'customer_management',
+                    'vehicle_checkin',
+                    'work_orders_unlimited',
+                    'appointments',
+                    'invoicing_whitelabel',
+                    'tire_hotel',
+                    'multi_user_unlimited',
+                    'staff_management',
+                    'advanced_reports',
+                    'api_access',
+                    'dedicated_support',
+                    'custom_branding',
+                    'custom_integrations',
+                    'data_migration',
+                    'on_premise_option',
+                ],
+            ],
+        ];
+    }
+
+    public static function planDefinition(?string $plan): array
+    {
+        return self::planCatalog()[$plan] ?? self::planCatalog()[self::PLAN_BASIC];
+    }
 
     protected $fillable = [
         'name',
@@ -110,17 +205,17 @@ class Tenant extends Model
 
         static::creating(function ($tenant) {
             // Auto-generate slug if not provided
-            if (!$tenant->slug) {
+            if (! $tenant->slug) {
                 $tenant->slug = Str::slug($tenant->name);
             }
 
             // Auto-generate subdomain if not provided
-            if (!$tenant->subdomain) {
+            if (! $tenant->subdomain) {
                 $tenant->subdomain = $tenant->slug;
             }
 
             // Set trial end date
-            if ($tenant->is_trial && !$tenant->trial_ends_at) {
+            if ($tenant->is_trial && ! $tenant->trial_ends_at) {
                 $tenant->trial_ends_at = now()->addDays(14); // 14-day trial
             }
         });
@@ -204,7 +299,7 @@ class Tenant extends Model
             return "https://{$this->domain}";
         }
 
-        return "https://{$this->subdomain}." . config('app.domain', 'yourapp.com');
+        return "https://{$this->subdomain}.".config('app.domain', 'yourapp.com');
     }
 
     public function getIsExpiredAttribute(): bool
@@ -221,7 +316,7 @@ class Tenant extends Model
         if ($this->is_trial && $this->trial_ends_at) {
             return max(0, now()->diffInDays($this->trial_ends_at, false));
         }
-        if (!$this->is_trial && $this->subscription_ends_at) {
+        if (! $this->is_trial && $this->subscription_ends_at) {
             return max(0, now()->diffInDays($this->subscription_ends_at, false));
         }
 
@@ -229,21 +324,48 @@ class Tenant extends Model
     }
 
     /**
+     * C-05: tenant-specific tax rate lookup.
+     *
+     * Settings JSON can override the platform default (config/crm.php).
+     * Swiss tenants keep 8.1% VAT automatically; international tenants can
+     * override without a code change.
+     *
+     * Returned as float percentage (e.g. 8.1, not 0.081).
+     */
+    public function taxRate(): float
+    {
+        $settings = $this->settings ?? [];
+        $candidate = $settings['tax_rate'] ?? null;
+
+        if (is_numeric($candidate)) {
+            return (float) $candidate;
+        }
+
+        return (float) config('crm.tax_rate', 8.1);
+    }
+
+    /**
      * Business Logic Methods
      */
     public function canAddUser(): bool
     {
-        return $this->users()->count() < $this->max_users;
+        $count = Cache::remember("tenant_{$this->id}_user_count", 60, fn () => $this->users()->count());
+
+        return $count < $this->max_users;
     }
 
     public function canAddCustomer(): bool
     {
-        return $this->customers()->count() < $this->max_customers;
+        $count = Cache::remember("tenant_{$this->id}_customer_count", 60, fn () => $this->customers()->count());
+
+        return $count < $this->max_customers;
     }
 
     public function canAddVehicle(): bool
     {
-        return $this->vehicles()->count() < $this->max_vehicles;
+        $count = Cache::remember("tenant_{$this->id}_vehicle_count", 60, fn () => $this->vehicles()->count());
+
+        return $count < $this->max_vehicles;
     }
 
     public function hasFeature(string $feature): bool
@@ -254,22 +376,24 @@ class Tenant extends Model
     public function enableFeature(string $feature): void
     {
         $features = $this->features ?? [];
-        if (!in_array($feature, $features)) {
+        if (! in_array($feature, $features)) {
             $features[] = $feature;
             $this->update(['features' => $features]);
+            TenantCache::forgetTenant($this);
         }
     }
 
     public function disableFeature(string $feature): void
     {
         $features = $this->features ?? [];
-        $features = array_filter($features, fn($f) => $f !== $feature);
+        $features = array_filter($features, fn ($f) => $f !== $feature);
         $this->update(['features' => array_values($features)]);
+        TenantCache::forgetTenant($this);
     }
 
     public function updateLastActivity(): void
     {
-        if (!$this->last_activity_at || $this->last_activity_at->lt(now()->subMinutes(5))) {
+        if (! $this->last_activity_at || $this->last_activity_at->lt(now()->subMinutes(5))) {
             $this->update(['last_activity_at' => now()]);
         }
     }
@@ -277,21 +401,32 @@ class Tenant extends Model
     public function suspend(): void
     {
         $this->update(['is_active' => false]);
+        TenantCache::forgetTenant($this);
     }
 
     public function activate(): void
     {
         $this->update(['is_active' => true]);
+        TenantCache::forgetTenant($this);
     }
 
     public function convertToSubscription(string $plan, \Carbon\Carbon $endsAt): void
     {
+        $definition = self::planDefinition($plan);
+
         $this->update([
             'is_trial' => false,
             'plan' => $plan,
             'subscription_ends_at' => $endsAt,
             'trial_ends_at' => null,
+            'max_users' => $definition['limits']['max_users'],
+            'max_customers' => $definition['limits']['max_customers'],
+            'max_vehicles' => $definition['limits']['max_vehicles'],
+            'max_work_orders' => $definition['limits']['max_work_orders'],
+            'features' => $definition['features'],
+            'is_active' => true,
         ]);
+        TenantCache::forgetTenant($this);
     }
 
     /**
@@ -303,73 +438,15 @@ class Tenant extends Model
      */
     public function getPlanLimits(): array
     {
-        return match ($this->plan) {
-            self::PLAN_BASIC => [
-                'max_users' => 1,
-                'max_customers' => 100,
-                'max_vehicles' => 200,
-                'max_work_orders' => 50, // per month
-                'features' => [
-                    'dashboard_basic',
-                    'customer_management',
-                    'vehicle_checkin',
-                    'work_orders_limited',
-                    'appointments',
-                    'invoicing_basic',
-                ],
-            ],
-            self::PLAN_STANDARD => [
-                'max_users' => 5,
-                'max_customers' => 1000,
-                'max_vehicles' => 3000,
-                'max_work_orders' => null, // unlimited
-                'features' => [
-                    'dashboard_full',
-                    'customer_management',
-                    'vehicle_checkin',
-                    'work_orders_unlimited',
-                    'appointments',
-                    'invoicing_custom',
-                    'tire_hotel',
-                    'multi_user',
-                    'staff_management',
-                    'advanced_reports',
-                    'email_support',
-                ],
-            ],
-            self::PLAN_CUSTOM => [
-                'max_users' => 999999, // unlimited
-                'max_customers' => 999999, // unlimited
-                'max_vehicles' => 999999, // unlimited
-                'max_work_orders' => null, // unlimited
-                'features' => [
-                    'dashboard_full',
-                    'dashboard_custom',
-                    'customer_management',
-                    'vehicle_checkin',
-                    'work_orders_unlimited',
-                    'appointments',
-                    'invoicing_whitelabel',
-                    'tire_hotel',
-                    'multi_user_unlimited',
-                    'staff_management',
-                    'advanced_reports',
-                    'api_access',
-                    'dedicated_support',
-                    'custom_branding',
-                    'custom_integrations',
-                    'data_migration',
-                    'on_premise_option',
-                ],
-            ],
-            default => [
-                'max_users' => 1,
-                'max_customers' => 100,
-                'max_vehicles' => 200,
-                'max_work_orders' => 50,
-                'features' => ['dashboard_basic', 'customer_management'],
-            ],
-        };
+        $definition = self::planDefinition($this->plan);
+
+        return [
+            'max_users' => $definition['limits']['max_users'],
+            'max_customers' => $definition['limits']['max_customers'],
+            'max_vehicles' => $definition['limits']['max_vehicles'],
+            'max_work_orders' => $definition['limits']['max_work_orders'],
+            'features' => $definition['features'],
+        ];
     }
 
     /**
@@ -377,19 +454,13 @@ class Tenant extends Model
      */
     public function canCreateWorkOrder(): bool
     {
-        // STANDARD and CUSTOM have unlimited work orders
         if (in_array($this->plan, [self::PLAN_STANDARD, self::PLAN_CUSTOM])) {
             return true;
         }
 
-        // BASIC plan has monthly limit
         $maxWorkOrders = $this->max_work_orders ?? 50;
-        $currentMonthCount = $this->workOrders()
-            ->whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
-            ->count();
 
-        return $currentMonthCount < $maxWorkOrders;
+        return $this->getMonthlyWorkOrderCount() < $maxWorkOrders;
     }
 
     /**
@@ -398,16 +469,26 @@ class Tenant extends Model
     public function getRemainingWorkOrdersAttribute(): ?int
     {
         if (in_array($this->plan, [self::PLAN_STANDARD, self::PLAN_CUSTOM])) {
-            return null; // unlimited
+            return null;
         }
 
         $maxWorkOrders = $this->max_work_orders ?? 50;
-        $currentMonthCount = $this->workOrders()
+
+        return max(0, $maxWorkOrders - $this->getMonthlyWorkOrderCount());
+    }
+
+    /**
+     * Get cached monthly work order count (60-second TTL).
+     */
+    protected function getMonthlyWorkOrderCount(): int
+    {
+        $key = "tenant_{$this->id}_wo_month_".now()->format('Y_m');
+
+        return Cache::remember($key, 60, fn () => $this->workOrders()
             ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
-            ->count();
-
-        return max(0, $maxWorkOrders - $currentMonthCount);
+            ->count()
+        );
     }
 
     /**
@@ -415,7 +496,8 @@ class Tenant extends Model
      */
     public function hasTireHotel(): bool
     {
-        return in_array($this->plan, [self::PLAN_STANDARD, self::PLAN_CUSTOM]);
+        return in_array($this->plan, [self::PLAN_STANDARD, self::PLAN_CUSTOM], true)
+            && $this->hasFeature('tire_hotel');
     }
 
     /**

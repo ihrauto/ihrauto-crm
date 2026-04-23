@@ -158,7 +158,7 @@
                             credentials: 'same-origin'
                         });
                     } catch (e) {
-                        console.error('Failed to save tour completion:', e);
+                        window.appLogError('Failed to save tour completion:', e);
                     }
                 },
 
@@ -183,8 +183,7 @@
 
                     const el = document.querySelector(currentStep.target);
                     if (!el) {
-                        console.warn('Tour target not found:', currentStep.target);
-                        // Fallback to center
+                        // Target element missing (tour step skipped or page changed) — center the tooltip as fallback.
                         this.tooltipStyle = 'top: 50%; left: 50%; transform: translate(-50%, -50%);';
                         this.arrowDirection = 'none';
                         return;

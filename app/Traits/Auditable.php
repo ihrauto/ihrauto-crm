@@ -53,13 +53,14 @@ trait Auditable
         if ($userId) {
             // Verify user still exists (may have been deleted)
             $userExists = \App\Models\User::withoutGlobalScopes()->where('id', $userId)->exists();
-            if (!$userExists) {
+            if (! $userExists) {
                 $userId = null;
             }
         }
 
         try {
             AuditLog::create([
+                'tenant_id' => tenant_id(),
                 'user_id' => $userId,
                 'action' => $action,
                 'model_type' => get_class($model),
@@ -67,9 +68,31 @@ trait Auditable
                 'changes' => $changes,
                 'ip_address' => request()->ip(),
             ]);
-        } catch (\Exception $e) {
-            // Don't let audit logging break the main operation
-            \Log::warning('Audit log failed: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            // Audit logging failures must NOT break the main operation (the
+            // business action has already succeeded by the time we write the
+            // audit). But they also must NOT be silent — lost audit trails
+            // have compliance implications. We log at ERROR level with
+            // structured context so monitoring (Sentry) picks it up.
+            //
+            // D.8 — previously this used \Log::warning() with just the
+            // message, which didn't include the model ID or action, making
+            // it impossible to reconstruct what was missed.
+            \Log::error('audit_log_write_failed', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'action' => $action,
+                'model_type' => get_class($model),
+                'model_id' => $model->getKey(),
+                'tenant_id' => tenant_id(),
+                'user_id' => $userId,
+            ]);
+
+            // Report to Sentry if available, so audit-log outages surface
+            // to the on-call rotation rather than disappearing into log files.
+            if (app()->bound('sentry')) {
+                app('sentry')->captureException($e);
+            }
         }
     }
 }

@@ -1,5 +1,8 @@
 <?php
 
+$publicDiskDriver = env('PUBLIC_FILESYSTEM_DRIVER', 'local');
+$backupDiskDriver = env('BACKUP_FILESYSTEM_DRIVER', 'local');
+
 return [
 
     /*
@@ -38,14 +41,51 @@ return [
             'report' => false,
         ],
 
-        'public' => [
-            'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
-            'visibility' => 'public',
-            'throw' => false,
-            'report' => false,
-        ],
+        'public' => $publicDiskDriver === 's3'
+            ? [
+                'driver' => 's3',
+                'key' => env('PUBLIC_FILESYSTEM_KEY', env('AWS_ACCESS_KEY_ID')),
+                'secret' => env('PUBLIC_FILESYSTEM_SECRET', env('AWS_SECRET_ACCESS_KEY')),
+                'region' => env('PUBLIC_FILESYSTEM_REGION', env('AWS_DEFAULT_REGION')),
+                'bucket' => env('PUBLIC_FILESYSTEM_BUCKET', env('AWS_BUCKET')),
+                'url' => env('PUBLIC_FILESYSTEM_URL', env('AWS_URL')),
+                'endpoint' => env('PUBLIC_FILESYSTEM_ENDPOINT', env('AWS_ENDPOINT')),
+                'use_path_style_endpoint' => env('PUBLIC_FILESYSTEM_USE_PATH_STYLE_ENDPOINT', env('AWS_USE_PATH_STYLE_ENDPOINT', false)),
+                'visibility' => 'public',
+                'throw' => false,
+                'report' => false,
+                'root' => trim((string) env('PUBLIC_FILESYSTEM_ROOT', 'public'), '/'),
+            ]
+            : [
+                'driver' => 'local',
+                'root' => storage_path('app/public'),
+                'url' => env('APP_URL').'/storage',
+                'visibility' => 'public',
+                'throw' => false,
+                'report' => false,
+            ],
+
+        'backups' => $backupDiskDriver === 's3'
+            ? [
+                'driver' => 's3',
+                'key' => env('BACKUP_FILESYSTEM_KEY', env('AWS_ACCESS_KEY_ID')),
+                'secret' => env('BACKUP_FILESYSTEM_SECRET', env('AWS_SECRET_ACCESS_KEY')),
+                'region' => env('BACKUP_FILESYSTEM_REGION', env('AWS_DEFAULT_REGION')),
+                'bucket' => env('BACKUP_FILESYSTEM_BUCKET', env('AWS_BUCKET')),
+                'url' => env('BACKUP_FILESYSTEM_URL', env('AWS_URL')),
+                'endpoint' => env('BACKUP_FILESYSTEM_ENDPOINT', env('AWS_ENDPOINT')),
+                'use_path_style_endpoint' => env('BACKUP_FILESYSTEM_USE_PATH_STYLE_ENDPOINT', env('AWS_USE_PATH_STYLE_ENDPOINT', false)),
+                'visibility' => 'private',
+                'throw' => false,
+                'report' => false,
+                'root' => trim((string) env('BACKUP_FILESYSTEM_ROOT', 'backups'), '/'),
+            ]
+            : [
+                'driver' => 'local',
+                'root' => storage_path('app/backups'),
+                'throw' => false,
+                'report' => false,
+            ],
 
         's3' => [
             'driver' => 's3',

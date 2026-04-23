@@ -25,8 +25,8 @@ class TestEmailCommand extends Command
         $email = $this->argument('email');
 
         $this->info("Sending test email to: {$email}");
-        $this->info("Using mailer: " . config('mail.default'));
-        $this->info("From address: " . config('mail.from.address'));
+        $this->info('Using mailer: '.config('mail.default'));
+        $this->info('From address: '.config('mail.from.address'));
 
         try {
             Mail::raw('This is a test email from IHRAUTO CRM. If you received this, your email configuration is working correctly!', function ($message) use ($email) {

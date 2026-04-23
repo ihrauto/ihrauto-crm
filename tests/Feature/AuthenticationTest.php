@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Tenant;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -193,5 +193,99 @@ class AuthenticationTest extends TestCase
         $response = $this->actingAs($user)->get('/admin/tenants');
 
         $response->assertStatus(403);
+    }
+
+    public function test_inactive_user_cannot_log_in(): void
+    {
+        $tenant = $this->createActiveTenant();
+        $user = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'email' => 'inactive@example.com',
+            'password' => bcrypt('password123'),
+            'is_active' => false,
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole('admin');
+
+        $this->from('/login')->post('/login', [
+            'email' => 'inactive@example.com',
+            'password' => 'password123',
+        ])->assertRedirect('/login')
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
+    public function test_invite_setup_activates_the_user_account(): void
+    {
+        $tenant = $this->createActiveTenant();
+        $token = bin2hex(random_bytes(32)); // 64 chars, matches production format
+        $user = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'is_active' => false,
+            'invite_token' => $token,
+            'invite_expires_at' => now()->addDay(),
+            'email_verified_at' => null,
+        ]);
+        $user->assignRole('technician');
+
+        $this->post(route('invite.setup.store', ['token' => $token]), [
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertRedirect(route('dashboard'));
+
+        $user->refresh();
+        $this->assertTrue($user->is_active);
+        $this->assertNotNull($user->email_verified_at);
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_suspended_tenant_loses_access_immediately_after_cache_is_warmed(): void
+    {
+        $tenant = $this->createActiveTenant();
+        $user = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole('admin');
+
+        $this->actingAs($user)->get('/dashboard')->assertOk();
+
+        $tenant->suspend();
+
+        $this->actingAs($user)->get('/dashboard')->assertStatus(403);
+    }
+
+    public function test_subscription_setup_validates_duplicate_company_email(): void
+    {
+        Tenant::factory()->create([
+            'email' => 'used-company@example.com',
+        ]);
+
+        $tenant = $this->createActiveTenant([
+            'email' => 'current-company@example.com',
+        ]);
+        $user = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole('admin');
+
+        $this->actingAs($user)
+            ->withSession(['tenant_id' => $tenant->id])
+            ->from(route('subscription.onboarding'))
+            ->post(route('subscription.setup'), [
+                'company_name' => 'Updated Company',
+                'phone' => '+41795550123',
+                'email' => 'used-company@example.com',
+                'address' => 'Main Street 10',
+                'city' => 'Zurich',
+                'currency' => 'EUR',
+                'tax_rate' => 8.1,
+                'bank_name' => 'Test Bank',
+                'iban' => 'CH9300762011623852957',
+            ])
+            ->assertRedirect(route('subscription.onboarding'))
+            ->assertSessionHasErrors('email');
     }
 }

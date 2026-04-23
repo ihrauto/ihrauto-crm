@@ -34,12 +34,14 @@ class CleanDemoDataCommand extends Command
 
         if ($tenants->isEmpty()) {
             $this->error('No tenants found.');
+
             return Command::FAILURE;
         }
 
-        if (!$force && !$dryRun) {
-            if (!$this->confirm('⚠️  This will delete operational data. Continue?')) {
+        if (! $force && ! $dryRun) {
+            if (! $this->confirm('⚠️  This will delete operational data. Continue?')) {
                 $this->info('Cancelled.');
+
                 return Command::SUCCESS;
             }
         }
@@ -92,13 +94,13 @@ class CleanDemoDataCommand extends Command
         ];
 
         // Optionally include products and services
-        if (!$keepProducts) {
+        if (! $keepProducts) {
             $tables['products'] = \App\Models\Product::class;
             $tables['services'] = \App\Models\Service::class;
         }
 
         foreach ($tables as $name => $model) {
-            if (!class_exists($model)) {
+            if (! class_exists($model)) {
                 continue;
             }
 
@@ -106,7 +108,7 @@ class CleanDemoDataCommand extends Command
             $count = $query->count();
 
             if ($count > 0) {
-                if (!$dryRun) {
+                if (! $dryRun) {
                     // Use forceDelete if model uses SoftDeletes, else normal delete
                     if (method_exists($model, 'forceDelete')) {
                         $query->forceDelete();
@@ -127,7 +129,7 @@ class CleanDemoDataCommand extends Command
             ->where('tenant_id', $tenant->id)
             ->count();
 
-        if ($auditCount > 0 && !$dryRun) {
+        if ($auditCount > 0 && ! $dryRun) {
             DB::table('audit_logs')->where('tenant_id', $tenant->id)->delete();
             $this->line("   🗑️  audit_logs: {$auditCount} records deleted");
         } elseif ($auditCount > 0) {

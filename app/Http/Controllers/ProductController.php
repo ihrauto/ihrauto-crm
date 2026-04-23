@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ImportProductsRequest;
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Http\Request;
@@ -9,30 +12,20 @@ use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
-    public function store(Request $request)
+    public function store(StoreProductRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'sku' => 'nullable|string|max:50',
-            'price' => 'required|numeric|min:0',
-            'stock_quantity' => 'required|integer|min:0',
-            'min_stock_quantity' => 'required|integer|min:0',
-            'description' => 'nullable|string',
-            'unit' => 'nullable|string|max:50',
-            'purchase_price' => 'nullable|numeric|min:0',
-            'order_number' => 'nullable|string|max:100',
-            'supplier' => 'nullable|string|max:255',
-            'status' => 'nullable|string|in:in_stock,out_of_stock,ordered',
-        ]);
+        $this->authorize('create', Product::class);
 
-        $validated['tenant_id'] = auth()->user()->tenant_id;
+        $validated = $request->validated();
+
+        $validated['tenant_id'] = tenant_id();
 
         $product = Product::create($validated);
 
         // Initial Stock Movement log if quantity > 0
         if ($validated['stock_quantity'] > 0) {
             StockMovement::create([
-                'tenant_id' => auth()->user()->tenant_id,
+                'tenant_id' => tenant_id(),
                 'product_id' => $product->id,
                 'quantity' => $validated['stock_quantity'],
                 'type' => 'initial',
@@ -45,21 +38,11 @@ class ProductController extends Controller
             ->with('success', 'Product created successfully.');
     }
 
-    public function update(Request $request, Product $product)
+    public function update(UpdateProductRequest $request, Product $product)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'sku' => 'nullable|string|max:50',
-            'price' => 'required|numeric|min:0',
-            'min_stock_quantity' => 'required|integer|min:0',
-            'description' => 'nullable|string',
-            'stock_quantity' => 'nullable|integer|min:0',
-            'unit' => 'nullable|string|max:50',
-            'purchase_price' => 'nullable|numeric|min:0',
-            'order_number' => 'nullable|string|max:100',
-            'supplier' => 'nullable|string|max:255',
-            'status' => 'nullable|string|in:in_stock,out_of_stock,ordered',
-        ]);
+        $this->authorize('update', $product);
+
+        $validated = $request->validated();
 
         $product->update($validated);
 
@@ -79,6 +62,8 @@ class ProductController extends Controller
 
     public function stockOperation(Request $request, Product $product)
     {
+        $this->authorize('adjustStock', $product);
+
         $validated = $request->validate([
             'quantity' => 'required|integer|min:1',
             'type' => 'required|in:add,remove', // add, remove (visual in modal) -> maps to stock logic
@@ -87,7 +72,7 @@ class ProductController extends Controller
 
         // Validate removal doesn't exceed available stock
         if ($validated['type'] === 'remove' && $validated['quantity'] > $product->stock_quantity) {
-            return back()->with('error', 'Cannot remove more stock than available (' . $product->stock_quantity . ' in stock).');
+            return back()->with('error', 'Cannot remove more stock than available ('.$product->stock_quantity.' in stock).');
         }
 
         $qty = $validated['quantity'];
@@ -100,7 +85,7 @@ class ProductController extends Controller
             $product->save();
 
             StockMovement::create([
-                'tenant_id' => auth()->user()->tenant_id,
+                'tenant_id' => tenant_id(),
                 'product_id' => $product->id,
                 'quantity' => $qty,
                 'type' => $validated['type'] === 'add' ? 'purchase' : 'correction', // simplistic mapping
@@ -112,50 +97,79 @@ class ProductController extends Controller
         return redirect()->route('products-services.index', ['tab' => 'parts'])
             ->with('success', 'Stock updated successfully.');
     }
-    public function import(Request $request)
+
+    public function import(ImportProductsRequest $request)
     {
-        $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:5120', // Max 5MB
-        ]);
+        $this->authorize('create', Product::class);
 
         $file = $request->file('file');
 
-        // Open file
-        if (($handle = fopen($file->getRealPath(), 'r')) !== FALSE) {
-            $header = fgetcsv($handle, 1000, ','); // Assume first row is header
-
-            // Basic mapping check (optional, or just assume order/names)
-            // For now, let's assume columns: Name, SKU, Price, Quantity, MinStock
-
-            $count = 0;
-
-            while (($data = fgetcsv($handle, 1000, ',')) !== FALSE) {
-                // Skip empty rows
-                if (count($data) < 1 || empty($data[0]))
-                    continue;
-
-                // Simple mapping by index for MVP (or can be header based later)
-                // 0: Name, 1: SKU, 2: Price, 3: Qty, 4: MinStock
-
-                Product::create([
-                    'tenant_id' => auth()->user()->tenant_id,
-                    'name' => $data[0],
-                    'sku' => $data[1] ?? null,
-                    'price' => isset($data[2]) ? (float) $data[2] : 0,
-                    'stock_quantity' => isset($data[3]) ? (int) $data[3] : 0,
-                    'min_stock_quantity' => isset($data[4]) ? (int) $data[4] : 10,
-                    'description' => 'Imported via Excel/CSV',
-                ]);
-
-                $count++;
-            }
-            fclose($handle);
-
-            return redirect()->route('products-services.index', ['tab' => 'parts'])
-                ->with('success', "Imported {$count} products successfully.");
+        if (($handle = fopen($file->getRealPath(), 'r')) === false) {
+            return back()->with('error', 'Could not read the file.');
         }
 
-        return back()->with('error', 'Could not read the file.');
+        $header = fgetcsv($handle, 1000, ',');
+
+        // Validate CSV headers
+        $expectedHeaders = ['Name', 'SKU', 'Price', 'Quantity', 'Min Stock'];
+        $normalizedHeaders = array_map(fn ($h) => strtolower(trim($h ?? '')), $header ?: []);
+        $normalizedExpected = array_map('strtolower', $expectedHeaders);
+
+        if (count($normalizedHeaders) < 1 || $normalizedHeaders[0] !== $normalizedExpected[0]) {
+            fclose($handle);
+
+            return back()->with('error', 'Invalid CSV format. Expected headers: '.implode(', ', $expectedHeaders).'. Download the template for the correct format.');
+        }
+
+        $count = 0;
+        $errors = [];
+        $rowNumber = 1;
+
+        while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+            $rowNumber++;
+
+            // Skip empty rows
+            if (count($data) < 1 || empty(trim($data[0] ?? ''))) {
+                continue;
+            }
+
+            // Row-level validation
+            $name = trim($data[0]);
+            $price = isset($data[2]) ? (float) $data[2] : 0;
+
+            if (strlen($name) > 255) {
+                $errors[] = "Row {$rowNumber}: Name exceeds 255 characters.";
+
+                continue;
+            }
+
+            if ($price < 0) {
+                $errors[] = "Row {$rowNumber}: Price cannot be negative.";
+
+                continue;
+            }
+
+            Product::create([
+                'tenant_id' => tenant_id(),
+                'name' => $name,
+                'sku' => isset($data[1]) ? trim($data[1]) : null,
+                'price' => $price,
+                'stock_quantity' => isset($data[3]) ? max(0, (int) $data[3]) : 0,
+                'min_stock_quantity' => isset($data[4]) ? max(0, (int) $data[4]) : 10,
+                'description' => 'Imported via CSV',
+            ]);
+
+            $count++;
+        }
+        fclose($handle);
+
+        $message = "Imported {$count} products successfully.";
+        if (! empty($errors)) {
+            $message .= ' '.count($errors).' rows skipped due to errors: '.implode(' | ', array_slice($errors, 0, 5));
+        }
+
+        return redirect()->route('products-services.index', ['tab' => 'parts'])
+            ->with($count > 0 ? 'success' : 'error', $message);
     }
 
     public function downloadTemplate()

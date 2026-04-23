@@ -8,14 +8,38 @@ use App\Models\Checkin;
 use App\Models\Customer;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CheckinController extends Controller
 {
     /**
+     * Defense-in-depth guard for API actions. The route-model-binding already
+     * invokes TenantScope, so cross-tenant resources should 404 there — but
+     * we re-check explicitly so a bug in the scope (or a future refactor that
+     * bypasses it) cannot leak data across tenants.
+     */
+    private function assertApiTenantContext(Request $request, ?\Illuminate\Database\Eloquent\Model $resource = null): void
+    {
+        abort_unless(
+            $request->attributes->get('tenant_api_token_id'),
+            403,
+            'Valid API token required.'
+        );
+
+        if ($resource !== null && $resource->tenant_id !== tenant_id()) {
+            // 404 (not 403) to avoid leaking existence of a resource in
+            // another tenant.
+            abort(404);
+        }
+    }
+
+    /**
      * Get customer history
      */
-    public function getCustomerHistory(Customer $customer): JsonResponse
+    public function getCustomerHistory(Request $request, Customer $customer): JsonResponse
     {
+        $this->assertApiTenantContext($request, $customer);
+
         try {
             $checkins = $customer->checkins()
                 ->with(['vehicle'])
@@ -56,8 +80,10 @@ class CheckinController extends Controller
     /**
      * Get customer details with vehicles
      */
-    public function getCustomerDetails(Customer $customer): JsonResponse
+    public function getCustomerDetails(Request $request, Customer $customer): JsonResponse
     {
+        $this->assertApiTenantContext($request, $customer);
+
         try {
             $customer->load(['vehicles' => function ($query) {
                 $query->where('is_active', true);
@@ -107,8 +133,10 @@ class CheckinController extends Controller
     /**
      * Get active checkins
      */
-    public function getActiveCheckins(): JsonResponse
+    public function getActiveCheckins(Request $request): JsonResponse
     {
+        $this->assertApiTenantContext($request);
+
         try {
             $checkins = Checkin::with(['customer', 'vehicle'])
                 ->active()
@@ -134,8 +162,10 @@ class CheckinController extends Controller
     /**
      * Get checkins statistics
      */
-    public function getStatistics(): JsonResponse
+    public function getStatistics(Request $request): JsonResponse
     {
+        $this->assertApiTenantContext($request);
+
         try {
             $stats = [
                 'today_checkins' => Checkin::today()->count(),

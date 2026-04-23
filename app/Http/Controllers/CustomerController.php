@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Customer;
+use App\Services\CustomerMergeService;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -15,16 +16,14 @@ class CustomerController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $normalizedSearch = strtoupper(str_replace(' ', '', trim($search)));
+            [$plateExpr, $plateBindings] = \App\Support\LicensePlate::whereExpression($search, like: true);
 
-            $query->where(function ($q) use ($search, $normalizedSearch) {
-                // Case-insensitive search on name, phone, email
+            $query->where(function ($q) use ($search, $plateExpr, $plateBindings) {
                 $q->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%'])
                     ->orWhereRaw('LOWER(phone) LIKE ?', ['%'.strtolower($search).'%'])
                     ->orWhereRaw('LOWER(email) LIKE ?', ['%'.strtolower($search).'%'])
-                    // Search by license plate (normalized, case-insensitive)
-                    ->orWhereHas('vehicles', function ($vehicleQuery) use ($normalizedSearch) {
-                        $vehicleQuery->whereRaw('UPPER(REPLACE(license_plate, \' \', \'\')) LIKE ?', ['%'.$normalizedSearch.'%']);
+                    ->orWhereHas('vehicles', function ($vehicleQuery) use ($plateExpr, $plateBindings) {
+                        $vehicleQuery->whereRaw($plateExpr, $plateBindings);
                     });
             });
         }
@@ -42,6 +41,9 @@ class CustomerController extends Controller
     public function store(StoreCustomerRequest $request)
     {
         $this->authorize('create', Customer::class);
+
+        // B-01: enforce plan customer limit.
+        \App\Support\PlanQuota::assertCanAddCustomer();
 
         $customer = Customer::create($request->validated());
 
@@ -115,20 +117,17 @@ class CustomerController extends Controller
         }
 
         $searchTerm = strtolower(trim($search));
-        $normalizedPlate = strtoupper(str_replace(' ', '', trim($search)));
+        [$plateExpr, $plateBindings] = \App\Support\LicensePlate::whereExpression($search, like: true);
 
-        // Search by customer name OR vehicle license plate
         $customers = Customer::with([
-            'vehicles' => function ($query) use ($normalizedPlate) {
-                $query->whereRaw("UPPER(REPLACE(license_plate, ' ', '')) LIKE ?", ["%{$normalizedPlate}%"]);
+            'vehicles' => function ($query) use ($plateExpr, $plateBindings) {
+                $query->whereRaw($plateExpr, $plateBindings);
             },
         ])
-            ->where(function ($q) use ($searchTerm, $normalizedPlate) {
-                // Search by customer name (case-insensitive)
+            ->where(function ($q) use ($searchTerm, $plateExpr, $plateBindings) {
                 $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchTerm}%"])
-                    // Or by license plate
-                    ->orWhereHas('vehicles', function ($vq) use ($normalizedPlate) {
-                        $vq->whereRaw("UPPER(REPLACE(license_plate, ' ', '')) LIKE ?", ["%{$normalizedPlate}%"]);
+                    ->orWhereHas('vehicles', function ($vq) use ($plateExpr, $plateBindings) {
+                        $vq->whereRaw($plateExpr, $plateBindings);
                     });
             })
             ->take(10)
@@ -142,6 +141,39 @@ class CustomerController extends Controller
         $customer->load('vehicles');
 
         return response()->json($customer);
+    }
+
+    /**
+     * Merge two customer records. The `primary` customer survives; the
+     * `duplicate` is soft-deleted after all its related records (vehicles,
+     * checkins, work orders, invoices, quotes, tires, appointments) are
+     * transferred to the primary.
+     *
+     * Requires both delete and update permission on customers plus the
+     * `delete-records` gate (same as destroy).
+     */
+    public function merge(Request $request, CustomerMergeService $merger)
+    {
+        $validated = $request->validate([
+            'primary_id' => ['required', 'integer', 'different:duplicate_id'],
+            'duplicate_id' => ['required', 'integer'],
+        ]);
+
+        $primary = Customer::findOrFail($validated['primary_id']);
+        $duplicate = Customer::findOrFail($validated['duplicate_id']);
+
+        $this->authorize('update', $primary);
+        $this->authorize('delete', $duplicate);
+        \Illuminate\Support\Facades\Gate::authorize('delete-records');
+
+        try {
+            $merged = $merger->merge($primary, $duplicate);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('customers.show', $merged)
+            ->with('success', 'Customers merged successfully.');
     }
 
     public function vehiclesByCustomer(Customer $customer)

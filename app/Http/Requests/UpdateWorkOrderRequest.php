@@ -21,7 +21,7 @@ class UpdateWorkOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => 'sometimes|in:created,pending,in_progress,completed,cancelled',
+            'status' => 'sometimes|in:created,pending,scheduled,in_progress,waiting_parts,completed,cancelled',
             'priority' => 'sometimes|in:low,normal,high,urgent',
             'technician_id' => ['nullable', TenantValidation::exists('users')],
             'technician_notes' => 'nullable|string|max:2000',

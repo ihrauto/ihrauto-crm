@@ -171,7 +171,7 @@
                     vehicleSelect.disabled = false;
                 })
                 .catch(error => {
-                    console.error('Error loading vehicles:', error);
+                    window.appLogError('Error loading vehicles:', error);
                     vehicleSelect.innerHTML = '<option>Error loading vehicles</option>';
                 });
         }

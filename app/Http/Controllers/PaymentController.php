@@ -2,50 +2,60 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePaymentRequest;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\InvoiceService;
-use App\Support\TenantValidation;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class PaymentController extends Controller
 {
     public function __construct(
         private readonly InvoiceService $invoiceService
-    ) {
-    }
+    ) {}
 
     /**
      * Store a newly created payment in storage.
+     *
+     * C-01: validation lives in StorePaymentRequest; this method only
+     * orchestrates the idempotent write + invoice sync.
      */
-    public function store(Request $request)
+    public function store(StorePaymentRequest $request)
     {
-        $validated = $request->validate([
-            'invoice_id' => ['required', TenantValidation::exists('invoices')],
-            'amount' => 'required|numeric|min:0.01',
-            'method' => 'required|string',
-            'payment_date' => 'required|date',
-            'transaction_reference' => 'nullable|string|max:255',
-            'notes' => 'nullable|string|max:1000',
-            'idempotency_key' => 'nullable|string|max:64',
-        ]);
+        Gate::authorize('view-financials');
+        $validated = $request->validated();
 
         DB::beginTransaction();
 
         try {
-            // Idempotency: Check for duplicate submission using idempotency key or transaction reference
-            $idempotencyKey = $validated['idempotency_key'] ?? $validated['transaction_reference'] ?? null;
-            if ($idempotencyKey) {
-                $existingPayment = Payment::where('transaction_reference', $idempotencyKey)
-                    ->where('invoice_id', $validated['invoice_id'])
-                    ->first();
+            // Resolve or derive an idempotency key.
+            //
+            // CRITICAL: the previous implementation only checked for duplicates when
+            // the client supplied a key. Without one, a browser back-button resubmit
+            // would silently post the payment twice. We now derive a deterministic
+            // fallback from the payment's distinguishing fields so repeated identical
+            // submissions are blocked regardless of client behavior.
+            $idempotencyKey = $validated['idempotency_key']
+                ?? $validated['transaction_reference']
+                ?? hash('sha256', implode('|', [
+                    'payment',
+                    (string) $validated['invoice_id'],
+                    number_format((float) $validated['amount'], 2, '.', ''),
+                    $validated['payment_date'],
+                    (string) $validated['method'],
+                    (string) (auth()->id() ?? 'anon'),
+                ]));
 
-                if ($existingPayment) {
-                    DB::rollBack();
-                    return redirect()->route('invoices.show', $validated['invoice_id'])
-                        ->with('info', 'Payment already recorded (duplicate submission prevented).');
-                }
+            $existingPayment = Payment::where('idempotency_key', $idempotencyKey)
+                ->where('invoice_id', $validated['invoice_id'])
+                ->first();
+
+            if ($existingPayment) {
+                DB::rollBack();
+
+                return redirect()->route('invoices.show', $validated['invoice_id'])
+                    ->with('info', 'Payment already recorded (duplicate submission prevented).');
             }
 
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($validated['invoice_id']);
@@ -54,14 +64,14 @@ class PaymentController extends Controller
             if (in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_PAID, Invoice::STATUS_VOID], true)) {
                 DB::rollBack();
 
-                return back()->with('error', 'Cannot process payment. Invoice is already ' . $invoice->status . '.');
+                return back()->with('error', 'Cannot process payment. Invoice is already '.$invoice->status.'.');
             }
 
             // Security Check: Overpayment
             if ($validated['amount'] > $invoice->balance) {
                 DB::rollBack();
 
-                return back()->with('error', 'Payment amount (' . number_format($validated['amount'], 2) . ') exceeds remaining balance (' . number_format($invoice->balance, 2) . ').');
+                return back()->with('error', 'Payment amount ('.number_format($validated['amount'], 2).') exceeds remaining balance ('.number_format($invoice->balance, 2).').');
             }
 
             // Create Payment
@@ -72,6 +82,7 @@ class PaymentController extends Controller
                 'method' => $validated['method'],
                 'payment_date' => $validated['payment_date'],
                 'transaction_reference' => $validated['transaction_reference'] ?? null,
+                'idempotency_key' => $idempotencyKey,
                 'notes' => $validated['notes'] ?? null,
             ]);
 
@@ -79,12 +90,12 @@ class PaymentController extends Controller
 
             DB::commit();
 
-            return redirect()->route('invoices.show', $invoice)->with('success', 'Payment registered successfully. Invoice marked as ' . strtoupper($invoice->status) . '.');
+            return redirect()->route('invoices.show', $invoice)->with('success', 'Payment registered successfully. Invoice marked as '.strtoupper($invoice->status).'.');
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return back()->with('error', 'Error registering payment: ' . $e->getMessage());
+            return back()->with('error', 'Error registering payment: '.$e->getMessage());
         }
     }
 }

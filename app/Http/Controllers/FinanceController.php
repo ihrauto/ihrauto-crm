@@ -4,51 +4,43 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Services\FinanceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class FinanceController extends Controller
 {
+    public function __construct(
+        protected FinanceService $financeService,
+    ) {}
+
     /**
      * Display Finance dashboard with Overview, Payments, Balances, Quotes, and Invoices.
      */
     public function index(Request $request)
     {
+        Gate::authorize('view-financials');
         $search = $request->query('search', '');
         $activeTab = $request->query('tab', 'issued');
 
-        // Overview Stats
-        $overview = [
-            'revenue_month' => Payment::whereMonth('payment_date', now()->month)
-                ->whereYear('payment_date', now()->year)
-                ->sum('amount'),
-            'revenue_year' => Payment::whereYear('payment_date', now()->year)
-                ->sum('amount'),
-
-            // Sum of all unpaid invoice balances (total - paid_amount where balance > 0)
-            'unpaid_total' => Invoice::where('status', '!=', Invoice::STATUS_VOID)
-                ->whereRaw('total - paid_amount > 0')
-                ->sum(\DB::raw('total - paid_amount')),
-
-            'overdue_total' => Invoice::whereDate('due_date', '<', now())
-                ->whereNotIn('status', [Invoice::STATUS_DRAFT, Invoice::STATUS_VOID, Invoice::STATUS_PAID])
-                ->sum(\DB::raw('total - paid_amount')),
-        ];
+        $overview = $this->financeService->getOverview();
 
         // Search scope closure for invoices
         $searchInvoices = function ($query) use ($search) {
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('customer', function ($cq) use ($search) {
-                        $cq->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($search) . '%']);
+                        $cq->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%']);
                     })
                         ->orWhereHas('vehicle', function ($vq) use ($search) {
-                            $vq->whereRaw('LOWER(make) LIKE ?', ['%' . strtolower($search) . '%'])
-                                ->orWhereRaw('LOWER(model) LIKE ?', ['%' . strtolower($search) . '%'])
-                                ->orWhereRaw('LOWER(license_plate) LIKE ?', ['%' . strtolower($search) . '%']);
+                            $vq->whereRaw('LOWER(make) LIKE ?', ['%'.strtolower($search).'%'])
+                                ->orWhereRaw('LOWER(model) LIKE ?', ['%'.strtolower($search).'%'])
+                                ->orWhereRaw('LOWER(license_plate) LIKE ?', ['%'.strtolower($search).'%']);
                         })
-                        ->orWhereRaw('LOWER(invoice_number) LIKE ?', ['%' . strtolower($search) . '%']);
+                        ->orWhereRaw('LOWER(invoice_number) LIKE ?', ['%'.strtolower($search).'%']);
                 });
             }
+
             return $query;
         };
 
@@ -57,9 +49,9 @@ class FinanceController extends Controller
         if ($search) {
             $paidPaymentsQuery->whereHas('invoice', function ($q) use ($search) {
                 $q->whereHas('customer', function ($cq) use ($search) {
-                    $cq->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($search) . '%']);
+                    $cq->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%']);
                 })
-                    ->orWhereRaw('LOWER(invoice_number) LIKE ?', ['%' . strtolower($search) . '%']);
+                    ->orWhereRaw('LOWER(invoice_number) LIKE ?', ['%'.strtolower($search).'%']);
             });
         }
         $paidPayments = $paidPaymentsQuery->latest('payment_date')
@@ -68,19 +60,17 @@ class FinanceController extends Controller
         // ISSUED tab - Invoices created TODAY with balance > 0
         $issuedQuery = Invoice::with(['customer', 'vehicle'])
             ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_PARTIAL])
-            ->whereDate('created_at', now()->toDateString());
+            ->whereDate('created_at', now()->toDateString())
+            ->whereRaw('total - paid_amount > 0');
         $searchInvoices($issuedQuery);
-        $issuedInvoices = $issuedQuery->get()
-            ->filter(fn($inv) => $inv->balance > 0)
-            ->sortByDesc('created_at');
+        $issuedInvoices = $issuedQuery->latest('created_at')->get();
 
         // UNPAID tab - All invoices with balance > 0
         $unpaidQuery = Invoice::with(['customer', 'vehicle'])
-            ->whereNotIn('status', [Invoice::STATUS_DRAFT, Invoice::STATUS_VOID, Invoice::STATUS_PAID]);
+            ->whereNotIn('status', [Invoice::STATUS_DRAFT, Invoice::STATUS_VOID, Invoice::STATUS_PAID])
+            ->whereRaw('total - paid_amount > 0');
         $searchInvoices($unpaidQuery);
-        $unpaidInvoices = $unpaidQuery->get()
-            ->filter(fn($inv) => $inv->balance > 0)
-            ->sortByDesc('balance');
+        $unpaidInvoices = $unpaidQuery->orderByRaw('total - paid_amount DESC')->get();
 
         // All Invoices (ALL tab)
         $allQuery = Invoice::with(['customer', 'vehicle', 'payments']);

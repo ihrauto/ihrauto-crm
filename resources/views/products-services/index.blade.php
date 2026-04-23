@@ -24,12 +24,12 @@
                         x-transition:leave-end="transform opacity-0 scale-95"
                         class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-gray-200 focus:outline-none overflow-hidden"
                         style="display: none;">
-                        <a href="#" @click.prevent="open = false; document.getElementById('createProductModal').showModal()"
-                            class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">Manually</a>
-                        <a href="#" @click.prevent="open = false; document.getElementById('supplierPartsModal').showModal()"
-                            class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">Supplier</a>
-                        <a href="#" @click.prevent="open = false; document.getElementById('importPartsModal').showModal()"
-                            class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Via Excel</a>
+                        <button type="button" @click="open = false; document.getElementById('createProductModal').showModal()"
+                            class="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">Manually</button>
+                        <button type="button" @click="open = false; document.getElementById('supplierPartsModal').showModal()"
+                            class="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">Supplier</button>
+                        <button type="button" @click="open = false; document.getElementById('importPartsModal').showModal()"
+                            class="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Via Excel</button>
                     </div>
                 </div>
             @else

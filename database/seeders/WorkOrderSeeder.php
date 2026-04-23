@@ -19,11 +19,14 @@ class WorkOrderSeeder extends Seeder
         // Ensure we have a technician (User)
         $tech = User::first();
         if (! $tech) {
-            $tech = User::create([
+            $tech = new User;
+            $tech->fill([
                 'name' => 'Demo Technician',
                 'email' => 'tech@ihrauto.com',
                 'password' => bcrypt('password'),
             ]);
+            // Seeder runs outside HTTP request; tenant_id left null intentionally
+            $tech->save();
         }
 
         // Scenario 1: New Job (Created) - Oil Change

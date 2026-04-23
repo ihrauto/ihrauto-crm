@@ -83,4 +83,26 @@ return [
         'symbol' => env('CRM_CURRENCY_SYMBOL', 'CHF'),
         'decimal_places' => 2,
     ],
+
+    'support' => [
+        'email' => env('CRM_SUPPORT_EMAIL', env('MAIL_FROM_ADDRESS', 'support@example.com')),
+        'phone' => env('CRM_SUPPORT_PHONE'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Calendar / Appointment UI
+    |--------------------------------------------------------------------------
+    |
+    | C-10: moved out of AppointmentController so designers can tweak the
+    | colour palette without touching PHP. Keys match Appointment::status.
+    */
+    'appointment_status_colors' => [
+        'scheduled' => '#6366f1',  // Indigo
+        'confirmed' => '#8b5cf6',  // Purple
+        'completed' => '#22c55e',  // Green
+        'failed' => '#ef4444',     // Red
+        'cancelled' => '#9ca3af',  // Gray
+        'no_show' => '#6b7280',    // Gray (darker)
+    ],
 ];

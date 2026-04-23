@@ -37,16 +37,21 @@
 
                 <div
                     class="relative group bg-white rounded-xl shadow-sm border {{ $isBusy ? 'border-red-100 ring-1 ring-red-50' : 'border-gray-100' }} p-6 transition-all hover:shadow-md">
-                    <!-- Status Indicator -->
-                    <div class="absolute top-4 right-4">
+                    {{--
+                        Status indicator — color-only dots fail WCAG 1.4.1. We add a
+                        sr-only text alternative so screen readers announce the status
+                        and hover title for sighted users who want more detail.
+                    --}}
+                    <div class="absolute top-4 right-4" role="status" aria-label="{{ $isBusy ? __('Busy') : __('Available') }}">
+                        <span class="sr-only">{{ $isBusy ? __('Technician is busy') : __('Technician is available') }}</span>
                         @if($isBusy)
-                            <span class="flex h-3 w-3">
+                            <span class="flex h-3 w-3" title="{{ __('Busy') }}" aria-hidden="true">
                                 <span
                                     class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-300 opacity-75"></span>
                                 <span class="relative inline-flex rounded-full h-3 w-3 bg-red-400"></span>
                             </span>
                         @else
-                            <span class="inline-block w-3 h-3 rounded-full bg-green-400"></span>
+                            <span class="inline-block w-3 h-3 rounded-full bg-green-400" title="{{ __('Available') }}" aria-hidden="true"></span>
                         @endif
                     </div>
 
@@ -83,7 +88,11 @@
                             </div>
 
                             <!-- Button: Opens Modal -->
-                            <button onclick="openJobDetails({{ $activeJob->id }}, '{{ addslashes($activeJob->technician_notes) }}')"
+                            <button onclick="openJobDetails(this)"
+                                data-job-id="{{ $activeJob->id }}"
+                                data-job-notes="{{ Js::from($activeJob->technician_notes ?? '') }}"
+                                data-job-url="{{ route('work-orders.update', $activeJob) }}"
+                                data-job-edit-url="{{ route('work-orders.show', $activeJob) }}"
                                 class="w-full py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors shadow-sm text-sm">
                                 View Job
                             </button>
@@ -109,7 +118,7 @@
 
                 <div class="flex justify-between items-start mb-4">
                     <h3 class="text-lg leading-6 font-bold text-gray-900" id="modal-title">Job Details</h3>
-                    <button onclick="closeJobModal()" class="text-gray-400 hover:text-gray-500">
+                    <button onclick="closeJobModal()" aria-label="Close dialog" class="text-gray-400 hover:text-gray-500">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M6 18L18 6M6 6l12 12" />
@@ -123,7 +132,7 @@
 
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Technician Notes / Updates</label>
+                            <label for="modal-notes" class="block text-sm font-medium text-gray-700 mb-2">Technician Notes / Updates</label>
                             <textarea id="modal-notes" name="technician_notes" rows="6"
                                 class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm text-sm"
                                 placeholder="Update job status, notes, issues..."></textarea>
@@ -144,22 +153,15 @@
     </div>
 
     <script>
-        function openJobDetails(id, notes) {
-            console.log('Opening modal for job', id); // Debugging
+        function openJobDetails(button) {
             const modal = document.getElementById('job-modal');
             const form = document.getElementById('job-form');
             const notesField = document.getElementById('modal-notes');
             const fullEditLink = document.getElementById('full-edit-link');
 
-            // Set Form Action
-            form.action = `/work-orders/${id}`;
-
-            // Set Notes
-            notesField.value = notes;
-
-            // Set Full Edit Link (Edit Page)
-            // Fix: Ensure route is correct, if work-orders.edit is standard resource route then /work-orders/{id}/edit
-            fullEditLink.href = `/work-orders/${id}/edit`;
+            form.action = button.dataset.jobUrl;
+            notesField.value = JSON.parse(button.dataset.jobNotes);
+            fullEditLink.href = button.dataset.jobEditUrl;
 
             modal.classList.remove('hidden');
         }

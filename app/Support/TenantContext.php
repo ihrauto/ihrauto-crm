@@ -48,6 +48,19 @@ class TenantContext
 
     public function set(Tenant $tenant, ?Request $request = null, ?TenantApiToken $token = null): void
     {
+        // S-12 defense-in-depth: inactive tenants should never be bound as
+        // the request's tenant context. Upstream middleware (TenantMiddleware,
+        // AuthenticateTenantApiToken) already rejects inactive tenants before
+        // reaching here — this guard catches any future caller that forgets.
+        //
+        // Superadmin flows that need to touch suspended tenants should use
+        // `withoutGlobalScopes()` directly and NOT bind a tenant context.
+        if (! $tenant->is_active) {
+            throw new \RuntimeException(
+                'Refusing to bind inactive tenant to request context.'
+            );
+        }
+
         App::instance('tenant', $tenant);
         Config::set('tenant', $tenant->toArray());
 
@@ -60,8 +73,19 @@ class TenantContext
         }
 
         Config::set('app.name', $tenant->name);
-        Config::set('app.timezone', $tenant->timezone);
         Config::set('app.locale', $tenant->locale);
+
+        // INTENTIONAL: do NOT set app.timezone per tenant.
+        //
+        // All datetimes are stored in UTC (config/app.php sets the default).
+        // Overriding app.timezone here would make Eloquent write timestamps in
+        // the tenant's timezone, which breaks when:
+        //   - A tenant changes their timezone (historical data becomes wrong)
+        //   - A background job runs without a tenant context
+        //   - Data is queried via direct SQL
+        //
+        // Views and API responses should convert to the tenant timezone at
+        // display time using Carbon's setTimezone($tenant->timezone).
 
         if ($tenant->database_name) {
             $this->configureTenantDatabase($tenant);

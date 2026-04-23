@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\WorkOrderStatus;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,25 @@ use Illuminate\Database\Eloquent\SoftDeletes; // Assuming this trait exists base
 class WorkOrder extends Model
 {
     use BelongsToTenant, HasFactory, SoftDeletes;
+
+    /**
+     * C.9 — invalidate the monthly work-order count cache when a WO is created
+     * or restored (the BASIC plan caps monthly WOs; operators must see the
+     * current remaining count immediately after changes).
+     */
+    protected static function booted(): void
+    {
+        $flush = function (WorkOrder $workOrder) {
+            if ($workOrder->tenant_id) {
+                $month = ($workOrder->created_at ?? now())->format('Y_m');
+                \Illuminate\Support\Facades\Cache::forget("tenant_{$workOrder->tenant_id}_wo_month_{$month}");
+            }
+        };
+
+        static::created($flush);
+        static::deleted($flush);
+        static::restored($flush);
+    }
 
     protected $fillable = [
         'tenant_id',
@@ -92,14 +112,8 @@ class WorkOrder extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match ($this->status) {
-            'scheduled' => 'Scheduled',
-            'created' => 'Pending',
-            'in_progress' => 'In Progress',
-            'waiting_parts' => 'Waiting for Parts',
-            'completed' => 'Completed',
-            'cancelled' => 'Cancelled',
-            default => ucfirst(str_replace('_', ' ', $this->status)),
-        };
+        $enum = WorkOrderStatus::tryFrom($this->status);
+
+        return $enum ? $enum->label() : ucfirst(str_replace('_', ' ', $this->status));
     }
 }

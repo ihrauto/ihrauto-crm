@@ -9,8 +9,7 @@ class RegisterTenantOwner
 {
     public function __construct(
         private readonly TenantProvisioningService $tenantProvisioningService
-    ) {
-    }
+    ) {}
 
     /**
      * Handle tenant owner registration.

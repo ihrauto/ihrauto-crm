@@ -248,7 +248,7 @@
                         btn.disabled = false;
                     }
                 } catch (error) {
-                    console.error('Setup error:', error);
+                    window.appLogError('Setup error:', error);
                     alert('Connection error: ' + (error.message || 'Please check your internet connection and try again.'));
                     btn.innerHTML = originalText;
                     btn.disabled = false;

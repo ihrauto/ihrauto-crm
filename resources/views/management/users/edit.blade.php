@@ -69,6 +69,7 @@
                             <input type="email" name="email" id="email" required value="{{ old('email', $user->email) }}"
                                 class="w-full p-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-indigo-900 placeholder-indigo-300 bg-white shadow-sm"
                                 placeholder="john@example.com">
+                            <p class="mt-2 text-xs text-indigo-500">User emails stay globally unique across every IHRAUTO CRM tenant.</p>
                         </div>
 
                         <div>
@@ -85,8 +86,8 @@
                             <select id="role" name="role"
                                 class="w-full p-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-indigo-900 bg-white shadow-sm">
                                 @foreach($roles as $role)
-                                    <option value="{{ $role->name }}" {{ old('role', $user->role) == $role->name ? 'selected' : '' }}>
-                                        {{ ucfirst($role->name) }}
+                                    <option value="{{ $role }}" {{ old('role', $user->role) == $role ? 'selected' : '' }}>
+                                        {{ ucfirst($role) }}
                                     </option>
                                 @endforeach
                             </select>

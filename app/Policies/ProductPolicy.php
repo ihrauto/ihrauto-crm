@@ -20,7 +20,7 @@ class ProductPolicy
      */
     public function view(User $user, Product $product): bool
     {
-        return $user->tenant_id === $product->tenant_id;
+        return (int) $user->tenant_id === (int) $product->tenant_id;
     }
 
     /**
@@ -36,7 +36,7 @@ class ProductPolicy
      */
     public function update(User $user, Product $product): bool
     {
-        return $user->tenant_id === $product->tenant_id;
+        return (int) $user->tenant_id === (int) $product->tenant_id;
     }
 
     /**
@@ -44,7 +44,7 @@ class ProductPolicy
      */
     public function delete(User $user, Product $product): bool
     {
-        return $user->tenant_id === $product->tenant_id;
+        return (int) $user->tenant_id === (int) $product->tenant_id;
     }
 
     /**
@@ -52,7 +52,7 @@ class ProductPolicy
      */
     public function adjustStock(User $user, Product $product): bool
     {
-        return $user->tenant_id === $product->tenant_id;
+        return (int) $user->tenant_id === (int) $product->tenant_id;
     }
 
     /**
@@ -60,7 +60,7 @@ class ProductPolicy
      */
     public function restore(User $user, Product $product): bool
     {
-        return $user->tenant_id === $product->tenant_id;
+        return (int) $user->tenant_id === (int) $product->tenant_id;
     }
 
     /**

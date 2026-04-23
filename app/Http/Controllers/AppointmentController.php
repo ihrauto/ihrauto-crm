@@ -40,28 +40,26 @@ class AppointmentController extends Controller
 
         $appointments = $query->orderBy('start_time')->get();
 
-        $events = $appointments->map(function ($apt) {
-            // Color based on status
-            $colors = [
-                'scheduled' => '#6366f1',  // Indigo
-                'confirmed' => '#8b5cf6',  // Purple
-                'completed' => '#22c55e',  // Green
-                'failed' => '#ef4444',     // Red
-                'cancelled' => '#9ca3af',  // Gray
-            ];
+        // C-10: colour palette lives in config/crm.php so non-engineers can
+        // tune the calendar look without touching PHP.
+        $colors = config('crm.appointment_status_colors', [
+            'scheduled' => '#6366f1',
+        ]);
+        $defaultColor = $colors['scheduled'] ?? '#6366f1';
 
+        $events = $appointments->map(function ($apt) use ($colors, $defaultColor) {
             return [
                 'id' => $apt->id,
                 'title' => $apt->customer ? $apt->customer->name : ($apt->title ?? 'Appointment'),
                 'start' => $apt->start_time->toIso8601String(),
                 'end' => $apt->end_time ? $apt->end_time->toIso8601String() : $apt->start_time->copy()->addHour()->toIso8601String(),
-                'backgroundColor' => $colors[$apt->status] ?? $colors['scheduled'],
-                'borderColor' => $colors[$apt->status] ?? $colors['scheduled'],
+                'backgroundColor' => $colors[$apt->status] ?? $defaultColor,
+                'borderColor' => $colors[$apt->status] ?? $defaultColor,
                 'extendedProps' => [
                     'customer_id' => $apt->customer_id,
                     'customer_name' => $apt->customer?->name,
                     'customer_phone' => $apt->customer?->phone,
-                    'vehicle' => $apt->vehicle ? ($apt->vehicle->make . ' ' . $apt->vehicle->model . ' (' . $apt->vehicle->license_plate . ')') : null,
+                    'vehicle' => $apt->vehicle ? ($apt->vehicle->make.' '.$apt->vehicle->model.' ('.$apt->vehicle->license_plate.')') : null,
                     'type' => $apt->type,
                     'type_label' => ucfirst(str_replace('_', ' ', $apt->type)),
                     'status' => $apt->status,
@@ -79,21 +77,27 @@ class AppointmentController extends Controller
      */
     public function reschedule(Request $request, Appointment $appointment)
     {
+        $this->authorize('update', $appointment);
+
         $validated = $request->validate([
             'start' => 'required|date',
             'end' => 'nullable|date',
         ]);
 
+        // B-12: compute the original duration BEFORE mutating start_time,
+        // otherwise the diff runs between the new start and old end and
+        // produces a negative or wildly wrong duration. Default to 60 min
+        // only when the original appointment had no end time at all.
+        $originalDuration = ($appointment->start_time && $appointment->end_time)
+            ? (int) $appointment->start_time->diffInMinutes($appointment->end_time)
+            : 60;
+
         $appointment->start_time = Carbon::parse($validated['start']);
 
-        if (!empty($validated['end'])) {
+        if (! empty($validated['end'])) {
             $appointment->end_time = Carbon::parse($validated['end']);
         } else {
-            // Maintain original duration
-            $duration = $appointment->end_time
-                ? $appointment->start_time->diffInMinutes($appointment->end_time)
-                : 60;
-            $appointment->end_time = $appointment->start_time->copy()->addMinutes($duration);
+            $appointment->end_time = $appointment->start_time->copy()->addMinutes($originalDuration);
         }
 
         $appointment->save();
@@ -106,6 +110,8 @@ class AppointmentController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Appointment::class);
+
         $request->validate([
             'customer_id' => ['nullable', TenantValidation::exists('customers')],
         ]);
@@ -119,6 +125,9 @@ class AppointmentController extends Controller
                 'new_customer_name' => 'required|string|max:255',
                 'new_customer_phone' => 'required|string|max:20',
             ]);
+
+            // B-01: enforce plan customer limit before creating.
+            \App\Support\PlanQuota::assertCanAddCustomer();
 
             // Create new customer
             $newCustomer = Customer::create([
@@ -141,17 +150,32 @@ class AppointmentController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        if (!$customerId) {
+        if (! $customerId) {
             return redirect()->back()->withErrors(['customer_id' => 'Please select or create a customer.']);
         }
 
-        $startDateTime = Carbon::parse($request->start_date . ' ' . $request->start_time);
+        $startDateTime = Carbon::parse($request->start_date.' '.$request->start_time);
         $endDateTime = $startDateTime->copy()->addMinutes((int) $request->duration);
 
-        // Auto-assign first vehicle if not selected (Optional, but helpful)
+        // Auto-assign first vehicle if not selected
         $vehicleId = $validated['vehicle_id'] ?? null;
-        if (!$vehicleId && $customer = Customer::query()->find($customerId)) {
+        if (! $vehicleId && $customer = Customer::query()->find($customerId)) {
             $vehicleId = $customer->vehicles()->first()->id ?? null;
+        }
+
+        // Check for conflicting appointments on the same vehicle
+        if ($vehicleId) {
+            $conflict = Appointment::where('vehicle_id', $vehicleId)
+                ->whereNotIn('status', ['cancelled', 'completed', 'failed'])
+                ->where('start_time', '<', $endDateTime)
+                ->where('end_time', '>', $startDateTime)
+                ->first();
+
+            if ($conflict) {
+                return redirect()->back()->withInput()->withErrors([
+                    'start_time' => 'This vehicle already has an appointment at '.$conflict->start_time->format('M j, g:i A').'. Please choose a different time.',
+                ]);
+            }
         }
 
         Appointment::create([
@@ -163,7 +187,7 @@ class AppointmentController extends Controller
             'end_time' => $endDateTime,
             'type' => $validated['type'],
             'status' => $validated['status'],
-            'notes' => $validated['notes'],
+            'notes' => $validated['notes'] ?? null,
         ]);
 
         return redirect()->back()->with('success', 'Appointment scheduled successfully.');
@@ -174,6 +198,8 @@ class AppointmentController extends Controller
      */
     public function update(Request $request, Appointment $appointment)
     {
+        $this->authorize('update', $appointment);
+
         // Full Update
         if ($request->has('start_date') && $request->has('start_time')) {
             $validated = $request->validate([
@@ -185,7 +211,7 @@ class AppointmentController extends Controller
                 'notes' => 'nullable|string',
             ]);
 
-            $startDateTime = Carbon::parse($request->start_date . ' ' . $request->start_time);
+            $startDateTime = Carbon::parse($request->start_date.' '.$request->start_time);
             $endDateTime = $startDateTime->copy()->addMinutes((int) $request->duration);
 
             $appointment->update([
@@ -209,7 +235,7 @@ class AppointmentController extends Controller
 
             if ($request->status === 'failed' && $request->has('notes')) {
                 // Append failure reason to notes
-                $appointment->notes = ($appointment->notes ? $appointment->notes . "\n\n" : '') . 'FAILED REASON: ' . $request->notes;
+                $appointment->notes = ($appointment->notes ? $appointment->notes."\n\n" : '').'FAILED REASON: '.$request->notes;
             }
 
             $appointment->status = $request->status;
@@ -226,7 +252,7 @@ class AppointmentController extends Controller
      */
     public function destroy(Appointment $appointment)
     {
-        \Illuminate\Support\Facades\Gate::authorize('delete-records');
+        $this->authorize('delete', $appointment);
 
         $appointment->delete();
 

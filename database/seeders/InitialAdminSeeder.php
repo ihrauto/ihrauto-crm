@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use App\Models\User;
 
 class InitialAdminSeeder extends Seeder
 {
@@ -13,8 +13,9 @@ class InitialAdminSeeder extends Seeder
         $email = env('INITIAL_ADMIN_EMAIL');
         $password = env('INITIAL_ADMIN_PASSWORD');
 
-        if (!$email || !$password)
+        if (! $email || ! $password) {
             return;
+        }
 
         User::updateOrCreate(
             ['email' => $email],

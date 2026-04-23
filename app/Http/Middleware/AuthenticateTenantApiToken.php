@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\TenantApiToken;
+use App\Support\TenantCache;
 use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -13,20 +14,21 @@ class AuthenticateTenantApiToken
 {
     public function __construct(
         private readonly TenantContext $tenantContext
-    ) {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
+        $this->tenantContext->clear();
+
         $plainTextToken = $request->bearerToken();
 
         if (! $plainTextToken) {
             return $this->unauthorized('Missing API token.');
         }
 
-        $cacheKey = 'tenant_api_token.' . hash('sha256', $plainTextToken);
+        $cacheKey = TenantCache::apiTokenKey($plainTextToken);
 
-        $apiToken = Cache::remember($cacheKey, now()->addMinutes(5), fn () => TenantApiToken::findActiveByPlainTextToken($plainTextToken));
+        $apiToken = Cache::remember($cacheKey, 60, fn () => TenantApiToken::findActiveByPlainTextToken($plainTextToken));
 
         if (! $apiToken || ! $apiToken->tenant) {
             return $this->unauthorized('Invalid API token.');
@@ -60,7 +62,7 @@ class AuthenticateTenantApiToken
 
     private function touchToken(TenantApiToken $apiToken): void
     {
-        $cacheKey = 'tenant_api_token.last_used.' . $apiToken->id;
+        $cacheKey = TenantCache::apiTokenLastUsedKey($apiToken->id);
 
         if (Cache::add($cacheKey, true, now()->addMinutes(5))) {
             $apiToken->forceFill(['last_used_at' => now()])->saveQuietly();

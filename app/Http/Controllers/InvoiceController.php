@@ -35,7 +35,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('update', $invoice);
 
-        if (!$invoice->isEditable()) {
+        if (! $invoice->isEditable()) {
             return redirect()->route('invoices.show', $invoice)
                 ->with('error', 'This invoice is locked and cannot be edited.');
         }

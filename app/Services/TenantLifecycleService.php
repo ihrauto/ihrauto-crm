@@ -14,6 +14,7 @@ use App\Models\Tire;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\WorkOrder;
+use App\Support\TenantCache;
 use Illuminate\Support\Facades\DB;
 
 class TenantLifecycleService
@@ -48,6 +49,7 @@ class TenantLifecycleService
             $tenant->apiTokens()->whereNull('revoked_at')->get()->each->revoke();
 
             $tenant->forceFill(['is_active' => false])->save();
+            TenantCache::forgetTenant($tenant);
             $tenant->delete();
 
             $this->log($tenant, $actor, 'tenant_archived', [
@@ -101,6 +103,7 @@ class TenantLifecycleService
             DB::table('services')->where('tenant_id', $tenantId)->delete();
             DB::table('users')->where('tenant_id', $tenantId)->delete();
 
+            TenantCache::forgetTenant($tenant);
             $this->log($tenant, $actor, 'tenant_purged', [
                 'reason' => $reason,
                 'tenant_name' => $tenant->name,

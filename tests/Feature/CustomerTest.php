@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
-use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Customer;
-use App\Models\User;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Models\Vehicle;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -16,6 +16,7 @@ class CustomerTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Tenant $tenant;
 
     protected function setUp(): void
@@ -202,7 +203,7 @@ class CustomerTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->get(route('api.customers.show', $customer));
+            ->get(route('tenant.ajax.customers.show', $customer));
 
         $response->assertStatus(200);
         $response->assertJsonStructure(['id', 'name', 'email', 'phone']);
@@ -216,7 +217,7 @@ class CustomerTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->get(route('api.customer.history', $customer));
+            ->get(route('tenant.ajax.customer.history', $customer));
 
         $response->assertStatus(200);
         $response->assertJsonStructure([

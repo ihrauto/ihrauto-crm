@@ -36,7 +36,7 @@ class EnsureTenantTrialActive
 
         // Check trial/subscription expiry
         if ($tenant->is_expired) {
-            return redirect()->route('management.pricing')
+            return redirect()->route('billing.pricing')
                 ->with('warning', 'Your trial has expired. Please choose a subscription plan to continue.');
         }
 

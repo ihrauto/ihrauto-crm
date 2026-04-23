@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ServiceBay;
 use App\Support\TenantValidation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class ServiceBayController extends Controller
 {
@@ -29,6 +30,8 @@ class ServiceBayController extends Controller
      */
     public function store(Request $request)
     {
+        Gate::authorize('perform-admin-actions');
+
         $request->validate([
             'name' => 'required|string|max:100',
         ]);
@@ -36,7 +39,7 @@ class ServiceBayController extends Controller
         $maxOrder = ServiceBay::max('sort_order') ?? 0;
 
         ServiceBay::create([
-            'tenant_id' => auth()->user()->tenant_id,
+            'tenant_id' => tenant_id(),
             'name' => $request->name,
             'is_active' => true,
             'sort_order' => $maxOrder + 1,
@@ -50,6 +53,8 @@ class ServiceBayController extends Controller
      */
     public function update(Request $request, ServiceBay $serviceBay)
     {
+        Gate::authorize('perform-admin-actions');
+
         $request->validate([
             'name' => 'required|string|max:100',
         ]);
@@ -66,6 +71,8 @@ class ServiceBayController extends Controller
      */
     public function destroy(ServiceBay $serviceBay)
     {
+        Gate::authorize('perform-admin-actions');
+
         // Check if bay is in use by any active checkins
         $inUse = \App\Models\Checkin::where('service_bay', $serviceBay->name)
             ->whereNotIn('status', ['completed', 'cancelled'])
@@ -85,6 +92,8 @@ class ServiceBayController extends Controller
      */
     public function bulkUpdate(Request $request)
     {
+        Gate::authorize('perform-admin-actions');
+
         $request->validate([
             'bays' => 'required|array',
             'bays.*.id' => ['required', 'integer', TenantValidation::exists('service_bays')],
@@ -106,7 +115,7 @@ class ServiceBayController extends Controller
      */
     private function seedDefaultBays()
     {
-        $tenantId = auth()->user()->tenant_id;
+        $tenantId = tenant_id();
         $defaultBays = ['Bay 1', 'Bay 2', 'Bay 3', 'Bay 4', 'Bay 5', 'Bay 6'];
 
         foreach ($defaultBays as $index => $name) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Checkin;
 use App\Models\Invoice;
 use App\Models\Tenant;
@@ -34,6 +35,10 @@ class AdminDashboardController extends Controller
             'growth' => $this->getGrowthMetrics(),
             'usage' => $this->getUsageMetrics(),
             'risk' => $this->getRiskMetrics(),
+            'runtime' => $this->getRuntimeMetrics(),
+            'plan_mix' => $this->getPlanMixMetrics(),
+            'attention' => $this->getAttentionQueues(),
+            'recent_actions' => $this->getRecentActions(),
         ];
     }
 
@@ -45,6 +50,7 @@ class AdminDashboardController extends Controller
         return [
             'failed_jobs_count' => DB::table('failed_jobs')->count(),
             'health_check_url' => route('health.check'),
+            'refreshed_at' => now(),
         ];
     }
 
@@ -54,13 +60,15 @@ class AdminDashboardController extends Controller
     private function getGrowthMetrics(): array
     {
         $now = now();
+        $sevenDaysAgo = $now->copy()->subDays(7);
+        $thirtyDaysAgo = $now->copy()->subDays(30);
 
         return [
             // Tenant counts
             'total_tenants' => Tenant::count(),
             'new_tenants_today' => Tenant::whereDate('created_at', $now->toDateString())->count(),
-            'new_tenants_7d' => Tenant::where('created_at', '>=', $now->subDays(7))->count(),
-            'new_tenants_30d' => Tenant::where('created_at', '>=', $now->copy()->subDays(30))->count(),
+            'new_tenants_7d' => Tenant::where('created_at', '>=', $sevenDaysAgo)->count(),
+            'new_tenants_30d' => Tenant::where('created_at', '>=', $thirtyDaysAgo)->count(),
 
             // Active tenants (based on last_seen_at)
             'active_tenants_24h' => Tenant::where('last_seen_at', '>=', now()->subDay())->count(),
@@ -132,6 +140,86 @@ class AdminDashboardController extends Controller
                 $query->whereNull('last_seen_at')
                     ->orWhere('last_seen_at', '<', $now->copy()->subDays(14));
             })->count(),
+            'suspended_count' => Tenant::where('is_active', false)->count(),
+            'expired_count' => Tenant::expired()->count(),
         ];
+    }
+
+    /**
+     * Runtime configuration metrics for the control center.
+     */
+    private function getRuntimeMetrics(): array
+    {
+        return [
+            'environment' => app()->environment(),
+            'database' => config('database.default'),
+            'cache_store' => config('cache.default'),
+            'queue_driver' => config('queue.default'),
+            'mailer' => config('mail.default'),
+            'sentry_configured' => filled(config('sentry.dsn')),
+        ];
+    }
+
+    /**
+     * Plan distribution across the tenant base.
+     */
+    private function getPlanMixMetrics(): array
+    {
+        return collect(Tenant::ALL_PLANS)->map(function (string $plan) {
+            return [
+                'plan' => $plan,
+                'label' => ucfirst($plan),
+                'count' => Tenant::where('plan', $plan)->count(),
+            ];
+        })->all();
+    }
+
+    /**
+     * Tenants that most likely need operator attention.
+     */
+    private function getAttentionQueues(): array
+    {
+        $now = now();
+
+        return [
+            'expiring' => Tenant::query()
+                ->where(function ($query) use ($now) {
+                    $query->where(function ($trialQuery) use ($now) {
+                        $trialQuery->where('is_trial', true)
+                            ->whereBetween('trial_ends_at', [$now, $now->copy()->addDays(7)]);
+                    })->orWhere(function ($subscriptionQuery) use ($now) {
+                        $subscriptionQuery->where('is_trial', false)
+                            ->whereBetween('subscription_ends_at', [$now, $now->copy()->addDays(7)]);
+                    });
+                })
+                ->orderByRaw('COALESCE(trial_ends_at, subscription_ends_at) asc')
+                ->take(5)
+                ->get(),
+            'suspended' => Tenant::query()
+                ->where('is_active', false)
+                ->latest('updated_at')
+                ->take(5)
+                ->get(),
+            'inactive' => Tenant::query()
+                ->whereNotNull('last_seen_at')
+                ->where('last_seen_at', '<', $now->copy()->subDays(14))
+                ->orderBy('last_seen_at')
+                ->take(5)
+                ->get(),
+        ];
+    }
+
+    /**
+     * Latest tenant-level administrative actions.
+     */
+    private function getRecentActions()
+    {
+        return AuditLog::query()
+            ->where('model_type', Tenant::class)
+            ->where('action', '!=', 'note')
+            ->with('user')
+            ->latest()
+            ->take(6)
+            ->get();
     }
 }

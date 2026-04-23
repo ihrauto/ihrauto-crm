@@ -28,7 +28,22 @@ class AppServiceProvider extends ServiceProvider
         // Force HTTPS in production
         if ($this->app->environment('production')) {
             \Illuminate\Support\Facades\URL::forceScheme('https');
+
+            // Fail loudly if APP_DEBUG leaked into production — stack traces
+            // and env dumps in error pages are a high-severity info leak.
+            if (config('app.debug')) {
+                throw new \RuntimeException(
+                    'APP_DEBUG must not be true in production. Refusing to boot.'
+                );
+            }
         }
+
+        // S-07: resolve auto-login eligibility ONCE at boot instead of probing
+        // the filesystem on every request. That kills a subtle timing side
+        // channel (file_exists() latency deltas on shared filesystems) and
+        // makes the invariant "auto-login can never run outside local" a
+        // compile-time style guarantee rather than a middleware convention.
+        config()->set('app.auto_login_verified', \App\Support\AutoLoginGuard::resolve());
 
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute(5)->by($request->input('email', '').'|'.$request->ip());

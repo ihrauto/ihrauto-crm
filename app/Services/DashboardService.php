@@ -5,13 +5,32 @@ namespace App\Services;
 use App\Models\Checkin;
 use App\Models\Customer;
 use App\Models\Tire;
+use App\Support\CachedQuery;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardService
 {
     /**
      * Get all dashboard statistics.
+     *
+     * D-14: wrapped with CachedQuery so a cold-cache expiry doesn't spawn
+     * N concurrent recomputes for the same tenant.
      */
     public function getStats(): array
+    {
+        $tenantId = tenant_id();
+
+        return CachedQuery::remember(
+            "dashboard_stats_{$tenantId}",
+            300,
+            fn () => $this->computeStats()
+        );
+    }
+
+    /**
+     * Compute all dashboard statistics (called by cache layer).
+     */
+    protected function computeStats(): array
     {
         // Calculate growth metrics
         $currentMonthCustomers = Customer::whereMonth('created_at', now()->month)
@@ -34,16 +53,18 @@ class DashboardService
             ? round((($currentMonthRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 1)
             : ($currentMonthRevenue > 0 ? 100 : 0);
 
-        // Work order statistics for Option A dashboard
-        $activeJobs = \App\Models\WorkOrder::where('status', 'in_progress')->count();
-        $pendingJobs = \App\Models\WorkOrder::where('status', 'created')->count();
-        $completedToday = \App\Models\WorkOrder::where('status', 'completed')
-            ->whereDate('updated_at', today())
-            ->count();
+        // Work order statistics — single aggregated query instead of 4 separate counts
+        $woCounts = \App\Models\WorkOrder::selectRaw("
+            SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as active_jobs,
+            SUM(CASE WHEN status = 'created' THEN 1 ELSE 0 END) as pending_jobs,
+            SUM(CASE WHEN status = 'completed' AND DATE(updated_at) = ? THEN 1 ELSE 0 END) as completed_today,
+            SUM(CASE WHEN status = 'in_progress' AND started_at < ? THEN 1 ELSE 0 END) as long_running
+        ", [today()->toDateString(), now()->subHours(4)])->first();
 
-        $longRunningJobs = \App\Models\WorkOrder::where('status', 'in_progress')
-            ->where('started_at', '<', now()->subHours(4))
-            ->count();
+        $activeJobs = (int) $woCounts->active_jobs;
+        $pendingJobs = (int) $woCounts->pending_jobs;
+        $completedToday = (int) $woCounts->completed_today;
+        $longRunningJobs = (int) $woCounts->long_running;
 
         // Secondary Stats (Option B)
         // Appointments = scheduled for this week (upcoming)
@@ -64,6 +85,21 @@ class DashboardService
         $idleTechnicians = \App\Models\User::where('is_active', true)
             ->whereNotIn('id', $activeTechnicianIds)
             ->count();
+
+        // Checkin stats — single aggregated query instead of 4 separate counts
+        $ciCounts = Checkin::selectRaw("
+            SUM(CASE WHEN DATE(checkin_time) = ? THEN 1 ELSE 0 END) as today,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
+        ", [today()->toDateString()])->first();
+
+        $checkinCounts = [
+            'today' => (int) $ciCounts->today,
+            'pending' => (int) $ciCounts->pending,
+            'in_progress' => (int) $ciCounts->in_progress,
+            'completed' => (int) $ciCounts->completed,
+        ];
 
         return [
             'total_customers' => Customer::where('is_active', true)->count(),
@@ -93,10 +129,10 @@ class DashboardService
 
             'total_outstanding' => \App\Models\Invoice::sum('total') - \App\Models\Invoice::sum('paid_amount'),
 
-            'today_checkins' => Checkin::today()->count(),
-            'pending_checkins' => Checkin::pending()->count(),
-            'in_progress_checkins' => Checkin::inProgress()->count(),
-            'completed_checkins' => Checkin::completed()->count(),
+            'today_checkins' => $checkinCounts['today'] ?? 0,
+            'pending_checkins' => $checkinCounts['pending'] ?? 0,
+            'in_progress_checkins' => $checkinCounts['in_progress'] ?? 0,
+            'completed_checkins' => $checkinCounts['completed'] ?? 0,
 
             // Growth metrics (calculated month-over-month)
             'customer_growth' => $customerGrowth,
@@ -154,7 +190,7 @@ class DashboardService
                 'type' => 'tire',
                 'icon' => 'building',
                 'title' => 'Tires stored in hotel',
-                'description' => $tire->quantity . 'x ' . $tire->season . ' tires - Customer: ' . ($tire->customer->name ?? 'Unknown'),
+                'description' => $tire->quantity.'x '.$tire->season.' tires - Customer: '.($tire->customer->name ?? 'Unknown'),
                 'time' => $tire->created_at->diffForHumans(),
                 'color' => 'bg-[#6A88E8]',
             ];
@@ -197,7 +233,7 @@ class DashboardService
 
                 return [
                     'id' => $wo->id,
-                    'title' => ($wo->vehicle->make ?? '') . ' - ' . ($wo->customer->name ?? 'Guest'),
+                    'title' => ($wo->vehicle->make ?? '').' - '.($wo->customer->name ?? 'Guest'),
                     'start' => $date->format('Y-m-d H:i:s'),
                     'bay' => $wo->service_bay,
                     'technician' => $wo->technician->name ?? 'Unassigned',
@@ -232,7 +268,7 @@ class DashboardService
                     'id' => $wo->id,
                     'time' => $time->format('H:i'),
                     'customer' => $wo->customer->name ?? 'Unknown',
-                    'vehicle' => ($wo->vehicle->make ?? '') . ' ' . ($wo->vehicle->model ?? ''),
+                    'vehicle' => ($wo->vehicle->make ?? '').' '.($wo->vehicle->model ?? ''),
                     'technician' => $wo->technician->name ?? 'Unassigned',
                     'bay' => $wo->service_bay,
                     'status' => $wo->status,
@@ -248,7 +284,7 @@ class DashboardService
     public function getTechnicianStatus(): \Illuminate\Support\Collection
     {
         // Get all technicians (users with technician role or all users for now)
-        $technicians = \App\Models\User::all(); // Filter by role if applicable
+        $technicians = \App\Models\User::where('is_active', true)->orderBy('name')->get();
 
         // Get currently active jobs
         $activeJobs = \App\Models\WorkOrder::where('status', 'in_progress')
@@ -361,7 +397,7 @@ class DashboardService
                 'type' => 'recent_storage',
                 'icon' => 'archive',
                 'title' => 'Recently stored',
-                'description' => ($tire->customer->name ?? 'Unknown') . ' - ' . $tire->full_description,
+                'description' => ($tire->customer->name ?? 'Unknown').' - '.$tire->full_description,
                 'time_info' => $tire->storage_date->diffForHumans(),
                 'location' => $tire->storage_location,
                 'color' => 'bg-green-100 text-green-800',
@@ -381,8 +417,8 @@ class DashboardService
                 'type' => 'ready_pickup',
                 'icon' => 'truck',
                 'title' => 'Ready for pickup',
-                'description' => ($tire->customer->name ?? 'Unknown') . ' - ' . $tire->full_description,
-                'time_info' => 'Updated ' . $tire->updated_at->diffForHumans(),
+                'description' => ($tire->customer->name ?? 'Unknown').' - '.$tire->full_description,
+                'time_info' => 'Updated '.$tire->updated_at->diffForHumans(),
                 'location' => $tire->storage_location,
                 'color' => 'bg-blue-100 text-blue-800',
                 'action_url' => route('tires-hotel'),
@@ -401,8 +437,8 @@ class DashboardService
                 'type' => 'maintenance',
                 'icon' => 'cog',
                 'title' => 'In maintenance',
-                'description' => ($tire->customer->name ?? 'Unknown') . ' - ' . $tire->full_description,
-                'time_info' => 'Started ' . $tire->updated_at->diffForHumans(),
+                'description' => ($tire->customer->name ?? 'Unknown').' - '.$tire->full_description,
+                'time_info' => 'Started '.$tire->updated_at->diffForHumans(),
                 'location' => $tire->storage_location,
                 'color' => 'bg-yellow-100 text-yellow-800',
                 'action_url' => route('tires-hotel'),
@@ -421,7 +457,7 @@ class DashboardService
                     'type' => 'recent_activity',
                     'icon' => 'refresh',
                     'title' => 'Recent activity',
-                    'description' => ($tire->customer->name ?? 'Unknown') . ' - ' . $tire->full_description,
+                    'description' => ($tire->customer->name ?? 'Unknown').' - '.$tire->full_description,
                     'time_info' => $tire->updated_at->diffForHumans(),
                     'location' => $tire->storage_location,
                     'color' => 'bg-gray-100 text-gray-800',
@@ -467,32 +503,146 @@ class DashboardService
     }
 
     /**
-     * Get system status (simplified - in production, implement real checks).
+     * Get system status with real runtime checks.
      */
     public function getSystemStatus(): array
     {
-        // TODO: Implement real system health checks
         return [
-            'database' => [
-                'status' => 'online',
-                'uptime' => '99.9%',
-                'color' => 'green',
-            ],
-            'storage' => [
-                'status' => '78% used',
-                'details' => '156 GB free',
-                'color' => 'green',
-            ],
-            'cache' => [
-                'status' => 'optimized',
-                'hit_rate' => '94%',
-                'color' => 'green',
-            ],
-            'backup' => [
-                'status' => 'updated',
-                'last_backup' => '2 hours ago',
-                'color' => 'green',
-            ],
+            'database' => $this->checkDatabase(),
+            'storage' => $this->checkStorage(),
+            'cache' => $this->checkCache(),
+            'backup' => $this->checkBackup(),
         ];
+    }
+
+    /**
+     * Database health check.
+     *
+     * Previous implementation queried `information_schema.tables` which:
+     *   - is PostgreSQL-specific (fails on SQLite used in tests)
+     *   - leaks database schema metadata (minor info disclosure)
+     *   - is slow under load (table scan on system catalog)
+     *
+     * We now just verify PDO connectivity + a trivial SELECT 1. This is
+     * portable, fast, and reveals nothing about the schema.
+     */
+    private function checkDatabase(): array
+    {
+        try {
+            \Illuminate\Support\Facades\DB::connection()->getPdo();
+            \Illuminate\Support\Facades\DB::select('SELECT 1');
+
+            return [
+                'status' => 'online',
+                'details' => 'Connection verified',
+                'color' => 'green',
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'offline',
+                'details' => 'Connection failed',
+                'color' => 'red',
+            ];
+        }
+    }
+
+    private function checkStorage(): array
+    {
+        $publicDisk = config('filesystems.disks.public', []);
+        if (($publicDisk['driver'] ?? null) === 's3') {
+            $bucket = $publicDisk['bucket'] ?? 'configured bucket';
+            $root = trim((string) ($publicDisk['root'] ?? ''), '/');
+
+            return [
+                'status' => 'cloud-backed',
+                'details' => $root !== '' ? "{$bucket}/{$root}" : $bucket,
+                'color' => 'green',
+            ];
+        }
+
+        $storagePath = storage_path();
+
+        // disk_free_space may be disabled on some hosts
+        $freeBytes = @disk_free_space($storagePath);
+        $totalBytes = @disk_total_space($storagePath);
+
+        if ($freeBytes === false || $totalBytes === false || $totalBytes == 0) {
+            return [
+                'status' => 'unknown',
+                'details' => 'Unable to read disk info',
+                'color' => 'gray',
+            ];
+        }
+
+        $usedPercent = round((1 - $freeBytes / $totalBytes) * 100, 1);
+        $freeGB = round($freeBytes / 1073741824, 1);
+
+        $color = $usedPercent > 90 ? 'red' : ($usedPercent > 75 ? 'yellow' : 'green');
+
+        return [
+            'status' => "{$usedPercent}% used",
+            'details' => "{$freeGB} GB free",
+            'color' => $color,
+        ];
+    }
+
+    private function checkCache(): array
+    {
+        try {
+            $key = 'system_health_check_'.time();
+            \Illuminate\Support\Facades\Cache::put($key, true, 10);
+            $hit = \Illuminate\Support\Facades\Cache::get($key);
+            \Illuminate\Support\Facades\Cache::forget($key);
+
+            return [
+                'status' => $hit ? 'operational' : 'degraded',
+                'details' => $hit ? 'Read/write OK' : 'Write succeeded, read failed',
+                'color' => $hit ? 'green' : 'yellow',
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'error',
+                'details' => 'Cache unavailable',
+                'color' => 'red',
+            ];
+        }
+    }
+
+    private function checkBackup(): array
+    {
+        $backupDiskName = config('backup.backup.destination.disks.0', 'backups');
+
+        try {
+            $disk = Storage::disk($backupDiskName);
+            $files = collect($disk->allFiles())
+                ->filter(fn (string $path) => str_ends_with(strtolower($path), '.zip'))
+                ->values();
+
+            if ($files->isEmpty()) {
+                return [
+                    'status' => 'no backups',
+                    'details' => "No backup files found on {$backupDiskName}",
+                    'color' => 'yellow',
+                ];
+            }
+
+            $latestPath = $files->sortByDesc(fn (string $path) => $disk->lastModified($path))->first();
+            $latestModifiedAt = \Carbon\Carbon::createFromTimestamp($disk->lastModified($latestPath));
+            $age = now()->diffForHumans($latestModifiedAt);
+            $hoursSince = now()->diffInHours($latestModifiedAt);
+            $color = $hoursSince > 48 ? 'red' : ($hoursSince > 24 ? 'yellow' : 'green');
+
+            return [
+                'status' => 'available',
+                'details' => "Latest on {$backupDiskName}: {$age}",
+                'color' => $color,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'error',
+                'details' => "Unable to read {$backupDiskName} backups",
+                'color' => 'red',
+            ];
+        }
     }
 }

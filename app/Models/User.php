@@ -6,6 +6,7 @@ use App\Traits\Auditable;
 use App\Traits\BelongsToTenant;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -13,15 +14,36 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use Auditable, BelongsToTenant, HasFactory, HasRoles, Notifiable;
+    use Auditable, BelongsToTenant, HasFactory, HasRoles, Notifiable, SoftDeletes;
+
+    /**
+     * C.9 — invalidate Tenant::canAddUser() cache on create/delete/restore
+     * so user-count limits reflect reality immediately after changes.
+     */
+    protected static function booted(): void
+    {
+        $flush = function (User $user) {
+            if ($user->tenant_id) {
+                \Illuminate\Support\Facades\Cache::forget("tenant_{$user->tenant_id}_user_count");
+            }
+        };
+
+        static::created($flush);
+        static::deleted($flush);
+        static::restored($flush);
+    }
 
     /**
      * The attributes that are mass assignable.
      *
+     * SECURITY: `tenant_id`, `role`, `is_active`, and `email_verified_at` are
+     * deliberately excluded. They must be set via `forceFill()` or direct
+     * property assignment from trusted code paths (provisioning, invite
+     * acceptance, seeder). Never accept these from user-supplied request data.
+     *
      * @var list<string>
      */
     protected $fillable = [
-        'tenant_id',
         'name',
         'email',
         'phone',
@@ -29,9 +51,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'invite_token',
         'invite_expires_at',
         'password',
-        'role',
-        'is_active',
-        'email_verified_at',
         'last_login_at',
     ];
 
@@ -81,7 +100,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canPerformAction(string $action): bool
     {
-        if (!$this->tenant) {
+        if (! $this->tenant) {
             return false;
         }
 

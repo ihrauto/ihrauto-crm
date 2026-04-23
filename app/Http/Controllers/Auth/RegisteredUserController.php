@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
@@ -43,7 +42,7 @@ class RegisteredUserController extends Controller
             'company_name' => ['required', 'string', 'max:255'],
             'plan' => ['nullable', 'string', 'in:basic,standard,custom'],
         ], [
-            'email.unique' => 'This email already exists. Please use a different email or login to your existing account.',
+            'email.unique' => 'This email address is already in use on IHRAUTO CRM. User emails are unique across the whole platform, so please sign in with the existing account or use a different email.',
         ]);
 
         try {
@@ -63,14 +62,14 @@ class RegisteredUserController extends Controller
                 app(\App\Services\EventTracker::class)->track('tenant_registered', $user->tenant_id, $user->id);
             } catch (\Exception $e) {
                 // Log but don't fail registration
-                \Log::warning('Failed to track registration event: ' . $e->getMessage());
+                \Log::warning('Failed to track registration event: '.$e->getMessage());
             }
 
             // Redirect to email verification page first
             // After verification, user will be redirected to onboarding
             return redirect()->route('verification.notice');
         } catch (\Exception $e) {
-            \Log::error('Registration failed: ' . $e->getMessage(), [
+            \Log::error('Registration failed: '.$e->getMessage(), [
                 'email' => $request->email,
                 'trace' => $e->getTraceAsString(),
             ]);

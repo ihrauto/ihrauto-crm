@@ -133,7 +133,7 @@ class TenantSeeder extends Seeder
 
             // Create admin user for each tenant
             $adminUser = User::updateOrCreate(
-                ['email' => 'admin@' . $tenant->subdomain . '.com'],
+                ['email' => 'admin@'.$tenant->subdomain.'.com'],
                 [
                     'tenant_id' => $tenant->id,
                     'name' => 'Admin User',
@@ -147,7 +147,7 @@ class TenantSeeder extends Seeder
             // Create additional users for standard and custom plans
             if (in_array($tenant->plan, ['standard', 'custom'])) {
                 User::updateOrCreate(
-                    ['email' => 'manager@' . $tenant->subdomain . '.com'],
+                    ['email' => 'manager@'.$tenant->subdomain.'.com'],
                     [
                         'tenant_id' => $tenant->id,
                         'name' => 'Manager User',
@@ -159,7 +159,7 @@ class TenantSeeder extends Seeder
                 );
 
                 User::updateOrCreate(
-                    ['email' => 'tech@' . $tenant->subdomain . '.com'],
+                    ['email' => 'tech@'.$tenant->subdomain.'.com'],
                     [
                         'tenant_id' => $tenant->id,
                         'name' => 'Technician User',
@@ -180,7 +180,7 @@ class TenantSeeder extends Seeder
         $letters = ['PR', 'PE', 'PZ', 'MI', 'GJ', 'FE', 'DJ'];
         $region = $letters[array_rand($letters)];
         $numbers = str_pad(rand(100, 999), 3, '0', STR_PAD_LEFT);
-        $suffix = chr(rand(65, 90)) . chr(rand(65, 90));
+        $suffix = chr(rand(65, 90)).chr(rand(65, 90));
 
         return "{$region} {$numbers} {$suffix}";
     }

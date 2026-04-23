@@ -2,14 +2,11 @@
 
 namespace Tests\Feature;
 
-use Database\Seeders\RolesAndPermissionsSeeder;
 use App\Models\Customer;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\Payment;
-use App\Models\User;
 use App\Models\Tenant;
-use App\Models\Vehicle;
+use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -19,7 +16,9 @@ class InvoiceTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Tenant $tenant;
+
     protected Customer $customer;
 
     protected function setUp(): void

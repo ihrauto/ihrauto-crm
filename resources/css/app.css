@@ -1,1 +1,60 @@
 @import "tailwindcss";
+
+/*
+  Global accessibility baseline.
+
+  WCAG 2.1 SC 2.5.5 (Target Size Level AAA) recommends 44×44 CSS pixels for
+  pointer targets. We enforce this only on coarse pointers (touch devices)
+  to avoid inflating desktop UI.
+*/
+@media (pointer: coarse) {
+    button:not([disabled]),
+    [role="button"]:not([disabled]),
+    a[href],
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    input[type="checkbox"],
+    input[type="radio"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Keep inline text links natural so they don't break paragraph flow */
+    p a[href],
+    li a[href],
+    td a[href],
+    .prose a[href] {
+        min-height: auto;
+        min-width: auto;
+    }
+}
+
+/*
+  Focus-visible fallback.
+
+  Every focusable element should have a visible focus indicator (WCAG 2.4.7).
+  Tailwind provides `focus:ring-*` utilities but not every button/link in the
+  app applies them. This rule is a safety net for keyboard users: if an
+  interactive element doesn't set its own focus style, show a default ring.
+*/
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid #6366f1; /* indigo-500 */
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* But don't double up when Tailwind's ring utility is already applied */
+.focus\:ring-2:focus-visible,
+.focus\:ring-4:focus-visible,
+[class*="focus:ring-"]:focus-visible {
+    outline: none;
+}
+
+/* x-cloak prevents flash of uninitialized Alpine components */
+[x-cloak] { display: none !important; }

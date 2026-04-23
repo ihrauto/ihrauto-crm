@@ -21,7 +21,7 @@ This document answers two questions:
 | `app/Observers` | Model-triggered side effects |
 | `app/Console/Commands` | Operational commands and maintenance runbooks |
 | `database/migrations` | Schema and data evolution |
-| `database/seeders` | Seed data, roles, demo catalog, and admin bootstrap support |
+| `database/seeders` | Production bootstrap seeders plus explicit local/demo seed flows |
 | `resources/views` | Blade UI for each module |
 | `tests/Feature` | End-to-end behavior and HTTP contracts |
 | `tests/Unit/Services` | Service-layer behavior and calculations |
@@ -57,10 +57,10 @@ This document answers two questions:
 | `ServiceController` | Service catalog CRUD and activation toggles |
 | `ProductServiceController` | Unified search/index for products and services |
 | `ServiceBayController` | Service bay CRUD and initial seeding |
-| `MechanicsController` | Technician-facing user management and invitations |
-| `ManagementController` | Tenant reports, settings, users, exports, and backup download |
-| `RoleController` | Role permission editing |
+| `MechanicsController` | Technician account management and invitations under tenant user-access rules |
+| `ManagementController` | Tenant reports, settings, users, exports, backup download, and tenant-safe staff management |
 | `ProfileController` | User profile editing and account removal |
+| `BillingController` | Tenant-facing manual billing and pricing recovery page |
 | `SubscriptionController` | Onboarding, setup, and subscription support flows |
 
 ### Auth, Admin, And Utility
@@ -90,11 +90,22 @@ This document answers two questions:
 | `TenantProvisioningService` | Transactional tenant and owner creation |
 | `TenantLifecycleService` | Tenant archive and purge workflows |
 | `InvoiceService` | Invoice number generation, creation, issuing, voiding, payment state, stock handling |
-| `CheckinService` | Check-in creation for existing or new vehicles/customers |
-| `TireStorageService` | Tire storage statistics, location assignment, tire intake |
-| `DashboardService` | Dashboard aggregates, schedules, alerts, and system state |
+| `CheckinService` | Check-in creation for existing or new vehicles/customers, work order creation from checkin, photo upload |
+| `WorkOrderService` | Status transitions, technician assignment, work order completion workflow |
+| `TireStorageService` | Tire storage statistics, location assignment, tire intake, tire work order creation |
+| `FinanceService` | Financial overview stats with caching |
+| `DashboardService` | Dashboard aggregates (cached), schedules, alerts, and system state |
 | `ReportingService` | KPI, performance, revenue, and analytics datasets |
 | `EventTracker` | Simple event recording for operational metrics |
+
+## Enums
+
+| Enum | Values |
+| --- | --- |
+| `WorkOrderStatus` | Created, Pending, Scheduled, InProgress, WaitingParts, Completed, Invoiced, Cancelled |
+| `CheckinStatus` | Pending, InProgress, Completed, Cancelled |
+| `PaymentMethod` | Cash, Card, BankTransfer, Other |
+| `InvoiceStatus` | Draft, Issued, Partial, Paid, Void |
 
 ## Middleware And Support
 
@@ -108,6 +119,8 @@ This document answers two questions:
 | `RequireTireHotelAccess` | Tire hotel feature access gate |
 | `AddLegacyApiDeprecationHeaders` | Deprecation signaling for legacy API routes |
 | `TenantContext` | Shared tenant context container for runtime access |
+| `TenantCache` | Shared tenant and bearer-token cache key generation and invalidation |
+| `TenantUserAccess` | Tenant-safe staff-role assignment and target-authorization rules |
 | `TenantValidation` | Tenant-aware validation helper rules |
 | `TenantScope` | Query-time tenant isolation |
 | `BelongsToTenant` | Model-level tenant ownership behavior |
@@ -116,15 +129,15 @@ This document answers two questions:
 
 | Model | Responsibility |
 | --- | --- |
-| `Tenant` | Tenant account, plan, features, lifecycle state, limits |
-| `TenantApiToken` | Hashed bearer token storage and rotation target |
-| `User` | Staff identity, tenant membership, roles |
+| `Tenant` | Tenant account, plan, features, lifecycle state, limits, and access-gate helpers |
+| `TenantApiToken` | Hashed bearer token storage, cache invalidation target, and rotation target |
+| `User` | Staff identity, tenant membership, roles, invites, and activation state |
 | `Customer` | Workshop customer record |
 | `Vehicle` | Customer vehicle record |
 | `Checkin` | Vehicle arrival and service intake |
 | `WorkOrder` | Execution record for workshop work |
 | `Invoice` | Canonical billing document and status owner |
-| `Payment` | Payment events linked to invoices and customers |
+| `Payment` | Payment events linked to invoices and customers, including idempotency keys |
 | `Product` | Inventory item |
 | `Service` | Billable or operational service definition |
 | `Appointment` | Scheduled future workshop work |
@@ -137,7 +150,7 @@ This document answers two questions:
 
 | Command | Purpose |
 | --- | --- |
-| `ops:bootstrap-super-admin` | Seed the configured super-admin and roles |
+| `ops:bootstrap-super-admin` | Seed the configured super-admin and platform roles for production boot |
 | `tenant:rotate-api-token` | Rotate tenant bearer token credentials |
 | `tenant:purge` | Irreversibly purge a tenant and associated data |
 | `crm:clean-demo-data` | Remove demo operational data while keeping config |
@@ -152,8 +165,24 @@ This document answers two questions:
 | --- | --- |
 | `tests/Feature/PublicSurfaceHardeningTest.php` | Locks down public route exposure |
 | `tests/Feature/Api/TenantApiAuthTest.php` | Verifies token-based tenant API access |
+| `tests/Feature/AuthenticationTest.php` | Verifies tenant lifecycle, inactive login blocking, and invite activation |
+| `tests/Feature/ManagementAdminTest.php` | Verifies tenant user-management matrix, last-admin protection, and module gating |
+| `tests/Feature/PaymentFlowTest.php` | Verifies payment recording and idempotency behavior |
+| `tests/Feature/CheckinTest.php` | Verifies check-in creation, technician gating, and photo-upload rollback |
+| `tests/Feature/WorkOrderTest.php` | Verifies work-order isolation and supported status transitions |
 | `tests/Feature/TenantIsolationTest.php` | Verifies tenant data boundaries |
+| `tests/Feature/PolicyTest.php` | Policy authorization for all 6 policies + 3 gates + cross-tenant |
+| `tests/Feature/MiddlewareTest.php` | Tenant lifecycle, module access, plan gating middleware |
+| `tests/Feature/NegativeCasesTest.php` | Cross-tenant denial, immutability, overpayment, idempotency |
+| `tests/Feature/ConcurrencyTest.php` | Duplicate invoice, unique numbering, stock/payment race conditions |
+| `tests/Feature/AuthorizationTest.php` | Role-based access control for finance, bays, products, services |
 | `tests/Feature/*` | HTTP behavior and feature workflows |
+| `tests/Unit/Services/CheckinServiceTest.php` | Customer deduplication, vehicle reuse, registration flow |
 | `tests/Unit/Services/*` | Service-layer calculations and domain transitions |
+
+## Launch Notes
+
+- Tenant role-permission editing is intentionally not part of the production route surface during launch hardening.
+- `DatabaseSeeder` is production-safe; use `LocalDemoSeeder` explicitly when local/demo tenant data is needed.
 
 For a class-by-class method inventory, see [function-index.md](function-index.md).

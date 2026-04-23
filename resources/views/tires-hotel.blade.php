@@ -4,25 +4,8 @@
 
 @section('content')
     <div class="space-y-6">
-        <!-- Success/Error Messages -->
-        @if(session('success'))
-            <div
-                class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg flex items-center shadow-sm">
-                <svg class="w-5 h-5 mr-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                {{ session('success') }}
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center shadow-sm">
-                <svg class="w-5 h-5 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-                {{ session('error') }}
-            </div>
-        @endif
+        <x-flash-message type="success" />
+        <x-flash-message type="error" />
 
 
 
@@ -365,55 +348,18 @@
         </div>
 
         <!-- Section Separator -->
-        <div class="py-8" id="dashboard-section">
-            <div class="flex items-center justify-center">
-                <div class="flex-grow border-t border-indigo-100"></div>
-                <div class="mx-6">
-                    <h2 class="text-xs font-bold text-indigo-300 uppercase tracking-widest">Overview & Analytics</h2>
-                </div>
-                <div class="flex-grow border-t border-indigo-100"></div>
-            </div>
+        <div id="dashboard-section">
+            <x-section-separator label="Overview & Analytics" />
         </div>
 
         <!-- Tire Hotel Information Section -->
         <div class="space-y-6">
             <!-- Statistics Cards -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                <x-card class="border-l-4 border-indigo-600 shadow-sm ring-1 ring-indigo-50">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-indigo-500">Total Tire Sets</p>
-                            <p class="text-2xl font-bold text-indigo-900">{{ $stats['total_sets'] }}</p>
-                        </div>
-                    </div>
-                </x-card>
-
-                <x-card class="border-l-4 border-indigo-500 shadow-sm ring-1 ring-indigo-50">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-indigo-500">Individual Tires</p>
-                            <p class="text-2xl font-bold text-indigo-900">{{ $stats['total_tires'] }}</p>
-                        </div>
-                    </div>
-                </x-card>
-
-                <x-card class="border-l-4 border-indigo-400 shadow-sm ring-1 ring-indigo-50">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-indigo-500">Storage Utilization</p>
-                            <p class="text-2xl font-bold text-indigo-900">{{ $stats['storage_utilization'] }}%</p>
-                        </div>
-                    </div>
-                </x-card>
-
-                <x-card class="border-l-4 border-purple-400 shadow-sm ring-1 ring-indigo-50">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-indigo-500">New This Month</p>
-                            <p class="text-2xl font-bold text-indigo-900">{{ $stats['new_arrivals_month'] }}</p>
-                        </div>
-                    </div>
-                </x-card>
+                <x-stat-card label="Total Tire Sets" :value="$stats['total_sets']" borderColor="border-indigo-600" />
+                <x-stat-card label="Individual Tires" :value="$stats['total_tires']" borderColor="border-indigo-500" />
+                <x-stat-card label="Storage Utilization" :value="$stats['storage_utilization'] . '%'" borderColor="border-indigo-400" />
+                <x-stat-card label="New This Month" :value="$stats['new_arrivals_month']" borderColor="border-purple-400" />
             </div>
             <!-- Storage Capacity & Upcoming Pickups Row -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -613,13 +559,12 @@
 
         // --- EDIT TIRE MODAL LOGIC ---
         function openEditModal(id) {
-            console.log('Opening Edit Modal for ID:', id);
             const modal = document.getElementById('edit-tire-modal');
             const form = document.getElementById('edit-tire-form');
             const loading = document.getElementById('edit-loading');
             const fields = document.getElementById('edit-fields');
 
-            if (!modal) return console.error('Edit modal not found');
+            if (!modal) return window.appLogError('Edit modal not found');
 
             // 1. Move to body to fix stacking/visual bugs
             ensureModalInBody('edit-tire-modal');
@@ -659,7 +604,7 @@
                     }
                 })
                 .catch(e => {
-                    console.error('Fetch error:', e);
+                    window.appLogError('Fetch error:', e);
                     alert('Network error fetching details');
                     closeEditModal();
                 });
@@ -680,7 +625,6 @@
 
         // --- DOM Event Listeners ---
         document.addEventListener('DOMContentLoaded', function () {
-            console.log('TireHotel Script Loaded.');
 
             // 1. Global Event Delegation for Edit Buttons
             document.body.addEventListener('click', function (e) {
@@ -694,7 +638,7 @@
                     if (id) {
                         openEditModal(id);
                     } else {
-                        console.error('Edit button missing data-tire-id');
+                        window.appLogError('Edit button missing data-tire-id');
                     }
                 }
             });
@@ -865,7 +809,7 @@
                         }
                     })
                     .catch(e => {
-                        console.error(e);
+                        window.appLogError(e);
                         if (loading) loading.classList.add('hidden');
                     });
             }
@@ -941,7 +885,7 @@
                             this.storage.isAvailable = false;
                         }
                     } catch (e) {
-                        console.error("Error fetching next slot:", e);
+                        window.appLogError("Error fetching next slot:", e);
                     } finally {
                         this.storage.isChecking = false;
                     }
@@ -959,7 +903,7 @@
                             ? '<span class="text-green-600 flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Available</span>'
                             : '<span class="text-red-500 flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Occupied</span>';
                     } catch (e) {
-                        console.error("Error checking availability:", e);
+                        window.appLogError("Error checking availability:", e);
                         this.storage.message = "Error checking";
                     } finally {
                         this.storage.isChecking = false;

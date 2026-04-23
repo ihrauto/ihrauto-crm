@@ -1,9 +1,9 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "ihrauto/crm",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "IHRAUTO CRM — Multi-tenant workshop management platform.",
+    "keywords": ["ihrauto", "crm", "workshop", "multi-tenant"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
@@ -13,7 +13,6 @@
         "resend/resend-laravel": "^1.1",
         "sentry/sentry-laravel": "^4.20",
         "spatie/laravel-backup": "^9.3",
-        "spatie/laravel-multitenancy": "^4.0",
         "spatie/laravel-permission": "^6.24"
     },
     "require-dev": {
