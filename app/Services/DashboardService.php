@@ -68,10 +68,17 @@ class DashboardService
 
         // 1. Customers: current-vs-last month growth + active count in one pass.
         // Using CASE WHEN (not PG FILTER) so the query is portable across PG + SQLite (tests).
+        //
+        // Boolean comparison portability: `is_active = 1 OR is_active = true` was
+        // meant to be driver-agnostic but PostgreSQL rejects `boolean = integer`
+        // at parse time — the whole expression fails before the OR is evaluated.
+        // Using the boolean column directly in the WHEN condition works on every
+        // supported driver (PG treats bool natively; SQLite/MySQL treat any
+        // non-zero value as truthy in a boolean context).
         $customerStats = Customer::selectRaw(
             'SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as current_month,
              SUM(CASE WHEN created_at >= ? AND created_at <= ? THEN 1 ELSE 0 END) as last_month,
-             SUM(CASE WHEN is_active = 1 OR is_active = true THEN 1 ELSE 0 END) as active_total',
+             SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active_total',
             [$monthStart, $lastMonthStart, $lastMonthEnd.' 23:59:59']
         )->first();
         $customerGrowth = $customerStats->last_month > 0
