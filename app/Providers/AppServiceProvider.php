@@ -25,6 +25,23 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::defaultView('vendor.pagination.smooth');
 
+        // Security review L-1: tighten the default password rule across the
+        // entire app. Every call site using `Password::defaults()` now gets
+        // the hardened rule automatically; sites still using `min:8` string
+        // rules (ManagementController, InviteController) were migrated to
+        // this helper in the same PR.
+        //
+        // `uncompromised()` talks to haveibeenpwned.com via k-anonymity. We
+        // skip it outside production so CI and local dev do not depend on
+        // that network round-trip; production gets the full check.
+        \Illuminate\Validation\Rules\Password::defaults(function () {
+            $rule = \Illuminate\Validation\Rules\Password::min(12)
+                ->mixedCase()
+                ->numbers();
+
+            return $this->app->environment('production') ? $rule->uncompromised() : $rule;
+        });
+
         // Force HTTPS in production
         if ($this->app->environment('production')) {
             \Illuminate\Support\Facades\URL::forceScheme('https');
@@ -175,11 +192,45 @@ class AppServiceProvider extends ServiceProvider
                         'connection' => $query->connectionName,
                         'time_ms' => round($query->time, 1),
                         'sql' => $query->sql,
-                        'bindings' => $query->bindings,
+                        // Security review M-7: do NOT log raw bindings. A slow
+                        // query's bindings routinely include customer phone,
+                        // email, name, IBAN, invoice amounts — all PII.
+                        // Scrub strings to `str(<len>)` so ops keep type +
+                        // cardinality signal without leaking values. Numbers
+                        // and booleans are kept since they are rarely PII and
+                        // are useful for tuning. Instances (e.g. Carbon) are
+                        // stringified via get_class().
+                        'bindings' => self::scrubSlowQueryBindings($query->bindings),
                         'tenant_id' => function_exists('tenant_id') ? tenant_id() : null,
                     ]);
                 }
             });
         }
+    }
+
+    /**
+     * Replace bindings that may contain PII (strings, objects) with a shape
+     * marker. Used for slow-query logging — see the DB::listen() block above.
+     *
+     * @param  array<int|string, mixed>  $bindings
+     * @return array<int|string, mixed>
+     */
+    private static function scrubSlowQueryBindings(array $bindings): array
+    {
+        $scrubbed = [];
+        foreach ($bindings as $key => $value) {
+            if (is_string($value)) {
+                $scrubbed[$key] = 'str('.strlen($value).')';
+            } elseif (is_object($value)) {
+                $scrubbed[$key] = 'obj('.get_class($value).')';
+            } elseif (is_array($value)) {
+                $scrubbed[$key] = 'arr('.count($value).')';
+            } else {
+                // int, float, bool, null — safe to keep.
+                $scrubbed[$key] = $value;
+            }
+        }
+
+        return $scrubbed;
     }
 }

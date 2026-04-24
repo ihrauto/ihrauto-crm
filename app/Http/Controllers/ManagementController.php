@@ -63,18 +63,47 @@ class ManagementController extends Controller
             fputcsv($file, ['ID', 'Name', 'Email', 'Phone', 'Created At']);
 
             foreach ($customers as $customer) {
-                fputcsv($file, [
+                fputcsv($file, array_map([self::class, 'neutralizeCsvCell'], [
                     $customer->id,
                     $customer->name,
                     $customer->email,
                     $customer->phone,
-                    $customer->created_at,
-                ]);
+                    (string) $customer->created_at,
+                ]));
             }
             fclose($file);
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Neutralize CSV formula injection. Excel, LibreOffice Calc, and Google
+     * Sheets evaluate a cell that begins with `=`, `+`, `-`, `@`, tab, or
+     * carriage return as a formula — which means a customer whose name the
+     * system records as `=HYPERLINK(...)` can run arbitrary expressions on
+     * whoever opens the export. Prefixing a single quote neutralises this
+     * without changing the displayed value meaningfully.
+     *
+     * Applied to every customer-sourced cell in the export. IDs and system
+     * timestamps go through too, which is cheap and keeps the code
+     * consistent.
+     *
+     * @param  mixed  $value
+     */
+    protected static function neutralizeCsvCell($value): string
+    {
+        $string = (string) ($value ?? '');
+        if ($string === '') {
+            return $string;
+        }
+
+        $firstChar = $string[0];
+        if (in_array($firstChar, ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'".$string;
+        }
+
+        return $string;
     }
 
     public function settings()
@@ -226,7 +255,8 @@ class ManagementController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
+            // L-1: use the app-wide hardened password rule instead of min:8.
+            'password' => ['required', \Illuminate\Validation\Rules\Password::defaults()],
             'role' => ['required', 'string', Rule::in($allowedRoles)],
         ], [
             'email.unique' => 'This email address is already in use on IHRAUTO CRM. User emails are unique across the whole platform.',
@@ -266,7 +296,8 @@ class ManagementController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
             'role' => ['required', 'string', Rule::in($allowedRoles)],
-            'password' => 'nullable|string|min:8',
+            // L-1: same hardened rule, nullable (admin may skip password change).
+            'password' => ['nullable', \Illuminate\Validation\Rules\Password::defaults()],
         ], [
             'email.unique' => 'This email address is already in use on IHRAUTO CRM. User emails are unique across the whole platform.',
         ]);

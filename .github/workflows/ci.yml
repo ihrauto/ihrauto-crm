@@ -129,7 +129,13 @@ jobs:
         run: npm ci
 
       - name: npm audit (moderate+)
-        run: npm audit --audit-level=moderate || true
+        # Security review M-10: previously this step ended with `|| true`,
+        # which silently swallowed every npm advisory. Composer audit
+        # already gates the build on moderate+ findings; we now do the
+        # same for npm so JS-side vulnerabilities cannot ride to prod
+        # unnoticed. Break-glass: add a narrow `--exclude` or raise
+        # --audit-level rather than bringing back the swallow.
+        run: npm audit --audit-level=moderate
 
   build:
     name: Frontend build

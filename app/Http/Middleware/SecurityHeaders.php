@@ -61,6 +61,61 @@ class SecurityHeaders
             'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=()'
         );
 
+        // Security review M-1: Content-Security-Policy.
+        //
+        // Scope set to HTML responses only — JSON/PDF/CSV don't need it and
+        // shipping a policy with them just bloats every response header.
+        //
+        // The policy currently keeps `'unsafe-inline'` on script/style because
+        // Alpine.js relies on inline attributes (x-data, x-on:*) that count
+        // as inline script expressions under CSP's script-src semantics.
+        // That leaves us short of XSS-hardening nirvana but still lets us
+        // bank the big wins:
+        //   - object-src 'none'      — blocks legacy Flash/Java/plugin abuse
+        //   - base-uri 'self'        — blocks <base href="…"> hijacking
+        //   - form-action 'self'     — blocks form-posts to attacker origins
+        //   - frame-ancestors 'self' — clickjacking mitigation at the CSP layer
+        //   - upgrade-insecure-requests — stops mixed-content in production
+        //
+        // Next step (future): migrate inline handlers to Alpine listeners in
+        // bundled JS, then drop `'unsafe-inline'` and switch script-src to
+        // `'strict-dynamic'` with a per-request nonce.
+        $contentType = (string) $response->headers->get('Content-Type', '');
+        if (str_contains($contentType, 'text/html') || $contentType === '') {
+            $csp = [
+                "default-src 'self'",
+                // Scripts: self + inline (Alpine). Vite-built bundles are same-origin.
+                "script-src 'self' 'unsafe-inline'",
+                // Styles: self + inline (Tailwind JIT sometimes inlines).
+                "style-src 'self' 'unsafe-inline'",
+                // Images: self + data: (icons, SweetAlert2) + https: for Gravatar etc.
+                "img-src 'self' data: https:",
+                // Fonts: self + data: (embedded fonts).
+                "font-src 'self' data:",
+                // XHR / fetch / EventSource.
+                "connect-src 'self'",
+                // Media files (audio/video): none today.
+                "media-src 'self'",
+                // Plugins + base + forms + frames.
+                "object-src 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+                "frame-ancestors 'self'",
+            ];
+
+            if (app()->environment('production')) {
+                $csp[] = 'upgrade-insecure-requests';
+            }
+
+            $response->headers->set('Content-Security-Policy', implode('; ', $csp));
+        }
+
+        // Cross-origin isolation. COOP blocks a malicious opener from
+        // accessing window.opener references; CORP restricts which origins
+        // can embed our responses.
+        $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
+        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+
         return $response;
     }
 }

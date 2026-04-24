@@ -57,11 +57,18 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * The attributes that should be hidden for serialization.
      *
+     * SECURITY (M-6): `invite_token` must be in $hidden. It's a
+     * single-use 64-char credential that grants account setup. If a
+     * controller or debug dump ever serializes a User with a pending
+     * invite, the token is enough to claim the account. Treat it like
+     * `password`: never exposed.
+     *
      * @var list<string>
      */
     protected $hidden = [
         'password',
         'remember_token',
+        'invite_token',
     ];
 
     /**
