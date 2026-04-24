@@ -2,6 +2,53 @@
 
 All notable changes to IHRAUTO CRM are documented here.
 
+## [Unreleased] - 2026-04-24 — Security review remediation sprint
+
+### Security fixes (Critical)
+
+- **C-1**: stripped GitHub Personal Access Token from `.git/config` remote URL. Remote now uses unauthenticated HTTPS; operators re-authenticate via `gh auth login`, SSH, or a credential helper. Old PAT must be revoked at github.com/settings/tokens.
+
+### Security fixes (High)
+
+- **H-1**: removed unenforced `two_factor_required` column from `Tenant::$fillable` and `$casts` (and the factory). Column retained in DB for the eventual real 2FA feature; no code can set it via mass assignment today, so nothing misleads tenants into thinking 2FA is active.
+- **H-2**: `ProfileUpdateRequest` now requires `current_password` whenever the submitted email differs from the authenticated user's email. Closes the session-only account-takeover chain (XSS/stolen cookie → change email → forgot-password → lockout). Profile edit form exposes the password field conditionally via Alpine.
+- **H-3**: `/subscription/setup` now requires `permission:manage settings`. Previously any authenticated tenant user could rewrite the tenant's IBAN, bank, email, and tax rate — a vector to redirect invoice payouts.
+- **H-4**: `PasswordResetLinkController::store` always returns the same success banner regardless of `INVALID_USER` / `RESET_LINK_SENT`. Account-enumeration oracle closed; failed statuses are logged so ops can still see mailer / throttle failures.
+- **H-5**: storage + bootstrap/cache permissions tightened from `775` to `770`. Documented in the Dockerfile why supervisord and the Apache master still run as root (TCP/80 binding); all PHP user code already executes as `www-data`.
+- **H-6**: `WorkOrderPhotoController` now derives the stored filename's extension from the sniffed image type (`IMAGETYPE_*`) instead of `$file->getClientOriginalExtension()`. Defeats double-extension / polyglot attacks (`shell.php.jpg` → `*.jpg`).
+- **H-7**: new migration `2026_04_24_100000_extend_invoice_immutability_trigger` — Postgres trigger now also locks `discount_total`, `customer_id`, `vehicle_id` once an invoice is issued, matching the model's `IMMUTABLE_FIELDS` constant.
+
+### Security fixes (Medium)
+
+- **M-1**: `Content-Security-Policy`, `Cross-Origin-Opener-Policy: same-origin`, and `Cross-Origin-Resource-Policy: same-origin` added for HTML responses. CSP still carries `'unsafe-inline'` on script/style while Blade relies on inline Alpine handlers; the big wins (`object-src 'none'`, `form-action 'self'`, `frame-ancestors 'self'`, `base-uri 'self'`, `upgrade-insecure-requests` in prod) are enforced today.
+- **M-6**: `invite_token` added to `User::$hidden` so it cannot leak via `toArray()`, `toJson()`, or debug dumps.
+- **M-7**: slow-query logger scrubs string / object / array bindings (`str(<len>)`, `obj(<class>)`, `arr(<count>)`); numeric and boolean bindings are preserved since they are rarely PII. Keeps ops signal without pushing customer PII into log aggregators.
+- **M-8**: `ManagementController::export` neutralises CSV formula injection — any customer-sourced cell beginning with `=`, `+`, `-`, `@`, tab, or CR is prefixed with a single quote so spreadsheets render it as literal text.
+- **M-9**: `TrustProxies::$proxies` now reads from the `TRUSTED_PROXIES` env var (comma-separated IPs/CIDRs). Falls back to `*` only when unset; `.env.example` documents the flag.
+- **M-10**: CI `npm audit --audit-level=moderate` no longer ends with `|| true`; moderate+ advisories now gate the build, matching the existing `composer audit` behaviour.
+
+### Security fixes (Low / Info)
+
+- **L-1**: password policy tightened to `Password::min(12)->mixedCase()->numbers()` via `Password::defaults(…)` in `AppServiceProvider::boot`. Production additionally enforces `->uncompromised()` (HIBP k-anonymity). `ManagementController::storeUser/updateUser` and `InviteController::setup` migrated off `min:8` onto the shared default.
+- **L-6**: `robots.txt` disallows authenticated / administrative paths.
+- **L-9**: `SentryScrubber::handle` wired as Sentry's `before_send`. Masks password / token / IBAN / phone / auth header fields in request data, headers, and cookies before transmission.
+
+### Deferred
+
+- **M-3** Spatie `teams=true` (team-scoped roles) — not exploitable today because users have exactly one `tenant_id`, but a fragility when multi-tenant user membership lands. Requires coordinated schema migration + data backfill + permission-cache flush; scheduled for a dedicated sprint.
+- **M-5** hashed `remember_token` at rest — needs `SessionGuard::viaRemember` override plus a migration strategy for existing plain-text tokens (invalidate vs. dual-verify); scheduled separately.
+
+### Blocked on operator action
+
+- **C-2** rotate `RESEND_API_KEY`, `SUPERADMIN_PASSWORD`, consider rotating `APP_KEY` and Sentry DSN. Secrets sit in local `.env` only (not committed), but must be rotated because they were visible during development.
+- **L-8** move `aws-laravel-key.pem` out of `~/Desktop/MONUNI 4/IHRAUTO/` into `~/.ssh/` or a secrets manager; delete the stale `IHRAUTO-CRM copy/` directory which likely contains a pre-rotation `.env`.
+
+### Verification
+
+- `./vendor/bin/phpunit` — 427 tests, 1093 assertions, all green.
+- Existing tests using `password123` / `new-password` / raw `password` as the posted value were updated to match the hardened rule.
+- New tests: `SubscriptionSetupAuthorizationTest`, `CsvExportInjectionTest`, `SentryScrubberTest`, plus additions to `ProfileTest`, `PasswordResetTest`, `WorkOrderPhotoAuthorizationTest`.
+
 ## [1.3.0] - 2026-04-02 — Code Quality & Security Sprint
 
 ### Security Fixes
