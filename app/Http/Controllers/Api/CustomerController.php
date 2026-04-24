@@ -55,10 +55,13 @@ class CustomerController extends Controller
                     $queryBuilder->whereRaw($plateExpr, $plateBindings);
                 },
             ])
-                ->where(function ($queryBuilder) use ($plateExpr, $plateBindings, $searchTerm) {
+                // DATA-03: email / phone encrypted at rest — LIKE partial
+                // match is dropped; exact-value matches still resolve via
+                // the deterministic `*_hash` sidecars.
+                ->where(function ($queryBuilder) use ($plateExpr, $plateBindings, $searchTerm, $searchQuery) {
                     $queryBuilder->whereRaw('LOWER(name) LIKE ?', ["%{$searchTerm}%"])
-                        ->orWhereRaw('LOWER(phone) LIKE ?', ["%{$searchTerm}%"])
-                        ->orWhereRaw('LOWER(email) LIKE ?', ["%{$searchTerm}%"])
+                        ->orWhere('email_hash', \App\Models\Customer::lookupEmailHash($searchQuery))
+                        ->orWhere('phone_hash', \App\Models\Customer::lookupPhoneHash($searchQuery))
                         ->orWhereHas('vehicles', function ($q) use ($plateExpr, $plateBindings) {
                             $q->whereRaw($plateExpr, $plateBindings);
                         });

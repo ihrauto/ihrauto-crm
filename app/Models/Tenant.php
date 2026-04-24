@@ -200,6 +200,15 @@ class Tenant extends Model
         'audit_logs_enabled' => 'boolean',
         'last_activity_at' => 'datetime',
         'last_seen_at' => 'datetime',
+        // DATA-03 (2026-04-24 review): encrypt payout-destination and
+        // invoicing-contact fields at rest. A DB dump or compromised
+        // backup archive no longer exposes IBAN / bank details in
+        // cleartext. Reversible via APP_KEY only.
+        'iban' => 'encrypted',
+        'bank_name' => 'encrypted',
+        'account_holder' => 'encrypted',
+        'invoice_email' => 'encrypted',
+        'invoice_phone' => 'encrypted',
     ];
 
     /**

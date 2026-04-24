@@ -186,9 +186,11 @@ class TireStorageService
 
     private function findOrCreateCustomer(array $data)
     {
-        // Simple deduplication by phone if exists, otherwise create
+        // Simple deduplication by phone if exists, otherwise create.
+        // DATA-03: `phone` is encrypted at rest, so we query through
+        // the deterministic `phone_hash` sidecar column instead.
         if (! empty($data['phone'])) {
-            $customer = Customer::where('phone', $data['phone'])->first();
+            $customer = Customer::where('phone_hash', Customer::lookupPhoneHash($data['phone']))->first();
             if ($customer) {
                 // Update name if different (handling name corrections)
                 if ($customer->name !== $data['name']) {

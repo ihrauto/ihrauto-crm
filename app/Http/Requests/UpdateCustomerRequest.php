@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Customer;
 use App\Support\TenantValidation;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -38,7 +39,23 @@ class UpdateCustomerRequest extends FormRequest
                 'nullable',
                 'email',
                 'max:255',
-                TenantValidation::unique('customers', 'email')->ignore($this->route('customer')),
+                // DATA-03: uniqueness on the encrypted `email` column is
+                // impossible (random IVs); we enforce through
+                // `email_hash` within the tenant, ignoring the current
+                // customer row so a user can re-submit their own email.
+                function ($attribute, $value, $fail) {
+                    if (! $value) {
+                        return;
+                    }
+                    $currentId = $this->route('customer')?->id ?? $this->route('customer');
+                    $exists = Customer::where('tenant_id', tenant_id())
+                        ->where('email_hash', Customer::lookupEmailHash($value))
+                        ->when($currentId, fn ($q) => $q->where('id', '!=', $currentId))
+                        ->exists();
+                    if ($exists) {
+                        $fail('This email address is already registered.');
+                    }
+                },
             ],
             'phone' => [
                 'required',

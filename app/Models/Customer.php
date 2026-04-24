@@ -40,6 +40,18 @@ class Customer extends Model
      */
     protected static function booted(): void
     {
+        // DATA-03: keep `email_hash` / `phone_hash` in lockstep with the
+        // encrypted source columns. Runs on every save so bulk writes
+        // (seeders, imports) also populate the lookup hashes.
+        static::saving(function (Customer $customer) {
+            if ($customer->isDirty('email')) {
+                $customer->email_hash = self::lookupEmailHash($customer->email);
+            }
+            if ($customer->isDirty('phone')) {
+                $customer->phone_hash = self::lookupPhoneHash($customer->phone);
+            }
+        });
+
         static::deleting(function (Customer $customer) {
             // Only cascade on soft delete, not force delete (force delete already
             // cascades via DB foreign key constraints).
@@ -91,10 +103,48 @@ class Customer extends Model
         'is_active',
     ];
 
+    /**
+     * DATA-03 (2026-04-24 review): encrypt PII at rest. The `encrypted`
+     * cast wraps AES-256-CBC with APP_KEY; a DB dump alone reveals
+     * nothing without the app key.
+     */
     protected $casts = [
         'date_of_birth' => 'date',
         'is_active' => 'boolean',
+        'email' => 'encrypted',
+        'phone' => 'encrypted',
+        'address' => 'encrypted',
     ];
+
+    /**
+     * Canonical email lookup hash. Lowercased + trimmed so
+     * "User@Example.com " and "user@example.com" match. DATA-03
+     * readers use this for `where('email_hash', ...)` lookups.
+     */
+    public static function lookupEmailHash(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return hash('sha256', strtolower(trim($value)));
+    }
+
+    /**
+     * Canonical phone lookup hash. Non-digit characters are stripped
+     * so "+41 79 123 45 67" and "0041791234567" match (E.164-style
+     * normalization without requiring a parser dependency).
+     */
+    public static function lookupPhoneHash(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $value);
+
+        return $digits === '' ? null : hash('sha256', $digits);
+    }
 
     public function vehicles(): HasMany
     {

@@ -60,11 +60,14 @@ class CustomerTest extends TestCase
 
         $response->assertRedirect();
 
+        // DATA-03: email is encrypted at rest — assert via name + the
+        // deterministic email_hash, then confirm the decrypted value.
         $this->assertDatabaseHas('customers', [
             'name' => 'John Doe',
-            'email' => 'john.doe@example.com',
+            'email_hash' => Customer::lookupEmailHash('john.doe@example.com'),
             'tenant_id' => $this->tenant->id,
         ]);
+        $this->assertSame('john.doe@example.com', Customer::where('name', 'John Doe')->first()->email);
     }
 
     #[Test]
@@ -131,17 +134,32 @@ class CustomerTest extends TestCase
     #[Test]
     public function customer_search_works_with_email()
     {
+        // DATA-03: email is encrypted at rest, so partial `LIKE` search
+        // is no longer possible on that column. The admin customer
+        // search matches an email via the deterministic `email_hash`
+        // column — partial strings won't hit; the full email value
+        // (case-insensitive, trimmed) does.
         Customer::factory()->create([
             'tenant_id' => $this->tenant->id,
             'name' => 'Test Customer',
             'email' => 'unique.test@example.com',
         ]);
 
+        // Full email hits via email_hash.
         $response = $this->actingAs($this->user)
-            ->get(route('customers.index', ['search' => 'unique.test']));
-
+            ->get(route('customers.index', ['search' => 'unique.test@example.com']));
         $response->assertStatus(200);
         $response->assertSee('Test Customer');
+
+        // Case-insensitive still hits (hash is over lowercased value).
+        $response = $this->actingAs($this->user)
+            ->get(route('customers.index', ['search' => 'Unique.Test@Example.com']));
+        $response->assertSee('Test Customer');
+
+        // Partial (legacy LIKE) does NOT hit — documented DATA-03 change.
+        $response = $this->actingAs($this->user)
+            ->get(route('customers.index', ['search' => 'unique.test']));
+        $response->assertDontSee('Test Customer');
     }
 
     #[Test]

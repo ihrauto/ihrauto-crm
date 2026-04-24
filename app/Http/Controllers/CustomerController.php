@@ -19,10 +19,15 @@ class CustomerController extends Controller
             $search = $request->search;
             [$plateExpr, $plateBindings] = \App\Support\LicensePlate::whereExpression($search, like: true);
 
+            // DATA-03: `email` / `phone` are encrypted at rest, so LIKE
+            // partial-match no longer works on those columns. Exact
+            // matches still work via the `*_hash` sidecars; partial
+            // search is intentionally reduced to name + plate + the
+            // deterministic email/phone hashes on a full-value query.
             $query->where(function ($q) use ($search, $plateExpr, $plateBindings) {
                 $q->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%'])
-                    ->orWhereRaw('LOWER(phone) LIKE ?', ['%'.strtolower($search).'%'])
-                    ->orWhereRaw('LOWER(email) LIKE ?', ['%'.strtolower($search).'%'])
+                    ->orWhere('email_hash', Customer::lookupEmailHash($search))
+                    ->orWhere('phone_hash', Customer::lookupPhoneHash($search))
                     ->orWhereHas('vehicles', function ($vehicleQuery) use ($plateExpr, $plateBindings) {
                         $vehicleQuery->whereRaw($plateExpr, $plateBindings);
                     });

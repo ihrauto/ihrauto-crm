@@ -343,7 +343,8 @@ class CheckinTest extends TestCase
                 'service_description' => 'Annual service',
             ]);
 
-        $customer = Customer::where('email', 'lena@example.com')->first();
+        // DATA-03: email is encrypted at rest — look up via email_hash.
+        $customer = Customer::where('email_hash', Customer::lookupEmailHash('lena@example.com'))->first();
         $vehicle = Vehicle::where('license_plate', 'ZH12345')->first();
         $checkin = Checkin::latest('id')->first();
         $workOrder = WorkOrder::latest('id')->first();

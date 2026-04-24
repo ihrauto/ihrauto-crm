@@ -91,7 +91,14 @@ class CheckinServiceTest extends TestCase
         $checkin = $this->service->createWithNewRegistration($this->newRegistrationData());
 
         $this->assertInstanceOf(Checkin::class, $checkin);
-        $this->assertDatabaseHas('customers', ['name' => 'John Doe', 'phone' => '+41791234567']);
+        // DATA-03: `phone` is encrypted at rest — `assertDatabaseHas` on
+        // the plaintext no longer matches. Assert by name + deterministic
+        // phone_hash sidecar, then verify the decrypted attribute.
+        $this->assertDatabaseHas('customers', [
+            'name' => 'John Doe',
+            'phone_hash' => Customer::lookupPhoneHash('+41791234567'),
+        ]);
+        $this->assertSame('+41791234567', Customer::where('name', 'John Doe')->first()->phone);
         $this->assertDatabaseHas('vehicles', ['license_plate' => 'ZH12345', 'make' => 'BMW']);
     }
 

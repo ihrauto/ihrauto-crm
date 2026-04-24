@@ -79,21 +79,33 @@ class CheckinService
         ]);
     }
 
+    /**
+     * DATA-03: phone is encrypted at rest; dedup goes through the
+     * deterministic `phone_hash` sidecar. `Customer::lookupPhoneHash`
+     * strips non-digits so "+41 79 …" and "0041791234567" match.
+     */
     private function findExistingCustomerByPhone(?string $phone): ?Customer
     {
         if (! $phone) {
             return null;
         }
 
-        $normalized = preg_replace('/\s+/', '', trim($phone));
+        $hash = Customer::lookupPhoneHash($phone);
+        if ($hash === null) {
+            return null;
+        }
 
-        return Customer::whereRaw("REPLACE(phone, ' ', '') = ?", [$normalized])->first();
+        return Customer::where('phone_hash', $hash)->first();
     }
 
     /**
      * Find a customer by email (case-insensitive). Returns null when no email
      * was provided, or the email is whitespace-only, to avoid matching records
      * that also have a null email.
+     *
+     * DATA-03: email is encrypted at rest; lookup goes through
+     * `email_hash` which stores a SHA-256 of the lowercased+trimmed
+     * value so case/whitespace variants collapse to the same hash.
      */
     private function findExistingCustomerByEmail(?string $email): ?Customer
     {
@@ -101,12 +113,12 @@ class CheckinService
             return null;
         }
 
-        $normalized = strtolower(trim($email));
-        if ($normalized === '') {
+        $hash = Customer::lookupEmailHash($email);
+        if ($hash === null) {
             return null;
         }
 
-        return Customer::whereRaw('LOWER(email) = ?', [$normalized])->first();
+        return Customer::where('email_hash', $hash)->first();
     }
 
     private function createCustomer(array $data)

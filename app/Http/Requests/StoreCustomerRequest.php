@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Customer;
 use App\Support\TenantValidation;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCustomerRequest extends FormRequest
 {
@@ -38,7 +40,21 @@ class StoreCustomerRequest extends FormRequest
                 'nullable',
                 'email',
                 'max:255',
-                TenantValidation::unique('customers', 'email'),
+                // DATA-03: uniqueness can't be enforced on the encrypted
+                // `email` column (random IVs per save). We look up by
+                // the deterministic `email_hash` sidecar within the
+                // current tenant instead.
+                function ($attribute, $value, $fail) {
+                    if (! $value) {
+                        return;
+                    }
+                    $exists = Customer::where('tenant_id', tenant_id())
+                        ->where('email_hash', Customer::lookupEmailHash($value))
+                        ->exists();
+                    if ($exists) {
+                        $fail('This email address is already registered.');
+                    }
+                },
             ],
             'phone' => [
                 'required',
