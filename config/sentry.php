@@ -41,6 +41,12 @@ return [
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#send_default_pii
     'send_default_pii' => env('SENTRY_SEND_DEFAULT_PII', false),
 
+    // Security review L-9: scrub request data + headers before transmission.
+    // `send_default_pii` keeps cookies/auth headers off by default, but does
+    // not filter form body fields. SentryScrubber masks passwords, tokens,
+    // bearer headers, IBAN, phone numbers, and so on. See app/Support/SentryScrubber.php.
+    'before_send' => [\App\Support\SentryScrubber::class, 'handle'],
+
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#ignore_exceptions
     // 'ignore_exceptions' => [],
 

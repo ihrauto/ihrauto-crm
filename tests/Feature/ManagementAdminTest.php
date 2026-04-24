@@ -367,7 +367,7 @@ class ManagementAdminTest extends TestCase
             ->post(route('management.users.store'), [
                 'name' => 'Second Admin',
                 'email' => 'second-admin@example.com',
-                'password' => 'password123',
+                'password' => 'CompliantPass12',
                 'role' => 'admin',
             ]);
 
@@ -388,7 +388,7 @@ class ManagementAdminTest extends TestCase
             ->post(route('management.users.store'), [
                 'name' => 'Blocked Admin',
                 'email' => 'blocked-admin@example.com',
-                'password' => 'password123',
+                'password' => 'CompliantPass12',
                 'role' => 'admin',
             ])
             ->assertSessionHasErrors('role');
@@ -397,7 +397,7 @@ class ManagementAdminTest extends TestCase
             ->post(route('management.users.store'), [
                 'name' => 'Blocked Owner',
                 'email' => 'blocked-owner@example.com',
-                'password' => 'password123',
+                'password' => 'CompliantPass12',
                 'role' => 'super-admin',
             ])
             ->assertSessionHasErrors('role');

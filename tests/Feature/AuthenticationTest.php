@@ -40,8 +40,9 @@ class AuthenticationTest extends TestCase
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            // L-1: password rule (12+ chars, mixed case, numbers).
+            'password' => 'CompliantPass12',
+            'password_confirmation' => 'CompliantPass12',
             'company_name' => 'Test Company',
         ]);
 
@@ -230,8 +231,9 @@ class AuthenticationTest extends TestCase
         $user->assignRole('technician');
 
         $this->post(route('invite.setup.store', ['token' => $token]), [
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            // L-1: invite setup now uses the hardened Password::defaults() rule.
+            'password' => 'CompliantPass12',
+            'password_confirmation' => 'CompliantPass12',
         ])->assertRedirect(route('dashboard'));
 
         $user->refresh();

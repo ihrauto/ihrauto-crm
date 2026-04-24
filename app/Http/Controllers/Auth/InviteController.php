@@ -41,7 +41,9 @@ class InviteController extends Controller
         }
 
         $request->validate([
-            'password' => 'required|string|min:8|confirmed',
+            // L-1: hardened password rule is defined in
+            // AppServiceProvider::boot via Password::defaults().
+            'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::defaults()],
         ]);
 
         // Set password and clear invite token. `is_active` and `email_verified_at`

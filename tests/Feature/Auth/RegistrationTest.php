@@ -32,8 +32,8 @@ class RegistrationTest extends TestCase
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'CompliantPass12',
+            'password_confirmation' => 'CompliantPass12',
             'company_name' => 'Test Company', // Required for tenant creation
         ]);
 

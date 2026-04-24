@@ -110,8 +110,9 @@ class InviteTokenSecurityTest extends TestCase
 
         // Complete setup successfully
         $this->post(route('invite.setup.store', ['token' => $token]), [
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            // L-1: hardened password rule.
+            'password' => 'CompliantPass12',
+            'password_confirmation' => 'CompliantPass12',
         ])->assertRedirect(route('dashboard'));
 
         // Log out to try the token again

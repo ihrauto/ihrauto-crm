@@ -1,2 +1,43 @@
+# IHRAUTO CRM — robots.txt
+#
+# Security review L-6: disallow crawling of authenticated / administrative
+# paths. This is defence-in-depth — the routes themselves require auth — but
+# keeping login screens and API endpoints out of search engine results
+# reduces the noise in reconnaissance tools and prevents accidental
+# indexing of error pages (invite-already-used, reset-password tokens, etc).
+
 User-agent: *
-Disallow:
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api
+Disallow: /api/
+Disallow: /auth/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /confirm-password
+Disallow: /invite
+Disallow: /profile
+Disallow: /password
+Disallow: /dashboard
+Disallow: /management
+Disallow: /finance
+Disallow: /invoices
+Disallow: /quotes
+Disallow: /payments
+Disallow: /customers
+Disallow: /work-orders
+Disallow: /appointments
+Disallow: /checkin
+Disallow: /tires-hotel
+Disallow: /products
+Disallow: /services
+Disallow: /products-services
+Disallow: /mechanics
+Disallow: /work-bays
+Disallow: /dev/
+Disallow: /subscription/
+Disallow: /i/
+Disallow: /ajax/
