@@ -66,7 +66,7 @@ class AppointmentTest extends TestCase
                 'start_date' => now()->addDay()->toDateString(),
                 'start_time' => '10:00',
                 'duration' => 60,
-                'type' => 'service',
+                'type' => 'maintenance',
                 'title' => 'Oil Change',
                 'status' => 'scheduled',
                 'notes' => 'Regular maintenance',
@@ -76,7 +76,7 @@ class AppointmentTest extends TestCase
         $this->assertDatabaseHas('appointments', [
             'tenant_id' => $this->tenant->id,
             'title' => 'Oil Change',
-            'type' => 'service',
+            'type' => 'maintenance',
         ]);
     }
 
@@ -91,7 +91,7 @@ class AppointmentTest extends TestCase
             'start_time' => now()->addDay(),
             'end_time' => now()->addDay()->addHour(),
             'status' => 'scheduled',
-            'type' => 'service',
+            'type' => 'maintenance',
         ]);
 
         $response = $this->actingAs($this->user)
@@ -122,7 +122,7 @@ class AppointmentTest extends TestCase
             'start_time' => now()->addDay(),
             'end_time' => now()->addDay()->addHour(),
             'status' => 'scheduled',
-            'type' => 'service',
+            'type' => 'maintenance',
         ]);
 
         $response = $this->actingAs($this->user)
@@ -148,7 +148,7 @@ class AppointmentTest extends TestCase
             'start_time' => now()->addDay(),
             'end_time' => now()->addDay()->addHour(),
             'status' => 'scheduled',
-            'type' => 'service',
+            'type' => 'maintenance',
         ]);
 
         $response = $this->actingAs($this->user)
@@ -195,7 +195,7 @@ class AppointmentTest extends TestCase
             'start_time' => now()->addDay(),
             'end_time' => now()->addDay()->addHour(),
             'status' => 'scheduled',
-            'type' => 'service',
+            'type' => 'maintenance',
         ]);
 
         // Create appointment for another tenant
@@ -213,7 +213,7 @@ class AppointmentTest extends TestCase
             'start_time' => now()->addDay(),
             'end_time' => now()->addDay()->addHour(),
             'status' => 'scheduled',
-            'type' => 'service',
+            'type' => 'maintenance',
         ]);
 
         // Acting as our user, we should only see our tenant's appointments
@@ -235,7 +235,7 @@ class AppointmentTest extends TestCase
             'start_time' => now()->addDay()->setTime(10, 0),
             'end_time' => now()->addDay()->setTime(11, 0),
             'status' => 'scheduled',
-            'type' => 'service',
+            'type' => 'maintenance',
         ]);
 
         // Try to create an overlapping appointment (10:30-11:30)
@@ -267,7 +267,7 @@ class AppointmentTest extends TestCase
             'start_time' => now()->addDay()->setTime(10, 0),
             'end_time' => now()->addDay()->setTime(11, 0),
             'status' => 'scheduled',
-            'type' => 'service',
+            'type' => 'maintenance',
         ]);
 
         // Create a non-overlapping appointment (14:00-15:00) — should work

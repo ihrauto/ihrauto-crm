@@ -3,6 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\AddBonusDaysRequest;
+use App\Http\Requests\Admin\ArchiveTenantRequest;
+use App\Http\Requests\Admin\TenantNoteRequest;
+use App\Http\Requests\Admin\TenantReasonRequest;
+use App\Http\Requests\Admin\UpdateTenantBillingRequest;
 use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\Tenant;
@@ -204,15 +209,11 @@ class SuperAdminController extends Controller
     /**
      * Add bonus days to trial or subscription.
      */
-    public function addBonusDays(Request $request, Tenant $tenant): RedirectResponse
+    public function addBonusDays(AddBonusDaysRequest $request, Tenant $tenant): RedirectResponse
     {
-        $request->validate([
-            'days' => 'required|integer|min:1|max:365',
-            'reason' => 'required|string|max:255',
-        ]);
-
-        $days = (int) $request->days;
-        $reason = $request->reason;
+        $validated = $request->validated();
+        $days = (int) $validated['days'];
+        $reason = $validated['reason'];
 
         $oldDate = $tenant->is_trial ? $tenant->trial_ends_at : $tenant->subscription_ends_at;
         $targetField = $tenant->is_trial ? 'trial_ends_at' : 'subscription_ends_at';
@@ -237,13 +238,9 @@ class SuperAdminController extends Controller
     /**
      * Set the paid plan and renewal date for a tenant in the manual-billing workflow.
      */
-    public function updateBilling(Request $request, Tenant $tenant): RedirectResponse
+    public function updateBilling(UpdateTenantBillingRequest $request, Tenant $tenant): RedirectResponse
     {
-        $validated = $request->validate([
-            'plan' => 'required|string|in:'.implode(',', Tenant::ALL_PLANS),
-            'renewal_date' => 'nullable|date|after_or_equal:today',
-            'reason' => 'required|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         $oldPlan = $tenant->plan;
         $oldRenewalDate = $tenant->is_trial ? $tenant->trial_ends_at : $tenant->subscription_ends_at;
@@ -276,12 +273,8 @@ class SuperAdminController extends Controller
     /**
      * Suspend tenant.
      */
-    public function suspend(Request $request, Tenant $tenant): RedirectResponse
+    public function suspend(TenantReasonRequest $request, Tenant $tenant): RedirectResponse
     {
-        $request->validate([
-            'reason' => 'required|string|max:255',
-        ]);
-
         if (! $tenant->is_active) {
             return back()->with('error', 'Tenant is already suspended.');
         }
@@ -289,7 +282,7 @@ class SuperAdminController extends Controller
         $tenant->suspend();
 
         $this->logAction($tenant, 'suspend', [
-            'reason' => $request->reason,
+            'reason' => $request->validated()['reason'],
             'status_from' => 'active',
             'status_to' => 'suspended',
         ]);
@@ -300,12 +293,8 @@ class SuperAdminController extends Controller
     /**
      * Activate tenant.
      */
-    public function activate(Request $request, Tenant $tenant): RedirectResponse
+    public function activate(TenantReasonRequest $request, Tenant $tenant): RedirectResponse
     {
-        $request->validate([
-            'reason' => 'required|string|max:255',
-        ]);
-
         if ($tenant->is_active) {
             return back()->with('error', 'Tenant is already active.');
         }
@@ -313,7 +302,7 @@ class SuperAdminController extends Controller
         $tenant->activate();
 
         $this->logAction($tenant, 'activate', [
-            'reason' => $request->reason,
+            'reason' => $request->validated()['reason'],
             'status_from' => 'suspended',
             'status_to' => 'active',
         ]);
@@ -324,18 +313,14 @@ class SuperAdminController extends Controller
     /**
      * Add internal note.
      */
-    public function addNote(Request $request, Tenant $tenant): RedirectResponse
+    public function addNote(TenantNoteRequest $request, Tenant $tenant): RedirectResponse
     {
-        $request->validate([
-            'note' => 'required|string|max:1000',
-        ]);
-
         \App\Models\AuditLog::create([
             'user_id' => auth()->id(),
             'action' => 'note',
             'model_type' => Tenant::class,
             'model_id' => $tenant->id,
-            'changes' => ['content' => $request->note],
+            'changes' => ['content' => $request->validated()['note']],
             'ip_address' => request()->ip(),
         ]);
 
@@ -345,18 +330,14 @@ class SuperAdminController extends Controller
     /**
      * Update internal note.
      */
-    public function updateNote(Request $request, Tenant $tenant, \App\Models\AuditLog $note): RedirectResponse
+    public function updateNote(TenantNoteRequest $request, Tenant $tenant, \App\Models\AuditLog $note): RedirectResponse
     {
-        $request->validate([
-            'note' => 'required|string|max:1000',
-        ]);
-
         if ($note->model_id != $tenant->id || $note->action !== 'note') {
             abort(403);
         }
 
         $note->update([
-            'changes' => ['content' => $request->note],
+            'changes' => ['content' => $request->validated()['note']],
         ]);
 
         return back()->with('success', 'Note updated.');
@@ -379,14 +360,8 @@ class SuperAdminController extends Controller
     /**
      * Archive a tenant and deactivate access from the admin panel.
      */
-    public function destroy(Request $request, Tenant $tenant, TenantLifecycleService $tenantLifecycleService): RedirectResponse
+    public function destroy(ArchiveTenantRequest $request, Tenant $tenant, TenantLifecycleService $tenantLifecycleService): RedirectResponse
     {
-        $request->validate([
-            'confirmation' => 'required|in:DELETE',
-        ], [
-            'confirmation.in' => 'Please type DELETE to confirm.',
-        ]);
-
         $tenantLifecycleService->archive($tenant, $request->user(), 'Archived from admin control page.');
 
         return redirect()->route('admin.tenants.index')

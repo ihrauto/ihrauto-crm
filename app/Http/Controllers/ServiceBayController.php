@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ServiceBayRequest;
 use App\Models\ServiceBay;
 use App\Support\TenantValidation;
 use Illuminate\Http\Request;
@@ -28,19 +29,15 @@ class ServiceBayController extends Controller
     /**
      * Store a new service bay.
      */
-    public function store(Request $request)
+    public function store(ServiceBayRequest $request)
     {
         Gate::authorize('perform-admin-actions');
-
-        $request->validate([
-            'name' => 'required|string|max:100',
-        ]);
 
         $maxOrder = ServiceBay::max('sort_order') ?? 0;
 
         ServiceBay::create([
             'tenant_id' => tenant_id(),
-            'name' => $request->name,
+            'name' => $request->validated()['name'],
             'is_active' => true,
             'sort_order' => $maxOrder + 1,
         ]);
@@ -51,16 +48,12 @@ class ServiceBayController extends Controller
     /**
      * Update an existing service bay.
      */
-    public function update(Request $request, ServiceBay $serviceBay)
+    public function update(ServiceBayRequest $request, ServiceBay $serviceBay)
     {
         Gate::authorize('perform-admin-actions');
 
-        $request->validate([
-            'name' => 'required|string|max:100',
-        ]);
-
         $serviceBay->update([
-            'name' => $request->name,
+            'name' => $request->validated()['name'],
         ]);
 
         return back()->with('success', 'Bay updated successfully.');

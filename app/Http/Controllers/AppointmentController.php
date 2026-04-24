@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RescheduleAppointmentRequest;
+use App\Http\Requests\StoreAppointmentRequest;
+use App\Http\Requests\UpdateAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Vehicle;
-use App\Support\TenantValidation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -75,14 +77,11 @@ class AppointmentController extends Controller
     /**
      * Quick reschedule via drag-and-drop.
      */
-    public function reschedule(Request $request, Appointment $appointment)
+    public function reschedule(RescheduleAppointmentRequest $request, Appointment $appointment)
     {
         $this->authorize('update', $appointment);
 
-        $validated = $request->validate([
-            'start' => 'required|date',
-            'end' => 'nullable|date',
-        ]);
+        $validated = $request->validated();
 
         // B-12: compute the original duration BEFORE mutating start_time,
         // otherwise the diff runs between the new start and old end and
@@ -108,47 +107,32 @@ class AppointmentController extends Controller
     /**
      * Store a newly created appointment.
      */
-    public function store(Request $request)
+    public function store(StoreAppointmentRequest $request)
     {
         $this->authorize('create', Appointment::class);
 
-        $request->validate([
-            'customer_id' => ['nullable', TenantValidation::exists('customers')],
-        ]);
+        // StoreAppointmentRequest conditionally enforces new_customer_*
+        // rules when customer_id is missing and new_customer_name is
+        // present (see its rules()), and runs the overlap-conflict check
+        // via its withValidator() hook. By the time we reach here,
+        // everything in $validated is safe to trust.
+        $validated = $request->validated();
+        $customerId = $validated['customer_id'] ?? null;
 
-        // Check if this is a new customer
-        $customerId = $request->customer_id;
-
+        // Provision a new customer on the fly when the form chose the
+        // "new customer" path.
         if (empty($customerId) && $request->filled('new_customer_name')) {
-            // Validate new customer fields
-            $request->validate([
-                'new_customer_name' => 'required|string|max:255',
-                'new_customer_phone' => 'required|string|max:20',
-            ]);
-
             // B-01: enforce plan customer limit before creating.
             \App\Support\PlanQuota::assertCanAddCustomer();
 
-            // Create new customer
             $newCustomer = Customer::create([
                 'tenant_id' => tenant_id(),
-                'name' => $request->new_customer_name,
-                'phone' => $request->new_customer_phone,
+                'name' => $validated['new_customer_name'],
+                'phone' => $validated['new_customer_phone'],
             ]);
 
             $customerId = $newCustomer->id;
         }
-
-        $validated = $request->validate([
-            'vehicle_id' => ['nullable', TenantValidation::exists('vehicles')],
-            'start_date' => 'required|date',
-            'start_time' => 'required',
-            'duration' => 'required|integer|min:15', // minutes
-            'type' => 'required|string',
-            'title' => 'nullable|string|max:255',
-            'status' => 'required|in:scheduled,confirmed',
-            'notes' => 'nullable|string',
-        ]);
 
         if (! $customerId) {
             return redirect()->back()->withErrors(['customer_id' => 'Please select or create a customer.']);
@@ -196,30 +180,27 @@ class AppointmentController extends Controller
     /**
      * Update the specified appointment.
      */
-    public function update(Request $request, Appointment $appointment)
+    public function update(UpdateAppointmentRequest $request, Appointment $appointment)
     {
         $this->authorize('update', $appointment);
 
+        // UpdateAppointmentRequest picks its rule set based on whether the
+        // payload carries `start_date` (full edit) or just `status`
+        // (drag-and-drop / quick action), and enforces the overlap check
+        // on the full-edit branch via withValidator().
+        $validated = $request->validated();
+
         // Full Update
         if ($request->has('start_date') && $request->has('start_time')) {
-            $validated = $request->validate([
-                'customer_id' => ['required', TenantValidation::exists('customers')],
-                'start_date' => 'required|date',
-                'start_time' => 'required',
-                'duration' => 'required|integer|min:15',
-                'type' => 'required|string',
-                'notes' => 'nullable|string',
-            ]);
-
             $startDateTime = Carbon::parse($request->start_date.' '.$request->start_time);
-            $endDateTime = $startDateTime->copy()->addMinutes((int) $request->duration);
+            $endDateTime = $startDateTime->copy()->addMinutes((int) $validated['duration']);
 
             $appointment->update([
                 'customer_id' => $validated['customer_id'],
                 'start_time' => $startDateTime,
                 'end_time' => $endDateTime,
                 'type' => $validated['type'],
-                'notes' => $validated['notes'],
+                'notes' => $validated['notes'] ?? null,
                 'title' => ucfirst(str_replace('_', ' ', $validated['type'])),
             ]);
 
@@ -228,17 +209,12 @@ class AppointmentController extends Controller
 
         // Simple status update (Drag & Drop or Quick Action)
         if ($request->has('status')) {
-            $validated = $request->validate([
-                'status' => 'required',
-                'notes' => 'nullable|string',
-            ]);
-
-            if ($request->status === 'failed' && $request->has('notes')) {
+            if ($validated['status'] === 'failed' && $request->filled('notes')) {
                 // Append failure reason to notes
-                $appointment->notes = ($appointment->notes ? $appointment->notes."\n\n" : '').'FAILED REASON: '.$request->notes;
+                $appointment->notes = ($appointment->notes ? $appointment->notes."\n\n" : '').'FAILED REASON: '.$validated['notes'];
             }
 
-            $appointment->status = $request->status;
+            $appointment->status = $validated['status'];
             $appointment->save();
 
             return redirect()->back()->with('success', 'Appointment status updated.');

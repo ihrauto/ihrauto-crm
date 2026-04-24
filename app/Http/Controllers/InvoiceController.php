@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BulkIssueInvoicesRequest;
+use App\Http\Requests\UpdateInvoiceRequest;
+use App\Http\Requests\VoidInvoiceRequest;
 use App\Models\Invoice;
 use App\Services\InvoiceService;
 use Illuminate\Http\Request;
@@ -139,14 +142,11 @@ class InvoiceController extends Controller
     /**
      * Update the specified invoice in storage.
      */
-    public function update(Request $request, Invoice $invoice)
+    public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
         $this->authorize('update', $invoice);
 
-        $validated = $request->validate([
-            'notes' => 'nullable|string',
-            'due_date' => 'nullable|date',
-        ]);
+        $validated = $request->validated();
 
         try {
             $this->invoiceService->updateDraftInvoice($invoice, $validated);
@@ -179,13 +179,11 @@ class InvoiceController extends Controller
     /**
      * Void an invoice.
      */
-    public function void(Request $request, Invoice $invoice)
+    public function void(VoidInvoiceRequest $request, Invoice $invoice)
     {
         $this->authorize('void', $invoice);
 
-        $validated = $request->validate([
-            'void_reason' => 'required|string|max:500',
-        ]);
+        $validated = $request->validated();
 
         try {
             $this->invoiceService->voidInvoice($invoice, $validated['void_reason']);
@@ -223,12 +221,9 @@ class InvoiceController extends Controller
      * per-invoice results and report back with totals + the list of
      * invoice numbers that failed.
      */
-    public function bulkIssue(Request $request)
+    public function bulkIssue(BulkIssueInvoicesRequest $request)
     {
-        $validated = $request->validate([
-            'invoice_ids' => ['required', 'array', 'min:1', 'max:200'],
-            'invoice_ids.*' => ['integer'],
-        ]);
+        $validated = $request->validated();
 
         $invoices = Invoice::whereIn('id', $validated['invoice_ids'])->get();
 
