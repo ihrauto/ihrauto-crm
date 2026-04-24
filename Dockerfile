@@ -118,9 +118,24 @@ ENV QUEUE_WORKERS=3
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Laravel writable dirs + permissions.
+#
+# Security review H-5: tighten storage/bootstrap/cache to 770 so "other"
+# (anyone outside the www-data group in the container) cannot even read
+# cached views / sessions / compiled config. Inside the container only the
+# www-data user runs PHP, so group-owned 770 is enough.
+#
+# NOTE on runtime UIDs:
+#   - supervisord (PID 1) and the Apache master run as root — this is
+#     required for Apache to bind TCP/80. Apache's children immediately
+#     drop to www-data, and supervisord starts queue-worker + scheduler
+#     directly as www-data (see docker/supervisord.conf). PHP user code
+#     therefore never runs as root. If we move Apache to an unprivileged
+#     port (e.g. 8080), we can add `USER www-data` here and drop root
+#     entirely; that's a larger change requiring a matching render.yaml /
+#     docker-compose / ports.conf update.
 RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
     && chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 storage bootstrap/cache
+    && chmod -R 770 storage bootstrap/cache
 
 # Bug review OPS-12: use the /health endpoint (readiness) instead of /up
 # (liveness) for container healthcheck. /health verifies the DB and cache

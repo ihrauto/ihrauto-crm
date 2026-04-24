@@ -49,6 +49,7 @@ class ProfileTest extends TestCase
             ->patch('/profile', [
                 'name' => 'Test User',
                 'email' => 'test@example.com',
+                'current_password' => 'password',
             ]);
 
         $response
@@ -60,6 +61,57 @@ class ProfileTest extends TestCase
         $this->assertSame('Test User', $user->name);
         $this->assertSame('test@example.com', $user->email);
         $this->assertNull($user->email_verified_at);
+    }
+
+    public function test_name_only_update_does_not_require_current_password(): void
+    {
+        $user = $this->createUserWithTenant();
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile', [
+                'name' => 'Renamed',
+                'email' => $user->email,
+            ]);
+
+        $response->assertSessionHasNoErrors()->assertRedirect(route('profile.edit'));
+        $this->assertSame('Renamed', $user->refresh()->name);
+    }
+
+    public function test_email_change_requires_current_password(): void
+    {
+        $user = $this->createUserWithTenant();
+        $originalEmail = $user->email;
+
+        $response = $this
+            ->actingAs($user)
+            ->from('/profile')
+            ->patch('/profile', [
+                'name' => $user->name,
+                'email' => 'attacker@example.com',
+                // current_password omitted
+            ]);
+
+        $response->assertSessionHasErrors('current_password')->assertRedirect('/profile');
+        $this->assertSame($originalEmail, $user->refresh()->email);
+    }
+
+    public function test_email_change_rejects_wrong_current_password(): void
+    {
+        $user = $this->createUserWithTenant();
+        $originalEmail = $user->email;
+
+        $response = $this
+            ->actingAs($user)
+            ->from('/profile')
+            ->patch('/profile', [
+                'name' => $user->name,
+                'email' => 'attacker@example.com',
+                'current_password' => 'not-the-password',
+            ]);
+
+        $response->assertSessionHasErrors('current_password')->assertRedirect('/profile');
+        $this->assertSame($originalEmail, $user->refresh()->email);
     }
 
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void

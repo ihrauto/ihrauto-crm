@@ -172,7 +172,13 @@ class Tenant extends Model
         'timezone',
         'locale',
         'currency',
-        'two_factor_required',
+        // SECURITY (H-1): `two_factor_required` was previously fillable but
+        // NO code enforces it — there is no 2FA middleware, challenge
+        // controller, or setup flow. Setting it to true would silently
+        // change nothing. Keep the column in the DB for the eventual real
+        // 2FA feature, but remove it from fillable + casts so nobody can
+        // toggle it and believe tenants are protected. Attempting to set
+        // it via mass assignment now throws MassAssignmentException.
         'ip_whitelist',
         'audit_logs_enabled',
         'api_rate_limit',
@@ -189,7 +195,7 @@ class Tenant extends Model
         'settings' => 'array',
         'integrations' => 'array',
         'vat_registered' => 'boolean',
-        'two_factor_required' => 'boolean',
+        // two_factor_required cast removed — see fillable note above.
         'ip_whitelist' => 'array',
         'audit_logs_enabled' => 'boolean',
         'last_activity_at' => 'datetime',

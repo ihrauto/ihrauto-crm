@@ -43,7 +43,9 @@ class TenantFactory extends Factory
             'timezone' => 'Europe/Vienna',
             'locale' => 'en',
             'currency' => 'EUR',
-            'two_factor_required' => false,
+            // `two_factor_required` intentionally not set here (H-1): the
+            // column is not fillable because 2FA is not implemented. The
+            // table default (false) applies.
             'ip_whitelist' => null,
             'audit_logs_enabled' => true,
             'api_key' => null,

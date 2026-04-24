@@ -38,10 +38,28 @@ class WorkOrderPhotoController extends Controller
             return back()->with('error', 'The uploaded file is not a valid image.');
         }
 
+        // SECURITY (H-6): pick the stored extension from the sniffed image
+        // type, not from the client-supplied filename. `getClientOriginalExtension()`
+        // would let names like `photo.php.jpg` or `photo.phtml` land on disk.
+        // If Apache's PHP handler ever reaches the storage path (proxy
+        // misconfig, storage mount exposed, .htaccess drift), that becomes
+        // RCE. getimagesize() has already confirmed this is a real image,
+        // so IMAGETYPE_* is trustworthy.
+        $extension = match ($imageInfo[2] ?? null) {
+            IMAGETYPE_JPEG => 'jpg',
+            IMAGETYPE_PNG => 'png',
+            IMAGETYPE_WEBP => 'webp',
+            default => null,
+        };
+        if ($extension === null) {
+            return back()->with('error', 'Unsupported image format.');
+        }
+
         $tenantId = tenant_id();
 
-        // Generate unique filename
-        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
+        // Generate unique filename. Extension is derived above from the
+        // image's sniffed type, not from $file->getClientOriginalExtension().
+        $filename = Str::uuid().'.'.$extension;
 
         // Store in tenant-specific directory
         $path = "work-order-photos/{$tenantId}/{$workOrder->id}/{$filename}";

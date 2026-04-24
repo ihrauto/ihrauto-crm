@@ -29,16 +29,24 @@ class PasswordResetLinkController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        // SECURITY (H-4): respond with a constant success banner regardless
+        // of whether the email belongs to a registered user. The prior
+        // behaviour distinguished RESET_LINK_SENT from INVALID_USER in the
+        // UI, which is a free account-enumeration oracle — a single submit
+        // per email tells the attacker if that email has an account. The
+        // 3/5m route throttle slows enumeration but does not prevent it.
+        //
+        // Real errors (throttle, mailer failure) are recorded to the log so
+        // operators can still notice them.
+        $status = Password::sendResetLink($request->only('email'));
 
-        return $status == Password::RESET_LINK_SENT
-                    ? back()->with('status', __($status))
-                    : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+        if ($status !== Password::RESET_LINK_SENT) {
+            \Illuminate\Support\Facades\Log::info('password_reset_request_suppressed', [
+                'status' => $status,
+                'ip' => $request->ip(),
+            ]);
+        }
+
+        return back()->with('status', __(Password::RESET_LINK_SENT));
     }
 }

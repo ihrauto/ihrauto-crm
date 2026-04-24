@@ -13,7 +13,12 @@
         @csrf
     </form>
 
-    <form method="post" action="{{ route('profile.update') }}" class="mt-6 space-y-6">
+    <form
+        method="post"
+        action="{{ route('profile.update') }}"
+        class="mt-6 space-y-6"
+        x-data="{ originalEmail: @js($user->email), currentEmail: @js(old('email', $user->email)) }"
+    >
         @csrf
         @method('patch')
 
@@ -25,8 +30,20 @@
 
         <div>
             <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email', $user->email)" required autocomplete="username" />
+            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email', $user->email)" required autocomplete="username"
+                x-on:input="currentEmail = $event.target.value" />
             <x-input-error class="mt-2" :messages="$errors->get('email')" />
+
+            {{-- SECURITY: require current password when the user edits their
+                 email. Shown only when the email is actually different; backend
+                 enforces the same rule regardless of whether this field
+                 renders (see ProfileUpdateRequest::rules). --}}
+            <div x-show="currentEmail.trim().toLowerCase() !== originalEmail.trim().toLowerCase()"
+                 x-cloak class="mt-4">
+                <x-input-label for="current_password" :value="__('Confirm your current password to change your email')" />
+                <x-text-input id="current_password" name="current_password" type="password" class="mt-1 block w-full" autocomplete="current-password" />
+                <x-input-error class="mt-2" :messages="$errors->get('current_password')" />
+            </div>
 
             @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
                 <div>

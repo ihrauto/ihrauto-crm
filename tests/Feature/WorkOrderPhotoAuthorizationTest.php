@@ -220,4 +220,33 @@ class WorkOrderPhotoAuthorizationTest extends TestCase
         $response->assertNotFound();
         $this->assertNotNull(WorkOrderPhoto::find($photo->id));
     }
+
+    /**
+     * H-6: the saved filename's extension must come from the image's sniffed
+     * type, never from the client-supplied filename. A client can upload a
+     * valid JPEG with a name like `shell.php.jpg`; the previous code path
+     * stored it as `<uuid>.php.jpg`, which would be executed as PHP if
+     * Apache's PHP handler ever reached the public storage tree.
+     */
+    #[Test]
+    public function stored_filename_extension_is_derived_from_image_type_not_client_name(): void
+    {
+        $malicious = \Illuminate\Http\UploadedFile::fake()
+            ->image('shell.php.jpg', 10, 10); // real JPEG, dangerous-looking name
+
+        $response = $this->actingAs($this->adminA)
+            ->post(route('work-orders.photos.store', ['workOrder' => $this->workOrderA]), [
+                'photo' => $malicious,
+                'type' => 'before',
+            ]);
+
+        $response->assertRedirect();
+
+        $photo = WorkOrderPhoto::where('work_order_id', $this->workOrderA->id)->latest('id')->first();
+        $this->assertNotNull($photo);
+
+        $this->assertStringEndsWith('.jpg', $photo->filename, 'Extension must be jpg, derived from image type.');
+        $this->assertStringNotContainsString('.php', $photo->filename);
+        $this->assertStringNotContainsString('.php', $photo->path);
+    }
 }

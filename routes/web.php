@@ -39,7 +39,17 @@ if (app()->environment('local')) {
 Route::middleware(['auth'])->group(function () {
     Route::get('/billing/plans', [BillingController::class, 'index'])->name('billing.pricing');
     Route::get('/subscription/onboarding', [\App\Http\Controllers\SubscriptionController::class, 'onboarding'])->name('subscription.onboarding');
-    Route::post('/subscription/setup', [\App\Http\Controllers\SubscriptionController::class, 'storeSetup'])->name('subscription.setup');
+
+    // SECURITY: storeSetup mutates tenant-wide settings (IBAN, bank, email,
+    // tax rate, currency). Without `manage settings`, any authenticated
+    // tenant user — including a technician or receptionist — could rewrite
+    // the company's payout IBAN and redirect incoming payments. The
+    // provisioning flow assigns the admin role before the onboarding
+    // wizard loads (TenantProvisioningService::provisionOwner), so this
+    // does not break first-run setup for legitimate tenant owners.
+    Route::post('/subscription/setup', [\App\Http\Controllers\SubscriptionController::class, 'storeSetup'])
+        ->middleware('permission:manage settings')
+        ->name('subscription.setup');
     Route::post('/subscription/tour-complete', [\App\Http\Controllers\SubscriptionController::class, 'markTourComplete'])->name('subscription.tour-complete');
 });
 
