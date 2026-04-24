@@ -71,14 +71,12 @@ class SubscriptionSetupAuthorizationTest extends TestCase
         $admin->assignRole('admin');
 
         $response = $this->actingAs($admin)->post('/subscription/setup', [
+            // Nullable fields are omitted on purpose — the controller must
+            // tolerate their absence (pre-existing bug fixed alongside H-3
+            // so the nullable rule actually behaves like a nullable rule).
             'company_name' => 'Legit Workshop AG',
-            'phone' => '+41000000000',
-            'email' => 'legit-'.uniqid().'@example.com',
-            'address' => 'Teststrasse 1',
-            'city' => 'Zurich',
             'currency' => 'EUR',
             'tax_rate' => 8.1,
-            'bank_name' => 'Test Bank',
             'iban' => 'CH00 LEGIT IBAN',
         ]);
 

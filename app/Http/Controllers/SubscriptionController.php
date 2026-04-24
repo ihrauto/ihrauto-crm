@@ -121,21 +121,32 @@ class SubscriptionController extends Controller
             'iban' => 'nullable|string|max:50',
         ]);
 
-        // Update core fields
-        $tenant->update([
-            'name' => $validated['company_name'],
-            'phone' => $validated['phone'],
-            'email' => $validated['email'], // Warning: ensure this doesn't conflict with unique constraint if changed to existing
-            'address' => $validated['address'],
-            'city' => $validated['city'],
-            'currency' => $validated['currency'],
-        ]);
+        // Build a PATCH-style update: only touch the tenant columns the
+        // caller actually submitted. Nullable validation rules do not
+        // populate $validated with the missing keys, so accessing them
+        // directly used to crash with "Undefined array key". The
+        // previous version also happily wrote NULL over NOT NULL
+        // columns (e.g. tenants.email).
+        $update = ['name' => $validated['company_name']];
+        foreach (['phone', 'email', 'address', 'city'] as $column) {
+            if (array_key_exists($column, $validated) && $validated[$column] !== null) {
+                $update[$column] = $validated[$column];
+            }
+        }
+        $update['currency'] = $validated['currency'];
 
-        // Update settings JSON
+        $tenant->update($update);
+
+        // Merge settings JSON. Keep existing values when the caller
+        // doesn't supply the nullable fields.
         $settings = $tenant->settings ?? [];
         $settings['default_tax_rate'] = $validated['tax_rate'];
-        $settings['bank_name'] = $validated['bank_name'];
-        $settings['iban'] = $validated['iban'];
+        if (array_key_exists('bank_name', $validated) && $validated['bank_name'] !== null) {
+            $settings['bank_name'] = $validated['bank_name'];
+        }
+        if (array_key_exists('iban', $validated) && $validated['iban'] !== null) {
+            $settings['iban'] = $validated['iban'];
+        }
 
         // Mark tour as not seen yet (or ready to be seen)
         $settings['has_seen_tour'] = false;

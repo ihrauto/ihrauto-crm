@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Vehicle;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderPhoto;
+use App\Support\SafeImageUpload;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -230,11 +231,23 @@ class CheckinService
         $storedPaths = [];
 
         foreach ($photos as $photo) {
-            if (@getimagesize($photo->getRealPath()) === false) {
+            // SECURITY (H-6b): reject anything that doesn't resolve to a
+            // real image via the magic-byte sniff, AND derive the stored
+            // extension from that sniff rather than from the attacker-
+            // controlled client filename. Mirrors WorkOrderPhotoController.
+            $imageInfo = @getimagesize($photo->getRealPath());
+            if ($imageInfo === false) {
+                continue;
+            }
+            $extension = SafeImageUpload::extensionFor($imageInfo);
+            if ($extension === null) {
+                // Image type outside our allowlist (e.g. gif, bmp). Skip
+                // rather than throw so a mixed-upload batch keeps its
+                // valid files.
                 continue;
             }
 
-            $filename = Str::uuid().'.'.$photo->getClientOriginalExtension();
+            $filename = Str::uuid().'.'.$extension;
             $path = "work-order-photos/{$workOrder->tenant_id}/{$workOrder->id}/{$filename}";
 
             if (! Storage::disk('public')->put($path, file_get_contents($photo))) {

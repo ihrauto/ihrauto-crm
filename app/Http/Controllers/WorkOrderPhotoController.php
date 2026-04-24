@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\WorkOrder;
 use App\Models\WorkOrderPhoto;
+use App\Support\SafeImageUpload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -39,18 +40,9 @@ class WorkOrderPhotoController extends Controller
         }
 
         // SECURITY (H-6): pick the stored extension from the sniffed image
-        // type, not from the client-supplied filename. `getClientOriginalExtension()`
-        // would let names like `photo.php.jpg` or `photo.phtml` land on disk.
-        // If Apache's PHP handler ever reaches the storage path (proxy
-        // misconfig, storage mount exposed, .htaccess drift), that becomes
-        // RCE. getimagesize() has already confirmed this is a real image,
-        // so IMAGETYPE_* is trustworthy.
-        $extension = match ($imageInfo[2] ?? null) {
-            IMAGETYPE_JPEG => 'jpg',
-            IMAGETYPE_PNG => 'png',
-            IMAGETYPE_WEBP => 'webp',
-            default => null,
-        };
+        // type via SafeImageUpload, not from `$file->getClientOriginalExtension()`.
+        // See app/Support/SafeImageUpload.php for rationale.
+        $extension = SafeImageUpload::extensionFor($imageInfo);
         if ($extension === null) {
             return back()->with('error', 'Unsupported image format.');
         }

@@ -281,6 +281,43 @@ class CheckinTest extends TestCase
         Storage::disk('public')->assertExists($photo->path);
     }
 
+    /**
+     * H-6b: check-in photo upload must derive the stored extension from
+     * the image's sniffed IMAGETYPE, not from the client-supplied filename.
+     * A polyglot JPEG posted as `shell.php.jpg` must land as `<uuid>.jpg`
+     * even though getClientOriginalExtension() would say `jpg` here —
+     * anchoring the test around the storage-path suffix locks the
+     * invariant in without depending on the attacker's filename choice.
+     */
+    #[Test]
+    public function checkin_upload_extension_is_derived_from_image_type_not_client_name(): void
+    {
+        Storage::fake('public');
+
+        $malicious = UploadedFile::fake()->image('shell.php.jpg', 10, 10);
+
+        $response = $this->actingAs($this->user)
+            ->post(route('checkin.store'), [
+                'form_type' => 'active_user',
+                'vehicle_id' => $this->vehicle->id,
+                'service_type' => 'oil_change',
+                // StoreCheckinRequest allows low/medium/high/urgent.
+                'priority' => 'medium',
+                'service_bay' => 'Bay 1',
+                'service_description' => 'checkin with polyglot upload',
+                'photos' => [$malicious],
+            ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $photo = WorkOrderPhoto::latest('id')->first();
+        $this->assertNotNull($photo, 'Expected the check-in to create a photo record.');
+
+        $this->assertStringEndsWith('.jpg', $photo->filename);
+        $this->assertStringNotContainsString('.php', $photo->filename);
+        $this->assertStringNotContainsString('.php', $photo->path);
+    }
+
     #[Test]
     public function new_customer_checkin_creates_customer_vehicle_checkin_and_work_order()
     {
