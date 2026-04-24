@@ -8,14 +8,14 @@
 ])
 
 @php
-    $baseClasses = 'inline-flex items-center justify-center font-semibold uppercase transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#6A88E8] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
-    
+    $baseClasses = 'inline-flex items-center justify-center font-semibold uppercase transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-focus focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
+
     $variantClasses = match($variant) {
-        'primary' => 'bg-[#1A53F2] text-white hover:bg-[#5274E3]',
+        'primary' => 'bg-brand-primary text-white hover:bg-brand-primary-hover',
         'secondary' => 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-300',
-        'inverted-blue' => 'bg-[#1A53F2] text-[#F1FF30] hover:bg-[#5274E3]',
-        'inverted-green' => 'bg-[#F1FF30] text-[#1A53F2] hover:bg-[#F1FF30]/90',
-        default => 'bg-[#1A53F2] text-white hover:bg-[#5274E3]',
+        'inverted-blue' => 'bg-brand-primary text-brand-accent hover:bg-brand-primary-hover',
+        'inverted-green' => 'bg-brand-accent text-brand-primary hover:bg-brand-accent/90',
+        default => 'bg-brand-primary text-white hover:bg-brand-primary-hover',
     };
     
     $sizeClasses = match($size) {

@@ -20,21 +20,10 @@
             font-family: 'Inter', sans-serif;
         }
 
-        .bg-navy-custom {
-            background-color: #1E1B4B;
-        }
-
-        .text-navy-custom {
-            color: #1E1B4B;
-        }
-
-        .bg-purple-light-custom {
-            background-color: #E3E1FC;
-        }
     </style>
 </head>
 
-<body class="h-full antialiased bg-purple-light-custom selection:bg-indigo-500 selection:text-white">
+<body class="h-full antialiased bg-brand-tint selection:bg-indigo-500 selection:text-white">
 
     <!-- Navbar -->
     <nav class="fixed w-full z-50 top-0 start-0 border-b border-indigo-200/50 bg-white/80 backdrop-blur-md">
@@ -47,7 +36,7 @@
                             d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                 </div>
-                <span class="self-center text-2xl font-bold whitespace-nowrap text-navy-custom tracking-tight">IHRAUTO
+                <span class="self-center text-2xl font-bold whitespace-nowrap text-brand-950 tracking-tight">IHRAUTO
                     <span class="text-indigo-600">CRM</span></span>
             </a>
             <div class="flex md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
@@ -91,7 +80,7 @@
             </div>
 
             <h1
-                class="mb-6 text-5xl font-extrabold tracking-tight leading-none text-navy-custom md:text-6xl lg:text-7xl">
+                class="mb-6 text-5xl font-extrabold tracking-tight leading-none text-brand-950 md:text-6xl lg:text-7xl">
                 Advanced Workshop <br>
                 <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Management
                     System</span>
@@ -115,7 +104,7 @@
                     </a>
                 @else
                     <a href="{{ route('login') }}"
-                        class="inline-flex justify-center items-center py-4 px-8 text-base font-bold text-center text-white rounded-xl bg-indigo-900 hover:bg-navy-custom focus:ring-4 focus:ring-indigo-300 shadow-xl shadow-indigo-900/20 transition-all transform hover:-translate-y-1">
+                        class="inline-flex justify-center items-center py-4 px-8 text-base font-bold text-center text-white rounded-xl bg-indigo-900 hover:bg-brand-950 focus:ring-4 focus:ring-indigo-300 shadow-xl shadow-indigo-900/20 transition-all transform hover:-translate-y-1">
                         Employee Login
                         <svg class="w-3.5 h-3.5 ms-2 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                             fill="none" viewBox="0 0 14 10">
@@ -138,7 +127,7 @@
                             </path>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-bold text-navy-custom mb-2">Tire Hotel</h3>
+                    <h3 class="text-xl font-bold text-brand-950 mb-2">Tire Hotel</h3>
                     <p class="text-indigo-900/60">Complete tire storage management with season tracking, location
                         mapping, and automated retrieval systems.</p>
                 </div>
@@ -152,7 +141,7 @@
                             </path>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-bold text-navy-custom mb-2">CRM Tools</h3>
+                    <h3 class="text-xl font-bold text-brand-950 mb-2">CRM Tools</h3>
                     <p class="text-indigo-900/60">Advanced customer profiles, vehicle history tracking, and service
                         scheduling in one unified interface.</p>
                 </div>
@@ -166,7 +155,7 @@
                             </path>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-bold text-navy-custom mb-2">Analytics</h3>
+                    <h3 class="text-xl font-bold text-brand-950 mb-2">Analytics</h3>
                     <p class="text-indigo-900/60">Real-time business insights, inventory turnover rates, and performance
                         metrics at your fingertips.</p>
                 </div>

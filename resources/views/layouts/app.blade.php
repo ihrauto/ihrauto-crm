@@ -17,8 +17,6 @@
     
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .bg-purple-light-custom { background-color: #E3E1FC; }
-        .bg-navy-custom { background-color: #1E1B4B; }
         [x-cloak] { display: none !important; }
         
         /* Collapsible Sidebar - CSS Variables */
@@ -88,7 +86,7 @@
         })();
     </script>
 </head>
-<body class="h-full font-sans antialiased text-slate-900 {{ request()->is('admin*') ? 'bg-white' : 'bg-purple-light-custom' }}"
+<body class="h-full font-sans antialiased text-slate-900 {{ request()->is('admin*') ? 'bg-white' : 'bg-brand-tint' }}"
       x-data="{
           sidebarOpen: false,
           collapsed: document.documentElement.classList.contains('sidebar-collapsed'),
@@ -124,10 +122,10 @@
         @if(!request()->is('admin*'))
         <nav :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
              aria-label="Main navigation"
-             class="sidebar-nav bg-navy-custom flex-shrink-0 flex flex-col fixed inset-y-0 z-50 shadow-xl lg:translate-x-0">
+             class="sidebar-nav bg-brand-950 flex-shrink-0 flex flex-col fixed inset-y-0 z-50 shadow-xl lg:translate-x-0">
             
             <!-- Close button (mobile only) -->
-            <button @click="sidebarOpen = false" aria-label="Close navigation menu" class="absolute top-5 right-4 p-2 text-indigo-300 hover:text-white lg:hidden">
+            <button type="button" @click="sidebarOpen = false" aria-label="Close navigation menu" class="absolute top-5 right-4 p-2 text-indigo-300 hover:text-white lg:hidden">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -148,8 +146,8 @@
                 </div>
                 
                 <!-- Collapse Toggle Button (Desktop only) -->
-                <button @click="toggleCollapse()"
-                        class="toggle-btn hidden lg:flex absolute -right-4 top-6 w-8 h-8 bg-indigo-600 hover:bg-indigo-500 rounded-full items-center justify-center text-white shadow-lg hover:scale-110 border-2 border-[#1E1B4B]"
+                <button type="button" @click="toggleCollapse()"
+                        class="toggle-btn hidden lg:flex absolute -right-4 top-6 w-8 h-8 bg-indigo-600 hover:bg-indigo-500 rounded-full items-center justify-center text-white shadow-lg hover:scale-110 border-2 border-brand-950"
                         :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
                         :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
                         aria-controls="nav-container">
@@ -346,7 +344,7 @@
                             </a>
 
                             <div class="relative" x-data="{ open: false }">
-                                <button @click="open = !open" @click.away="open = false"
+                                <button type="button" @click="open = !open" @click.away="open = false"
                                     aria-label="Admin menu" aria-haspopup="true" :aria-expanded="open ? 'true' : 'false'"
                                     class="flex items-center gap-3 rounded-md border border-slate-400 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50">
                                     <div class="hidden sm:block">
@@ -391,7 +389,7 @@
                 <!-- Mobile Menu Button + Title -->
                 <div class="flex items-center">
                     <!-- Hamburger Menu (mobile/tablet only) -->
-                    <button @click="sidebarOpen = true" aria-label="Open navigation menu" class="p-2 mr-3 -ml-1 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg lg:hidden">
+                    <button type="button" @click="sidebarOpen = true" aria-label="Open navigation menu" class="p-2 mr-3 -ml-1 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg lg:hidden">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
@@ -414,7 +412,7 @@
                      
                     <!-- Notifications -->
                     <div class="relative" x-data="{ notifOpen: false }">
-                        <button @click="notifOpen = !notifOpen" aria-label="Notifications" aria-haspopup="true" :aria-expanded="notifOpen ? 'true' : 'false'" class="relative p-2 text-indigo-300 hover:text-indigo-600 transition-colors rounded-full hover:bg-indigo-50">
+                        <button type="button" @click="notifOpen = !notifOpen" aria-label="Notifications" aria-haspopup="true" :aria-expanded="notifOpen ? 'true' : 'false'" class="relative p-2 text-indigo-300 hover:text-indigo-600 transition-colors rounded-full hover:bg-indigo-50">
                             <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
@@ -449,7 +447,7 @@
                     
                     <!-- Profile Dropdown -->
                     <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" @click.away="open = false" aria-label="User menu" aria-haspopup="true" :aria-expanded="open ? 'true' : 'false'" class="flex items-center space-x-2 text-sm font-semibold text-indigo-900 hover:text-indigo-700 transition-colors p-2 rounded-lg hover:bg-indigo-50">
+                        <button type="button" @click="open = !open" @click.away="open = false" aria-label="User menu" aria-haspopup="true" :aria-expanded="open ? 'true' : 'false'" class="flex items-center space-x-2 text-sm font-semibold text-indigo-900 hover:text-indigo-700 transition-colors p-2 rounded-lg hover:bg-indigo-50">
                             <span class="hidden sm:inline">Profile</span>
                             <svg class="w-4 h-4 text-indigo-400 transition-transform duration-200" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </button>

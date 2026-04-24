@@ -12,7 +12,7 @@
 
 @php
     $id = $id ?? $name ?? 'input-' . str()->random(8);
-    $inputClasses = 'w-full p-3 border border-[#809AED] rounded-lg focus:ring-2 focus:ring-[#1A53F2] focus:border-[#1A53F2] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+    $inputClasses = 'w-full p-3 border border-brand-subtle-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
     
     if ($error) {
         $inputClasses .= ' border-red-500 focus:ring-red-500 focus:border-red-500';

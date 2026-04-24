@@ -158,17 +158,17 @@
             class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-xl shadow-sm border border-indigo-100 p-4">
             <!-- Left: Navigation -->
             <div class="flex items-center gap-3">
-                <button @click="calendar.prev()"
+                <button type="button" @click="calendar.prev()"
                     class="p-2 hover:bg-indigo-50 rounded-lg text-indigo-500 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
                 </button>
-                <button @click="calendar.today()"
+                <button type="button" @click="calendar.today()"
                     class="px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                     Today
                 </button>
-                <button @click="calendar.next()"
+                <button type="button" @click="calendar.next()"
                     class="p-2 hover:bg-indigo-50 rounded-lg text-indigo-500 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
@@ -179,22 +179,22 @@
 
             <!-- Center: View Toggle -->
             <div class="flex bg-gray-100 rounded-lg p-1 gap-1">
-                <button @click="changeView('dayGridMonth')" :class="currentView === 'dayGridMonth' ? 'active' : ''"
+                <button type="button" @click="changeView('dayGridMonth')" :class="currentView === 'dayGridMonth' ? 'active' : ''"
                     class="view-toggle-btn px-4 py-2 text-sm font-semibold rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors">
                     Month
                 </button>
-                <button @click="changeView('timeGridWeek')" :class="currentView === 'timeGridWeek' ? 'active' : ''"
+                <button type="button" @click="changeView('timeGridWeek')" :class="currentView === 'timeGridWeek' ? 'active' : ''"
                     class="view-toggle-btn px-4 py-2 text-sm font-semibold rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors">
                     Week
                 </button>
-                <button @click="changeView('timeGridDay')" :class="currentView === 'timeGridDay' ? 'active' : ''"
+                <button type="button" @click="changeView('timeGridDay')" :class="currentView === 'timeGridDay' ? 'active' : ''"
                     class="view-toggle-btn px-4 py-2 text-sm font-semibold rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors">
                     Day
                 </button>
             </div>
 
             <!-- Right: New Appointment -->
-            <button @click="openNewAppointmentModal()"
+            <button type="button" @click="openNewAppointmentModal()"
                 class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition-colors text-sm flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -315,7 +315,7 @@
                                 Mark Done
                             </button>
                         </form>
-                        <button @click="openEditModal()"
+                        <button type="button" @click="openEditModal()"
                             class="w-full py-2.5 border border-indigo-200 text-indigo-700 rounded-lg font-semibold text-sm hover:bg-indigo-50 transition-colors">
                             Edit
                         </button>
@@ -330,7 +330,7 @@
                         </form>
                     </div>
 
-                    <button @click="detailsModalOpen = false"
+                    <button type="button" @click="detailsModalOpen = false"
                         class="mt-4 w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">
                         Close
                     </button>

@@ -2,7 +2,7 @@
     'title' => null,
     'subtitle' => null,
     'padding' => 'p-6',
-    'border' => 'border border-[#809AED]',
+    'border' => 'border border-brand-subtle-border',
     'rounded' => 'rounded-xl',
     'background' => 'bg-white',
 ])
@@ -15,7 +15,7 @@
     @if($title || $subtitle)
         <div class="mb-4">
             @if($title)
-                <h3 class="text-lg font-normal text-[#1A53F2] mb-1">{{ $title }}</h3>
+                <h3 class="text-lg font-normal text-brand-primary mb-1">{{ $title }}</h3>
             @endif
             @if($subtitle)
                 <p class="text-sm text-black">{{ $subtitle }}</p>

@@ -20,7 +20,7 @@
                 <option value="{{ $s }}" @selected(($filters['status'] ?? '') === $s)>{{ __('crm.quote.status_'.$s) }}</option>
             @endforeach
         </select>
-        <button class="px-3 py-2 rounded bg-gray-100 text-sm">{{ __('crm.quote.filter') }}</button>
+        <button type="submit" class="px-3 py-2 rounded bg-gray-100 text-sm">{{ __('crm.quote.filter') }}</button>
     </form>
 
     <div class="bg-white shadow overflow-hidden rounded-lg">

@@ -107,7 +107,7 @@
     @endif
 
     <div class="actions">
-        <button onclick="window.print()">{{ __('crm.finance.print_save_pdf') }}</button>
+        <button type="button" onclick="window.print()">{{ __('crm.finance.print_save_pdf') }}</button>
         <a href="{{ route('quotes.show', $quote) }}">&larr;</a>
     </div>
 </div>

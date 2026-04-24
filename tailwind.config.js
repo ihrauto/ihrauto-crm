@@ -28,6 +28,17 @@ export default {
                     800: '#3730a3',
                     900: '#312e81',
                     950: '#1e1b4b',
+                    // COLOR-01 (sprint 2026-04-24 UX audit): the CTA palette
+                    // used by <x-button> / <x-primary-button> / <x-input>.
+                    // Deliberately a different hue from the brand-50..950
+                    // indigo scale — documenting the drift as explicit
+                    // tokens so call sites stop inlining raw hex values.
+                    primary: '#1A53F2',
+                    'primary-hover': '#5274E3',
+                    focus: '#6A88E8',
+                    'subtle-border': '#809AED',
+                    tint: '#E3E1FC',
+                    accent: '#F1FF30',
                 },
                 // Status colors for badges and indicators
                 status: {
@@ -42,9 +53,11 @@ export default {
                 'card-hover': '0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
                 'modal': '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
             },
-            borderRadius: {
-                'card': '0.75rem',
-            },
+            // RADIUS-01 (2026-04-24 UX audit): the previous custom
+            // `rounded-card` (0.75rem) had zero adoption in Blade, so
+            // it was removed. Use the Tailwind default radius scale per
+            // docs/ui/design-system.md: rounded-md for form inputs,
+            // rounded-lg for buttons/alerts, rounded-xl for cards/modals.
         },
     },
 

@@ -99,7 +99,7 @@
                                 the string safely for an attribute — just read it
                                 straight out of dataset as a plain string.
                             --}}
-                            <button onclick="openJobDetails(this)"
+                            <button type="button" onclick="openJobDetails(this)"
                                 data-job-id="{{ $activeJob->id }}"
                                 data-job-notes="{{ $activeJob->technician_notes ?? '' }}"
                                 data-job-url="{{ route('work-orders.update', $activeJob) }}"
@@ -129,7 +129,7 @@
 
                 <div class="flex justify-between items-start mb-4">
                     <h3 class="text-lg leading-6 font-bold text-gray-900" id="modal-title">Job Details</h3>
-                    <button onclick="closeJobModal()" aria-label="Close dialog" class="text-gray-400 hover:text-gray-500">
+                    <button type="button" onclick="closeJobModal()" aria-label="Close dialog" class="text-gray-400 hover:text-gray-500">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M6 18L18 6M6 6l12 12" />

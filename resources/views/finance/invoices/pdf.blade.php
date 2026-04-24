@@ -117,7 +117,7 @@
     @endif
 
     <div class="actions">
-        <button onclick="window.print()">Print / Save as PDF</button>
+        <button type="button" onclick="window.print()">Print / Save as PDF</button>
         <a href="{{ route('invoices.show', $invoice) }}">Back to invoice</a>
     </div>
 </div>

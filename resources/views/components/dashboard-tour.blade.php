@@ -33,9 +33,9 @@
                     <p class="text-sm text-gray-500 mb-6" x-text="steps[step-1].text"></p>
 
                     <div class="flex justify-between items-center">
-                        <button @click="skipTour" class="text-xs font-bold text-gray-400 hover:text-gray-600">Skip</button>
+                        <button type="button" @click="skipTour" class="text-xs font-bold text-gray-400 hover:text-gray-600">Skip</button>
 
-                        <button @click="nextStep"
+                        <button type="button" @click="nextStep"
                             class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
                             <span x-text="step === steps.length ? 'Get Started' : 'Next'"></span>
                         </button>

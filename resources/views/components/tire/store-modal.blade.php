@@ -17,18 +17,18 @@
 
             <!-- Step Indicator (Only for New Mode) -->
             <div id="wizard-steps" class="flex items-center space-x-2" x-show="mode === 'new'">
-                <span :class="{'bg-indigo-600 text-white': step >= 1, 'bg-gray-100 text-gray-400': step < 1}"
+                <span :class="{'bg-indigo-600 text-white': step >= 1, 'bg-gray-100 text-gray-500': step < 1}"
                     class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors">1</span>
                 <div class="w-8 h-1 bg-gray-100">
                     <div class="h-full bg-indigo-600 transition-all duration-300"
                         :style="'width: ' + (step > 1 ? '100%' : '0%')"></div>
                 </div>
-                <span :class="{'bg-indigo-600 text-white': step >= 2, 'bg-gray-100 text-gray-400': step < 2}"
+                <span :class="{'bg-indigo-600 text-white': step >= 2, 'bg-gray-100 text-gray-500': step < 2}"
                     class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors">2</span>
             </div>
 
             <button type="button" id="cancel-tire-x"
-                class="text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-full hover:bg-gray-100">
+                class="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-full hover:bg-gray-100">
                 <svg class="w-6 h-6 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
                     </path>

@@ -190,7 +190,7 @@
                         <!-- Action Button -->
                         <div class="mb-5">
                             @if($isActive)
-                                <button disabled
+                                <button type="button" disabled
                                     class="w-full py-2 px-4 bg-emerald-50 text-emerald-700 font-bold rounded-lg border border-emerald-100 cursor-default flex items-center justify-center text-sm">
                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>

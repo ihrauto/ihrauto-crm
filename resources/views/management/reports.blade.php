@@ -69,7 +69,7 @@
 <body>
     <div class="no-print">
         <a href="{{ route('management') }}" class="back-link">&larr; Back to Dashboard</a>
-        <button onclick="window.print()" class="btn-print">Print / Save as PDF</button>
+        <button type="button" onclick="window.print()" class="btn-print">Print / Save as PDF</button>
     </div>
 
     <div class="header">

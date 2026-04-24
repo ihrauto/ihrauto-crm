@@ -18,7 +18,7 @@
                 </span>
             @else
                 <a href="{{ $paginator->previousPageUrl() }}" 
-                   class="px-3 py-2 text-gray-600 hover:text-[#1A53F2] transition-colors">
+                   class="px-3 py-2 text-gray-600 hover:text-brand-primary transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
@@ -36,12 +36,12 @@
                 @if (is_array($element))
                     @foreach ($element as $page => $url)
                         @if ($page == $paginator->currentPage())
-                            <span class="px-4 py-2 text-sm font-medium text-white bg-[#1A53F2]">
+                            <span class="px-4 py-2 text-sm font-medium text-white bg-brand-primary">
                                 {{ $page }}
                             </span>
                         @else
                             <a href="{{ $url }}" 
-                               class="px-4 py-2 text-sm text-gray-600 hover:text-[#1A53F2] transition-colors">
+                               class="px-4 py-2 text-sm text-gray-600 hover:text-brand-primary transition-colors">
                                 {{ $page }}
                             </a>
                         @endif
@@ -52,7 +52,7 @@
             {{-- Next Button --}}
             @if ($paginator->hasMorePages())
                 <a href="{{ $paginator->nextPageUrl() }}" 
-                   class="px-3 py-2 text-gray-600 hover:text-[#1A53F2] transition-colors">
+                   class="px-3 py-2 text-gray-600 hover:text-brand-primary transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                     </svg>

@@ -20,7 +20,7 @@
         :disabled="submitting"
         :aria-busy="submitting ? 'true' : 'false'"
     @endif
-    {{ $attributes->merge(['type' => 'submit', 'class' => 'inline-flex items-center px-4 py-2 bg-[#1A53F2] border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-[#5274E3] focus:bg-[#5274E3] active:bg-[#1A53F2] focus:outline-none focus:ring-2 focus:ring-[#6A88E8] focus:ring-offset-2 transition ease-in-out duration-150 disabled:opacity-60 disabled:cursor-not-allowed']) }}
+    {{ $attributes->merge(['type' => 'submit', 'class' => 'inline-flex items-center px-4 py-2 bg-brand-primary border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-brand-primary-hover focus:bg-brand-primary-hover active:bg-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-focus focus:ring-offset-2 transition ease-in-out duration-150 disabled:opacity-60 disabled:cursor-not-allowed']) }}
 >
     @if($loading)
         <svg x-show="submitting" x-cloak class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" aria-hidden="true">
