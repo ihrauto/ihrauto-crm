@@ -13,7 +13,10 @@ class ProductServiceController extends Controller
         $tab = $request->get('tab', 'parts');
         $search = $request->get('search');
 
-        // Filter products if search term provided
+        // Scalability B4 (sprint 2026-04-24): paginate both lists so a
+        // tenant with thousands of parts/services doesn't render the
+        // entire catalogue on every page load. Separate page keys keep
+        // the two tabs from clashing when an operator switches views.
         $products = Product::latest()
             ->when($search, function ($query, $search) {
                 $searchLower = strtolower($search);
@@ -23,9 +26,10 @@ class ProductServiceController extends Controller
                         ->orWhereRaw('LOWER(sku) LIKE ?', ["%{$searchLower}%"]);
                 });
             })
-            ->get();
+            ->paginate(25, ['*'], 'products_page')
+            ->withQueryString();
 
-        $services = Service::latest()->get();
+        $services = Service::latest()->paginate(25, ['*'], 'services_page')->withQueryString();
 
         return view('products-services.index', compact('products', 'services', 'tab'));
     }

@@ -88,23 +88,28 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
 
     Route::middleware('module:access management')->group(function () {
         Route::get('/management', [ManagementController::class, 'index'])->name('management');
-        Route::get('/management/export', [ManagementController::class, 'export'])->name('management.export');
         Route::get('/management/reports', [ManagementController::class, 'reports'])->name('management.reports');
 
+        // Sprint 2026-04-24 split: exports live in Management\ExportController;
+        // user mgmt in Management\UserController; tenant settings in
+        // Management\SettingsController. Route names kept stable so Blade
+        // template references continue to resolve.
+        Route::get('/management/export', [\App\Http\Controllers\Management\ExportController::class, 'customers'])->name('management.export');
+
         Route::middleware('permission:manage settings')->group(function () {
-            Route::get('/management/settings', [ManagementController::class, 'settings'])->name('management.settings');
-            Route::post('/management/settings', [ManagementController::class, 'updateSettings'])->name('management.settings.update');
-            Route::get('/management/backup', [ManagementController::class, 'downloadBackup'])->name('management.backup');
+            Route::get('/management/settings', [\App\Http\Controllers\Management\SettingsController::class, 'show'])->name('management.settings');
+            Route::post('/management/settings', [\App\Http\Controllers\Management\SettingsController::class, 'update'])->name('management.settings.update');
+            Route::get('/management/backup', [\App\Http\Controllers\Management\ExportController::class, 'backup'])->name('management.backup');
         });
 
         Route::middleware('permission:manage users')->group(function () {
-            Route::get('/management/users/create', [ManagementController::class, 'createUser'])->name('management.users.create');
-            Route::post('/management/users', [ManagementController::class, 'storeUser'])->name('management.users.store');
-            Route::get('/management/users/{user}/edit', [ManagementController::class, 'editUser'])->name('management.users.edit');
-            Route::put('/management/users/{user}', [ManagementController::class, 'updateUser'])->name('management.users.update');
+            Route::get('/management/users/create', [\App\Http\Controllers\Management\UserController::class, 'create'])->name('management.users.create');
+            Route::post('/management/users', [\App\Http\Controllers\Management\UserController::class, 'store'])->name('management.users.store');
+            Route::get('/management/users/{user}/edit', [\App\Http\Controllers\Management\UserController::class, 'edit'])->name('management.users.edit');
+            Route::put('/management/users/{user}', [\App\Http\Controllers\Management\UserController::class, 'update'])->name('management.users.update');
         });
 
-        Route::delete('/management/users/{user}', [ManagementController::class, 'destroyUser'])
+        Route::delete('/management/users/{user}', [\App\Http\Controllers\Management\UserController::class, 'destroy'])
             ->middleware(['permission:manage users', 'permission:delete records'])
             ->name('management.users.destroy');
     });

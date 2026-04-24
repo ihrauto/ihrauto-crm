@@ -92,4 +92,10 @@
             </div>
         @endforelse
     </div>
+
+    @if($products instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator && $products->hasPages())
+        <div class="px-6 py-4 border-t border-indigo-50 bg-indigo-50/10">
+            {{ $products->links() }}
+        </div>
+    @endif
 </div>

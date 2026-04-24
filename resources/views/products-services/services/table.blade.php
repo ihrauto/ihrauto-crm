@@ -73,4 +73,10 @@
             </tbody>
         </table>
     </div>
+
+    @if($services instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator && $services->hasPages())
+        <div class="px-6 py-4 border-t border-indigo-50 bg-indigo-50/10">
+            {{ $services->links() }}
+        </div>
+    @endif
 </div>
