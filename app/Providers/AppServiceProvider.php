@@ -25,6 +25,17 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::defaultView('vendor.pagination.smooth');
 
+        // C2 (sprint 2026-04-24): register the hashed user provider so
+        // `remember_token` stored in the DB is SHA-256 of the cookie
+        // value. See app/Auth/HashedEloquentUserProvider.php. config/auth.php
+        // uses driver `hashed-eloquent` for the `users` provider.
+        \Illuminate\Support\Facades\Auth::provider('hashed-eloquent', function ($app, array $config) {
+            return new \App\Auth\HashedEloquentUserProvider(
+                $app['hash'],
+                $config['model'],
+            );
+        });
+
         // Security review L-1: tighten the default password rule across the
         // entire app. Every call site using `Password::defaults()` now gets
         // the hardened rule automatically; sites still using `min:8` string

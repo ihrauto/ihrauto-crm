@@ -60,8 +60,13 @@ return [
     */
 
     'providers' => [
+        // C2 (sprint 2026-04-24): `hashed-eloquent` is a local subclass
+        // of EloquentUserProvider that stores `remember_token` as a
+        // SHA-256 digest. Registered in AppServiceProvider::boot.
+        // Functionally identical to `eloquent` for every other code
+        // path (credential verification, retrieve-by-id, etc.).
         'users' => [
-            'driver' => 'eloquent',
+            'driver' => 'hashed-eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
 
