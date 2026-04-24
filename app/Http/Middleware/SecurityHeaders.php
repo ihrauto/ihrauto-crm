@@ -82,18 +82,36 @@ class SecurityHeaders
         // `'strict-dynamic'` with a per-request nonce.
         $contentType = (string) $response->headers->get('Content-Type', '');
         if (str_contains($contentType, 'text/html') || $contentType === '') {
+            // Google Fonts: the layout loads Inter from fonts.googleapis.com
+            // (the stylesheet) which then pulls font files from
+            // fonts.gstatic.com. Both origins must be allowlisted.
+            // In local dev the Vite HMR server lives at http://localhost:5173
+            // (force IPv4 binding via vite.config.js — the bracketed IPv6
+            // form `http://[::1]:5173` is rejected by browsers as an
+            // invalid CSP source expression). Allowlisted only when
+            // APP_ENV=local.
+            $viteSources = app()->environment('local')
+                ? ' http://localhost:5173 ws://localhost:5173'
+                : '';
+            // Alpine.js v3 compiles its `x-*` expression strings via
+            // `new Function(...)`, which CSP considers `unsafe-eval`.
+            // Only relax this in local/dev — production builds should
+            // migrate to @alpinejs/csp to avoid needing unsafe-eval at
+            // all (tracked as ENG-008 in the engineering board).
+            $unsafeEval = app()->environment('local') ? " 'unsafe-eval'" : '';
             $csp = [
                 "default-src 'self'",
                 // Scripts: self + inline (Alpine). Vite-built bundles are same-origin.
-                "script-src 'self' 'unsafe-inline'",
-                // Styles: self + inline (Tailwind JIT sometimes inlines).
-                "style-src 'self' 'unsafe-inline'",
+                "script-src 'self' 'unsafe-inline'".$unsafeEval.$viteSources,
+                // Styles: self + inline (Tailwind JIT sometimes inlines) +
+                // Google Fonts stylesheet origin.
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com".$viteSources,
                 // Images: self + data: (icons, SweetAlert2) + https: for Gravatar etc.
                 "img-src 'self' data: https:",
-                // Fonts: self + data: (embedded fonts).
-                "font-src 'self' data:",
-                // XHR / fetch / EventSource.
-                "connect-src 'self'",
+                // Fonts: self + data: (embedded fonts) + Google Fonts asset origin.
+                "font-src 'self' data: https://fonts.gstatic.com",
+                // XHR / fetch / EventSource + Vite HMR in local dev.
+                "connect-src 'self'".$viteSources,
                 // Media files (audio/video): none today.
                 "media-src 'self'",
                 // Plugins + base + forms + frames.

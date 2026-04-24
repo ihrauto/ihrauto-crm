@@ -1,7 +1,9 @@
 <?php
 
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -97,38 +99,56 @@ return new class extends Migration
             }
         });
 
-        // Re-encrypt existing rows. Reading the plaintext then saving
-        // the model is the only way to round-trip through Eloquent's
-        // `encrypted` cast. We use `saveQuietly` so observers (audit
-        // log, cache-forget) don't fire — the content is unchanged,
-        // only the storage representation changes.
-        //
-        // This runs for both Postgres and SQLite so test fixtures
-        // created before the cast was in place are brought into sync.
-        \App\Models\Customer::withoutGlobalScopes()->chunkById(200, function ($chunk) {
-            foreach ($chunk as $customer) {
-                // At this point the cast is already applied (the model
-                // was updated in the same deploy), so reading a
-                // plaintext row returns the plaintext and writing it
-                // back will encrypt. Populate the lookup hashes on
-                // the same pass.
-                $customer->email = $customer->getAttributes()['email'] ?? null;
-                $customer->phone = $customer->getAttributes()['phone'] ?? null;
-                $customer->address = $customer->getAttributes()['address'] ?? null;
-                $customer->saveQuietly();
+        // Re-encrypt existing rows using raw DB queries + the Crypt
+        // facade. We can't use Eloquent here because the `encrypted`
+        // cast on the model would attempt to DECRYPT every plaintext
+        // read and throw DecryptException. We also make the rewrite
+        // idempotent: if decrypt succeeds the row is already encrypted
+        // (partial run resumed); if decrypt throws we treat the stored
+        // value as plaintext and encrypt it now.
+        $reencrypt = function (?string $stored): array {
+            // Returns [ciphertext-to-store, plaintext-for-hash].
+            if ($stored === null || $stored === '') {
+                return [null, null];
             }
-        });
+            try {
+                $plain = Crypt::decryptString($stored);
+                // Already encrypted. Keep the existing ciphertext so we
+                // don't rotate IVs unnecessarily.
+                return [$stored, $plain];
+            } catch (DecryptException) {
+                // Plaintext row — encrypt now.
+                return [Crypt::encryptString($stored), $stored];
+            }
+        };
 
-        \App\Models\Tenant::withTrashed()->chunkById(100, function ($chunk) {
-            foreach ($chunk as $tenant) {
-                $tenant->iban = $tenant->getAttributes()['iban'] ?? null;
-                $tenant->bank_name = $tenant->getAttributes()['bank_name'] ?? null;
-                $tenant->account_holder = $tenant->getAttributes()['account_holder'] ?? null;
-                $tenant->invoice_email = $tenant->getAttributes()['invoice_email'] ?? null;
-                $tenant->invoice_phone = $tenant->getAttributes()['invoice_phone'] ?? null;
-                $tenant->saveQuietly();
-            }
-        });
+        foreach (DB::table('customers')->orderBy('id')->lazy(200) as $row) {
+            [$emailCipher, $emailPlain] = $reencrypt($row->email);
+            [$phoneCipher, $phonePlain] = $reencrypt($row->phone);
+            [$addressCipher, ] = $reencrypt($row->address);
+            DB::table('customers')->where('id', $row->id)->update([
+                'email' => $emailCipher,
+                'phone' => $phoneCipher,
+                'address' => $addressCipher,
+                'email_hash' => \App\Models\Customer::lookupEmailHash($emailPlain),
+                'phone_hash' => \App\Models\Customer::lookupPhoneHash($phonePlain),
+            ]);
+        }
+
+        foreach (DB::table('tenants')->orderBy('id')->lazy(100) as $row) {
+            [$iban, ] = $reencrypt($row->iban);
+            [$bank, ] = $reencrypt($row->bank_name);
+            [$holder, ] = $reencrypt($row->account_holder);
+            [$invEmail, ] = $reencrypt($row->invoice_email);
+            [$invPhone, ] = $reencrypt($row->invoice_phone);
+            DB::table('tenants')->where('id', $row->id)->update([
+                'iban' => $iban,
+                'bank_name' => $bank,
+                'account_holder' => $holder,
+                'invoice_email' => $invEmail,
+                'invoice_phone' => $invPhone,
+            ]);
+        }
     }
 
     public function down(): void

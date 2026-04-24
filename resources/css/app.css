@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
 /*
+  Tailwind v4 does not auto-load the legacy JS config. Without this
+  directive every custom token (`bg-brand-primary`, `text-brand-950`,
+  `border-brand-subtle-border`, etc.) silently emits no CSS, leaving the
+  UI with Tailwind's defaults only.
+*/
+@config "../../tailwind.config.js";
+
+/*
   Global accessibility baseline.
 
   WCAG 2.1 SC 2.5.5 (Target Size Level AAA) recommends 44×44 CSS pixels for
