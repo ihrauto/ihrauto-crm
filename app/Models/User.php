@@ -14,7 +14,15 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use Auditable, BelongsToTenant, HasFactory, HasRoles, Notifiable, SoftDeletes;
+    use Auditable, BelongsToTenant, HasFactory, HasRoles {
+        HasRoles::assignRole as baseAssignRole;
+        HasRoles::syncRoles as baseSyncRoles;
+        HasRoles::removeRole as baseRemoveRole;
+        HasRoles::hasRole as baseHasRole;
+        HasRoles::hasPermissionTo as baseHasPermissionTo;
+    }
+
+    use Notifiable, SoftDeletes;
 
     /**
      * C.9 — invalidate Tenant::canAddUser() cache on create/delete/restore
@@ -84,6 +92,70 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
         ];
+    }
+
+    /**
+     * C1 (sprint 2026-04-24): with Spatie teams=true, role assignments
+     * carry a `team_id` on the pivot that must match the current
+     * `PermissionRegistrar::getPermissionsTeamId()` at lookup time.
+     * Whenever this user has a tenant, push that tenant id into the
+     * registrar before delegating to Spatie so the pivot row is
+     * written scoped from the start. Super-admin users (tenant_id =
+     * null) keep the global semantics (pivot team_id = null).
+     */
+    public function assignRole(...$roles)
+    {
+        $this->pushTenantTeamContext();
+
+        return $this->baseAssignRole(...$roles);
+    }
+
+    public function syncRoles(...$roles)
+    {
+        $this->pushTenantTeamContext();
+
+        return $this->baseSyncRoles(...$roles);
+    }
+
+    public function removeRole($role)
+    {
+        $this->pushTenantTeamContext();
+
+        return $this->baseRemoveRole($role);
+    }
+
+    /**
+     * Push this user's tenant context before deferring to Spatie so
+     * direct calls (e.g. $user->hasRole('admin') in a job or test)
+     * resolve against the user's own tenant — not whichever tenant the
+     * last request / last assignRole happened to set.
+     */
+    public function hasRole($roles, ?string $guard = null): bool
+    {
+        $this->pushTenantTeamContext();
+
+        return $this->baseHasRole($roles, $guard);
+    }
+
+    public function hasPermissionTo($permission, $guardName = null): bool
+    {
+        $this->pushTenantTeamContext();
+
+        return $this->baseHasPermissionTo($permission, $guardName);
+    }
+
+    private function pushTenantTeamContext(): void
+    {
+        $registrar = app(\Spatie\Permission\PermissionRegistrar::class);
+        if (! $registrar->teams) {
+            return;
+        }
+
+        // Always push — including null for tenant-less users (super-admin) —
+        // so this user's role assignment never inherits a stale team id
+        // from a prior caller. `setPermissionsTeamId(null)` is the correct
+        // "global / platform-level" scope.
+        $registrar->setPermissionsTeamId(! empty($this->tenant_id) ? $this->tenant_id : null);
     }
 
     /**

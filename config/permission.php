@@ -91,9 +91,14 @@ return [
         /*
          * Change this if you want to use the teams feature and your related model's
          * foreign key is other than `team_id`.
+         *
+         * C1 (sprint 2026-04-24): IHRAUTO is tenant-per-user today, but
+         * enabling Spatie's teams feature makes role assignments
+         * tenant-scoped so a future multi-tenant user-membership feature
+         * does not silently grant a role across tenants.
          */
 
-        'team_foreign_key' => 'team_id',
+        'team_foreign_key' => 'tenant_id',
     ],
 
     /*
@@ -131,7 +136,14 @@ return [
      * (view the latest version of this package's migration file)
      */
 
-    'teams' => false,
+    // C1 (sprint 2026-04-24): tenant-scoped role assignments.
+    // See database/migrations/2026_04_24_120000_enable_spatie_teams.php for
+    // the column + backfill. Tenant context is pushed into Spatie via
+    // PermissionRegistrar::setPermissionsTeamId() in TenantMiddleware,
+    // and cleared in the request lifecycle when a user has no tenant
+    // (super-admin). Assignments written with a null team_id are global
+    // — intentional for the super-admin role.
+    'teams' => true,
 
     /*
      * The class to use to resolve the permissions team id

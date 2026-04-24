@@ -32,6 +32,18 @@ class TenantMiddleware
         // Tenant context is request-scoped. Clear any stale bindings before resolving again.
         $this->tenantContext->clear();
 
+        // C1 (sprint 2026-04-24): seed Spatie's team context from the
+        // authenticated user's tenant_id BEFORE any role check. Under
+        // teams=true, Spatie caches the `roles` relation scoped to the
+        // current team id on first touch. If we called hasRole() here
+        // with team=null, the cached relation would filter to pivot
+        // rows where team_id IS NULL — our users have team_id=tenant_id,
+        // so the cache would end up empty and every downstream
+        // permission check would return false for the rest of the
+        // request. Super-admin users have tenant_id=NULL so they get
+        // team=null, which correctly matches their global role pivot.
+        $this->setSpatieTeamId(Auth::check() ? Auth::user()->tenant_id : null);
+
         // Superadmins bypass tenant middleware entirely
         try {
             if (Auth::check() && Auth::user()->hasRole('super-admin')) {
@@ -60,6 +72,14 @@ class TenantMiddleware
 
         // Set tenant context
         $this->tenantContext->set($tenant, $request);
+
+        // C1: push tenant id into Spatie's permission registrar so
+        // hasRole/hasPermissionTo/assignRole/syncRoles scope to this
+        // tenant. Queries under teams=true additionally match rows
+        // where team_id IS NULL, which preserves access for global
+        // roles (super-admin) and roles seeded before the teams
+        // migration.
+        $this->setSpatieTeamId($tenant->id);
 
         // Auto-login for local development ONLY.
         //
@@ -91,6 +111,23 @@ class TenantMiddleware
     private function shouldAutoLogin(): bool
     {
         return \App\Support\AutoLoginGuard::verified();
+    }
+
+    /**
+     * Set (or clear) Spatie Permission's current team context. Wrapped in
+     * a try/catch so an environment where the Spatie package isn't fully
+     * registered (e.g. very early boot, failed migrations) never crashes
+     * tenant resolution — the role-lookup path will throw on its own in
+     * that case, which is the correct behaviour.
+     */
+    private function setSpatieTeamId(?int $tenantId): void
+    {
+        try {
+            app(\Spatie\Permission\PermissionRegistrar::class)
+                ->setPermissionsTeamId($tenantId);
+        } catch (\Throwable $e) {
+            // Fall through — Spatie likely not bootstrapped yet.
+        }
     }
 
     /**

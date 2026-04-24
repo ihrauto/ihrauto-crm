@@ -58,17 +58,19 @@ return new class extends Migration
                 ->references('id') // permission id
                 ->on($tableNames['permissions'])
                 ->onDelete('cascade');
+            // C1 (sprint 2026-04-24): team_id is NULLABLE even when teams=true
+            // so super-admin / platform-global assignments can have
+            // team_id=NULL. Spatie's upstream migration puts team_id into
+            // the primary key, which forces NOT NULL and breaks the global
+            // case. We keep the non-teams PK shape and carry team_id as an
+            // indexed column instead — good enough because our data model
+            // has one role per (user, role) tuple anyway.
             if ($teams) {
-                $table->unsignedBigInteger($columnNames['team_foreign_key']);
+                $table->unsignedBigInteger($columnNames['team_foreign_key'])->nullable();
                 $table->index($columnNames['team_foreign_key'], 'model_has_permissions_team_foreign_key_index');
-
-                $table->primary([$columnNames['team_foreign_key'], $pivotPermission, $columnNames['model_morph_key'], 'model_type'],
-                    'model_has_permissions_permission_model_type_primary');
-            } else {
-                $table->primary([$pivotPermission, $columnNames['model_morph_key'], 'model_type'],
-                    'model_has_permissions_permission_model_type_primary');
             }
-
+            $table->primary([$pivotPermission, $columnNames['model_morph_key'], 'model_type'],
+                'model_has_permissions_permission_model_type_primary');
         });
 
         Schema::create($tableNames['model_has_roles'], static function (Blueprint $table) use ($tableNames, $columnNames, $pivotRole, $teams) {
@@ -82,16 +84,13 @@ return new class extends Migration
                 ->references('id') // role id
                 ->on($tableNames['roles'])
                 ->onDelete('cascade');
+            // C1: see rationale on model_has_permissions above.
             if ($teams) {
-                $table->unsignedBigInteger($columnNames['team_foreign_key']);
+                $table->unsignedBigInteger($columnNames['team_foreign_key'])->nullable();
                 $table->index($columnNames['team_foreign_key'], 'model_has_roles_team_foreign_key_index');
-
-                $table->primary([$columnNames['team_foreign_key'], $pivotRole, $columnNames['model_morph_key'], 'model_type'],
-                    'model_has_roles_role_model_type_primary');
-            } else {
-                $table->primary([$pivotRole, $columnNames['model_morph_key'], 'model_type'],
-                    'model_has_roles_role_model_type_primary');
             }
+            $table->primary([$pivotRole, $columnNames['model_morph_key'], 'model_type'],
+                'model_has_roles_role_model_type_primary');
         });
 
         Schema::create($tableNames['role_has_permissions'], static function (Blueprint $table) use ($tableNames, $pivotRole, $pivotPermission) {

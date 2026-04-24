@@ -106,6 +106,12 @@ class TenantProvisioningService
             ['name' => 'admin', 'guard_name' => 'web']
         );
 
+        // C1 (sprint 2026-04-24): Spatie teams=true requires a team id
+        // on every new assignment. Use the user's tenant_id so the row
+        // in model_has_roles carries the scope from the start.
+        app(\Spatie\Permission\PermissionRegistrar::class)
+            ->setPermissionsTeamId($user->tenant_id);
+
         $user->assignRole($adminRole);
     }
 
