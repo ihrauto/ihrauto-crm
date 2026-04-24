@@ -8,12 +8,27 @@ Last updated: 2026-04-24
 
 ## Next
 
-- `ENG-005` Team-scoped roles (Spatie `teams=true`) — M-3 from the security review. Add `team_id` to `model_has_roles` / `model_has_permissions` pivots, flush the permission cache, backfill existing rows with each user's `tenant_id`, switch call sites that pass bare role names to pass team context, and add regression tests covering multi-tenant user membership. Not exploitable today (schema enforces one tenant per user) but blocks onboarding of agency/support users that span tenants.
-- `ENG-006` Hashed `remember_token` at rest — M-5 from the security review. Subclass Laravel's `SessionGuard` (or register a custom user provider) so `rememberUser` persists `hash('sha256', $plain)` and `viaRemember` compares with `hash_equals`. Requires a rollout plan for existing plain tokens: either invalidate all remember cookies on deploy (forced re-login) or dual-verify for one TTL window. Either option needs comms.
+- `ENG-008` Drop CSP `'unsafe-inline'` from `script-src`. Currently the
+  Content-Security-Policy middleware (SecurityHeaders) keeps
+  `'unsafe-inline'` because Blade templates contain 23 inline
+  `<script>` blocks and 84 inline event-handler attributes
+  (`onclick=""`, `onsubmit=""`, etc.). Migration path: (1) add a
+  per-request nonce helper and inject it into every `<script>` tag,
+  (2) convert every inline event handler to Alpine `x-on:click` /
+  `@click` or a bundled listener registration, (3) switch Alpine build
+  to `@alpinejs/csp` (which avoids `new Function()` and removes the
+  need for `'unsafe-eval'`), (4) drop `'unsafe-inline'` and add
+  `'strict-dynamic'` + nonce. Significant blade surface touch but
+  purely client-side; no DB or auth risk. Scope: ~1 sprint.
 
 ## Blocked
 
 - `ENG-007` Secret rotation — C-2 from the security review. Waiting on operator to: revoke the exposed Resend API key at resend.com, issue a new key, and optionally rotate `APP_KEY` (invalidates all sessions + signed URLs) and Sentry DSN. Code path is ready — once new values land we update `.env` and run `php artisan config:clear`.
+
+## Recently moved to Done
+
+- `ENG-005` Team-scoped roles (Spatie `teams=true`) — shipped 2026-04-24 in the security sprint. Migration `2026_04_24_120000_enable_spatie_teams.php` adds nullable `tenant_id` to `roles`, `model_has_roles`, `model_has_permissions` and backfills from users.tenant_id. User model overrides assignRole/syncRoles/removeRole/hasRole/hasPermissionTo to push the user's own tenant context before Spatie runs. TenantMiddleware seeds `PermissionRegistrar::setPermissionsTeamId($user->tenant_id)` at the very top of the request so the roles-relation cache is never poisoned. Regression tests: `SpatieTeamsInvariantTest`.
+- `ENG-006` Hashed `remember_token` — shipped 2026-04-24. New `app/Auth/HashedEloquentUserProvider.php` + `config/auth.php` driver `hashed-eloquent`. Migration `2026_04_24_110000_null_legacy_remember_tokens.php` nulls existing plaintext tokens (users with active remember-me cookies must re-log once). Regression tests: `HashedRememberTokenTest`.
 
 ## Done
 
