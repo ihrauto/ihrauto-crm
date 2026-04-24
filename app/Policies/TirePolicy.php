@@ -36,7 +36,8 @@ class TirePolicy
      */
     public function update(User $user, Tire $tire): bool
     {
-        return $user->tenant_id === $tire->tenant_id;
+        // DATA-02: soft-deleted tire records cannot be edited.
+        return $user->tenant_id === $tire->tenant_id && ! $tire->trashed();
     }
 
     /**
@@ -44,7 +45,7 @@ class TirePolicy
      */
     public function delete(User $user, Tire $tire): bool
     {
-        return $user->tenant_id === $tire->tenant_id;
+        return $user->tenant_id === $tire->tenant_id && ! $tire->trashed();
     }
 
     /**

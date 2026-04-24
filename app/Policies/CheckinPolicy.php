@@ -36,7 +36,8 @@ class CheckinPolicy
      */
     public function update(User $user, Checkin $checkin): bool
     {
-        return $user->tenant_id === $checkin->tenant_id;
+        // DATA-02: soft-deleted check-ins cannot be edited.
+        return $user->tenant_id === $checkin->tenant_id && ! $checkin->trashed();
     }
 
     /**
@@ -44,7 +45,7 @@ class CheckinPolicy
      */
     public function delete(User $user, Checkin $checkin): bool
     {
-        return $user->tenant_id === $checkin->tenant_id;
+        return $user->tenant_id === $checkin->tenant_id && ! $checkin->trashed();
     }
 
     /**

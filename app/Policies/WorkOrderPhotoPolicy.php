@@ -36,6 +36,13 @@ class WorkOrderPhotoPolicy
             return false;
         }
 
+        // DATA-02: refuse delete on already-soft-deleted photo rows. Cleans
+        // up any UI that might otherwise offer a second-delete click on a
+        // record Eloquent would silently no-op on.
+        if ($photo->trashed()) {
+            return false;
+        }
+
         // Uploader or admin/owner can delete
         $canDeleteRoleCheck = $photo->user_id === $user->id
             || $user->hasRole(['admin', 'owner']);

@@ -20,7 +20,7 @@ class ServicePolicy
      */
     public function view(User $user, Service $service): bool
     {
-        return (int) $user->tenant_id === (int) $service->tenant_id;
+        return $user->tenant_id === $service->tenant_id;
     }
 
     /**
@@ -36,7 +36,8 @@ class ServicePolicy
      */
     public function update(User $user, Service $service): bool
     {
-        return (int) $user->tenant_id === (int) $service->tenant_id;
+        // DATA-02: soft-deleted services cannot be edited.
+        return $user->tenant_id === $service->tenant_id && ! $service->trashed();
     }
 
     /**
@@ -44,7 +45,7 @@ class ServicePolicy
      */
     public function delete(User $user, Service $service): bool
     {
-        return (int) $user->tenant_id === (int) $service->tenant_id;
+        return $user->tenant_id === $service->tenant_id && ! $service->trashed();
     }
 
     /**
@@ -52,7 +53,7 @@ class ServicePolicy
      */
     public function restore(User $user, Service $service): bool
     {
-        return (int) $user->tenant_id === (int) $service->tenant_id;
+        return $user->tenant_id === $service->tenant_id;
     }
 
     /**

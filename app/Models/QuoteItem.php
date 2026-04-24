@@ -19,7 +19,12 @@ class QuoteItem extends Model
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:2',
+        // DATA-01 (sprint 2026-04-24): quantity is stored as INTEGER in
+        // Postgres — see migration 2026_04_24_140000_quote_items_integer_quantity.
+        // Previously cast as decimal:2 which caused silent fraction loss
+        // on quote→invoice conversion (InvoiceItem.quantity has always
+        // been integer). Kept in lockstep with InvoiceItem.
+        'quantity' => 'integer',
         'unit_price' => 'decimal:2',
         'tax_rate' => 'decimal:2',
         'total' => 'decimal:2',

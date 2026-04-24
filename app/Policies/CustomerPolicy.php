@@ -33,10 +33,16 @@ class CustomerPolicy
 
     /**
      * Determine whether the user can update the customer.
+     *
+     * DATA-02: refuse update on a soft-deleted record. Even though
+     * Eloquent silently no-ops `save()` on a trashed model without
+     * restore(), the policy-layer guard is cleaner UX (the UI can hide
+     * the Edit button) and closes the bulk-update bypass where a
+     * `->update([...])` on a trashed row would still hit the DB.
      */
     public function update(User $user, Customer $customer): bool
     {
-        return $user->tenant_id === $customer->tenant_id;
+        return $user->tenant_id === $customer->tenant_id && ! $customer->trashed();
     }
 
     /**
@@ -44,7 +50,7 @@ class CustomerPolicy
      */
     public function delete(User $user, Customer $customer): bool
     {
-        return $user->tenant_id === $customer->tenant_id;
+        return $user->tenant_id === $customer->tenant_id && ! $customer->trashed();
     }
 
     /**

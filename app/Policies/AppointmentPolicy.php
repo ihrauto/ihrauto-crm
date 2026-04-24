@@ -37,7 +37,8 @@ class AppointmentPolicy
      */
     public function update(User $user, Appointment $appointment): bool
     {
-        return $user->tenant_id === $appointment->tenant_id;
+        // DATA-02: soft-deleted appointments cannot be edited.
+        return $user->tenant_id === $appointment->tenant_id && ! $appointment->trashed();
     }
 
     /**
@@ -46,6 +47,10 @@ class AppointmentPolicy
     public function delete(User $user, Appointment $appointment): bool
     {
         if ($user->tenant_id !== $appointment->tenant_id) {
+            return false;
+        }
+
+        if ($appointment->trashed()) {
             return false;
         }
 

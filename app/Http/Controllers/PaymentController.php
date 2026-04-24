@@ -36,10 +36,17 @@ class PaymentController extends Controller
             // would silently post the payment twice. We now derive a deterministic
             // fallback from the payment's distinguishing fields so repeated identical
             // submissions are blocked regardless of client behavior.
+            //
+            // B-LOGIC-01 (2026-04-24 review): prepend the current tenant_id so two
+            // tenants submitting the identical `(invoice_id, amount, method, date)`
+            // tuple can never collide on the derived hash. The invoice FK already
+            // binds idempotency rows to one tenant in practice, but folding the
+            // tenant into the hash input removes that load-bearing assumption.
             $idempotencyKey = $validated['idempotency_key']
                 ?? $validated['transaction_reference']
                 ?? hash('sha256', implode('|', [
                     'payment',
+                    (string) tenant_id(),
                     (string) $validated['invoice_id'],
                     number_format((float) $validated['amount'], 2, '.', ''),
                     $validated['payment_date'],

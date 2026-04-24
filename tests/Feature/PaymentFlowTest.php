@@ -224,6 +224,60 @@ class PaymentFlowTest extends TestCase
     }
 
     #[Test]
+    public function derived_idempotency_key_includes_tenant_id()
+    {
+        // B-LOGIC-01 (2026-04-24 review): the fallback idempotency hash must
+        // fold `tenant_id` into its inputs so two tenants with shape-identical
+        // requests can never collide in the idempotency cache. Verified here
+        // by reconstructing the expected hash from the payment's stored fields
+        // (including the tenant_id) and asserting it matches — and that the
+        // same formula WITHOUT tenant_id does NOT match.
+        $invoice = Invoice::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'total' => 100.00,
+            'paid_amount' => 0,
+        ]);
+
+        $paymentDate = now()->toDateString();
+        $this->actingAs($this->user)->post(route('payments.store'), [
+            'invoice_id' => $invoice->id,
+            'amount' => 100.00,
+            'method' => 'cash',
+            'payment_date' => $paymentDate,
+            // No idempotency_key / transaction_reference — forces derivation.
+        ]);
+
+        $payment = Payment::first();
+        $this->assertNotNull($payment, 'Payment not created');
+        $this->assertNotNull($payment->idempotency_key);
+
+        $expectedWithTenant = hash('sha256', implode('|', [
+            'payment',
+            (string) $this->tenant->id,
+            (string) $invoice->id,
+            '100.00',
+            $paymentDate,
+            'cash',
+            (string) $this->user->id,
+        ]));
+        $expectedWithoutTenant = hash('sha256', implode('|', [
+            'payment',
+            (string) $invoice->id,
+            '100.00',
+            $paymentDate,
+            'cash',
+            (string) $this->user->id,
+        ]));
+
+        $this->assertSame($expectedWithTenant, $payment->idempotency_key,
+            'Derived idempotency key must match the tenant-inclusive hash.');
+        $this->assertNotSame($expectedWithoutTenant, $payment->idempotency_key,
+            'Derived idempotency key must NOT match the pre-fix hash without tenant_id.');
+    }
+
+    #[Test]
     public function different_payments_on_same_invoice_are_both_accepted(): void
     {
         // Verify the fallback key is distinctive enough that legitimate separate

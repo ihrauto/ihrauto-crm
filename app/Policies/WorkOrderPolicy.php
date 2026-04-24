@@ -41,6 +41,11 @@ class WorkOrderPolicy
             return false;
         }
 
+        // DATA-02: soft-deleted work orders cannot be edited.
+        if ($workOrder->trashed()) {
+            return false;
+        }
+
         return $workOrder->status !== WorkOrderStatus::Completed->value;
     }
 
@@ -50,6 +55,10 @@ class WorkOrderPolicy
     public function delete(User $user, WorkOrder $workOrder): bool
     {
         if ($user->tenant_id !== $workOrder->tenant_id) {
+            return false;
+        }
+
+        if ($workOrder->trashed()) {
             return false;
         }
 

@@ -287,4 +287,58 @@ class AppointmentTest extends TestCase
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('appointments', ['title' => 'Afternoon Appointment']);
     }
+
+    /**
+     * BL-04: a model-level + DB-level guard makes it impossible to save
+     * an appointment with end_time <= start_time. Locks against a class
+     * of reschedule bugs that could otherwise produce negative durations.
+     */
+    #[Test]
+    public function appointment_rejects_end_time_not_after_start_time(): void
+    {
+        $start = now()->addDay()->setTime(10, 0);
+
+        // Equal boundary must be rejected (strict "after").
+        $this->assertThrowsInvariantViolation(fn () => Appointment::create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'title' => 'Zero-length',
+            'start_time' => $start,
+            'end_time' => $start,
+            'status' => 'scheduled',
+            'type' => 'oil_change',
+        ]));
+
+        // Reverse ordering must be rejected.
+        $this->assertThrowsInvariantViolation(fn () => Appointment::create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'title' => 'Inverted',
+            'start_time' => $start,
+            'end_time' => $start->copy()->subHour(),
+            'status' => 'scheduled',
+            'type' => 'oil_change',
+        ]));
+    }
+
+    private function assertThrowsInvariantViolation(\Closure $callable): void
+    {
+        try {
+            $callable();
+            $this->fail('Expected invariant violation, but the save succeeded.');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('end_time', $e->getMessage());
+        } catch (\Illuminate\Database\QueryException $e) {
+            // SQLite raises a constraint error; Postgres does too. Both
+            // are acceptable — the model guard normally fires first, but
+            // a direct DB insert would hit the constraint path.
+            $this->assertTrue(
+                str_contains($e->getMessage(), 'end_time')
+                || str_contains($e->getMessage(), 'appointments_end_after_start'),
+                'Unexpected DB error: '.$e->getMessage()
+            );
+        }
+    }
 }

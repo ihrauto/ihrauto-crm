@@ -25,12 +25,17 @@ class QuotePolicy
 
     public function update(User $user, Quote $quote): bool
     {
-        return $user->tenant_id === $quote->tenant_id;
+        // DATA-02: soft-deleted quotes cannot be edited.
+        return $user->tenant_id === $quote->tenant_id && ! $quote->trashed();
     }
 
     public function delete(User $user, Quote $quote): bool
     {
         if ($user->tenant_id !== $quote->tenant_id) {
+            return false;
+        }
+
+        if ($quote->trashed()) {
             return false;
         }
 

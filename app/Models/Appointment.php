@@ -29,6 +29,27 @@ class Appointment extends Model
         'end_time' => 'datetime',
     ];
 
+    /**
+     * BL-04 (sprint 2026-04-24): model-level guard that end_time is
+     * strictly after start_time. Matches the DB CHECK constraint added
+     * in 2026_04_24_130000_appointments_end_after_start. We guard at
+     * both layers because the check constraint catches raw SQL / bulk
+     * update bypasses, and the model guard produces a readable exception
+     * before the DB round-trip.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Appointment $appointment) {
+            if ($appointment->start_time && $appointment->end_time
+                && $appointment->end_time <= $appointment->start_time
+            ) {
+                throw new \InvalidArgumentException(
+                    'Appointment end_time must be strictly after start_time.'
+                );
+            }
+        });
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);

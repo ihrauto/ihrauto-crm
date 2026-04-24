@@ -41,8 +41,8 @@ class InvoicePolicy
             return false;
         }
 
-        // Only draft invoices can be updated
-        return $invoice->isEditable();
+        // Only draft + not-trashed invoices can be updated (DATA-02).
+        return $invoice->isEditable() && ! $invoice->trashed();
     }
 
     /**
@@ -55,8 +55,8 @@ class InvoicePolicy
             return false;
         }
 
-        // Only draft invoices can be deleted
-        return $invoice->isDraft();
+        // Only draft + not-trashed invoices can be deleted (DATA-02).
+        return $invoice->isDraft() && ! $invoice->trashed();
     }
 
     /**

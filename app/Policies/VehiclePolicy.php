@@ -36,7 +36,8 @@ class VehiclePolicy
      */
     public function update(User $user, Vehicle $vehicle): bool
     {
-        return $user->tenant_id === $vehicle->tenant_id;
+        // DATA-02: soft-deleted vehicles cannot be edited.
+        return $user->tenant_id === $vehicle->tenant_id && ! $vehicle->trashed();
     }
 
     /**
@@ -44,7 +45,7 @@ class VehiclePolicy
      */
     public function delete(User $user, Vehicle $vehicle): bool
     {
-        return $user->tenant_id === $vehicle->tenant_id;
+        return $user->tenant_id === $vehicle->tenant_id && ! $vehicle->trashed();
     }
 
     /**
