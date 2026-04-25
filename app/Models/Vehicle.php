@@ -66,13 +66,35 @@ class Vehicle extends Model
         'transmission',
         'notes',
         'is_active',
+        'last_inspection_at',
+        'next_inspection_at',
+        'inspection_authority',
     ];
 
     protected $casts = [
         'year' => 'integer',
         'mileage' => 'integer',
         'is_active' => 'boolean',
+        'last_inspection_at' => 'date',
+        'next_inspection_at' => 'date',
+        'inspection_reminders_sent' => 'array',
     ];
+
+    /**
+     * Authority labels by country. Keep the keys ASCII (used in DB +
+     * tests); `inspectionAuthorityLabel()` produces the legal name
+     * customers see in the SMS body.
+     */
+    public const INSPECTION_AUTHORITIES = [
+        'TUV' => 'TÜV',
+        'MFK' => 'MFK',
+        '57A' => '§57a',
+    ];
+
+    public function inspectionAuthorityLabel(): string
+    {
+        return self::INSPECTION_AUTHORITIES[$this->inspection_authority] ?? 'Inspection';
+    }
 
     public function customer(): BelongsTo
     {

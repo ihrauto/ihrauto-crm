@@ -32,6 +32,11 @@ Schedule::command('backup:verify')->dailyAt('04:15')->onOneServer();
 // time — debounce lives inside the command so operators don't get spammed.
 Schedule::command('invoices:send-overdue-reminders')->dailyAt('08:30')->onOneServer();
 
+// ENG-012: TÜV / MFK / §57a inspection reminders. Daily at 09:00 — late
+// enough that customers are awake; per-vehicle bucket idempotency lives
+// in the service so a re-run the same day is a no-op.
+Schedule::command('inspections:send-reminders')->dailyAt('09:00')->onOneServer();
+
 // Auto-issue stale drafts where tenants have opted in via
 // settings.auto_issue_drafts_after_days. Runs once per day just before
 // the overdue reminder so a freshly-auto-issued invoice is already in

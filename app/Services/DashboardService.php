@@ -179,6 +179,44 @@ class DashboardService
     }
 
     /**
+     * ENG-012: vehicles with TÜV / MFK / §57a due in the next 30 days.
+     * Backs the "Inspections Due" dashboard widget. Tenant-scoped via
+     * Vehicle's BelongsToTenant trait — this method asserts a tenant
+     * context (same fail-loud rule as getStats).
+     */
+    public function getInspectionsDue(): \Illuminate\Support\Collection
+    {
+        $tenantId = tenant_id();
+        if ($tenantId === null) {
+            throw new \LogicException(
+                'DashboardService::getInspectionsDue() requires a resolved tenant context.'
+            );
+        }
+
+        $today = today();
+
+        return \App\Models\Vehicle::query()
+            ->whereNotNull('next_inspection_at')
+            ->whereBetween('next_inspection_at', [
+                $today->toDateString(),
+                $today->copy()->addDays(30)->toDateString(),
+            ])
+            ->with('customer:id,name,phone')
+            ->orderBy('next_inspection_at')
+            ->limit(10)
+            ->get()
+            ->map(fn ($v) => [
+                'id' => $v->id,
+                'plate' => $v->license_plate,
+                'make_model' => trim(($v->make ?? '').' '.($v->model ?? '')),
+                'customer_name' => $v->customer?->name,
+                'authority' => $v->inspectionAuthorityLabel(),
+                'due_date' => $v->next_inspection_at->format('d.m.Y'),
+                'days_out' => (int) $today->diffInDays($v->next_inspection_at, absolute: false),
+            ]);
+    }
+
+    /**
      * Recent customer payments for the dashboard list widget.
      */
     public function getRecentPayments(): \Illuminate\Support\Collection

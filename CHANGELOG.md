@@ -2,6 +2,58 @@
 
 All notable changes to IHRAUTO CRM are documented here.
 
+## [Unreleased] - 2026-04-26 — Inspection reminders (ENG-012)
+
+TÜV / MFK / §57a periodic-inspection reminder driver. Daily scheduled
+command finds vehicles whose next inspection falls into 30/14/3-day
+buckets and sends a country-correct SMS via the ENG-011 SmsService.
+
+### Schema
+
+- `vehicles.last_inspection_at` (date, nullable) — when the last
+  sticker was issued.
+- `vehicles.next_inspection_at` (date, nullable, indexed) — when the
+  next inspection is due.
+- `vehicles.inspection_authority` (string(16), nullable) — `TUV` (DE),
+  `MFK` (CH), `57A` (AT). Drives the SMS wording.
+- `vehicles.inspection_reminders_sent` (json, nullable) — idempotency
+  key list of `bucket@iso_due_date` entries. Updating
+  `next_inspection_at` to a new value implicitly resets bucket tracking.
+
+### Architecture
+
+- `App\Services\InspectionReminderService` — bucket resolver
+  (30d/14d/3d) plus a per-vehicle SMS dispatcher that delegates to
+  `SmsService::dispatch`. Bucket+due-date marker is recorded after
+  every attempt (queued / failed / skipped) so a re-run on the same
+  day is a no-op and a permanent skip (opt-out, no phone) doesn't
+  retry forever.
+- `App\Console\Commands\SendInspectionReminders` — `inspections:send-reminders`,
+  registered in `routes/console.php` to run daily at 09:00 with
+  `onOneServer()`. `--dry-run` flag prints candidate count.
+
+### Dashboard
+
+- New widget `inspections_due` (size: half, type: list) — surfaces
+  vehicles whose inspection falls in the next 30 days, with traffic-
+  light color (rose ≤3d / amber ≤14d / gray for 30d). Backed by
+  `DashboardService::getInspectionsDue` with the tenant-context
+  fail-loud guard.
+
+### Tests
+
+- `InspectionReminderServiceTest` (7): bucket resolution across the
+  30/14/3 boundaries, happy path with mocked Twilio, idempotency on
+  same-day re-run, bucket reset on due-date change, country-aware SMS
+  copy, ignored-when-out-of-window, skipped log still records bucket.
+
+### Verification
+
+- `php artisan test`: 559 passing (1862 assertions), all green.
+- `./vendor/bin/pint --test`: clean on every changed file.
+
+---
+
 ## [Unreleased] - 2026-04-26 — SMS notifications (ENG-011)
 
 "Your car is ready" SMS to the customer, sent from the work-order page

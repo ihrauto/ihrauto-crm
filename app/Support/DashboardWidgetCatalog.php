@@ -240,6 +240,22 @@ class DashboardWidgetCatalog
                 'size' => 'small',
                 'data_provider' => 'getStats',
             ],
+            // ENG-012: inspection reminders driver. The widget surfaces
+            // vehicles whose TÜV / MFK / §57a is due in the next 30 days
+            // so an operator can phone customers who don't reply to the
+            // automated SMS.
+            'inspections_due' => [
+                'label' => 'Inspections Due',
+                'description' => 'TÜV / MFK / §57a coming up in 30 days.',
+                'category' => 'customer',
+                'module' => 'customers',
+                'permission' => null,
+                'default_for_roles' => ['admin', 'manager', 'receptionist'],
+                'partial' => 'dashboard.widgets.inspections-due',
+                'size' => 'half',
+                'widget_type' => 'list',
+                'data_provider' => 'getInspectionsDue',
+            ],
             'recent_payments' => [
                 'label' => 'Recent Payments',
                 'description' => 'Latest customer payments received.',
