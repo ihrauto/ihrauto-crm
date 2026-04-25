@@ -119,4 +119,52 @@ class PiiEncryptionAtRestTest extends TestCase
         $this->assertSame('billing@ihrauto.ch', $fresh->invoice_email);
         $this->assertSame('+41 44 123 45 67', $fresh->invoice_phone);
     }
+
+    #[Test]
+    public function tenant_top_level_contact_pii_is_encrypted_at_rest(): void
+    {
+        // Audit follow-up to DATA-03: Tenant.phone, address, vat_number
+        // are now encrypted. Email is intentionally NOT encrypted because
+        // signup uniqueness check needs equality lookup.
+        $tenant = Tenant::factory()->create([
+            'phone' => '+41 44 555 11 22',
+            'address' => 'Bahnhofstr. 1, 8001 Zürich',
+            'vat_number' => 'CHE-123.456.789 MWST',
+        ]);
+
+        $raw = DB::table('tenants')->where('id', $tenant->id)->first();
+
+        $this->assertNotSame('+41 44 555 11 22', $raw->phone);
+        $this->assertNotSame('Bahnhofstr. 1, 8001 Zürich', $raw->address);
+        $this->assertNotSame('CHE-123.456.789 MWST', $raw->vat_number);
+
+        $this->assertStringStartsWith('eyJ', $raw->phone);
+        $this->assertStringStartsWith('eyJ', $raw->address);
+        $this->assertStringStartsWith('eyJ', $raw->vat_number);
+
+        $fresh = Tenant::find($tenant->id);
+        $this->assertSame('+41 44 555 11 22', $fresh->phone);
+        $this->assertSame('Bahnhofstr. 1, 8001 Zürich', $fresh->address);
+        $this->assertSame('CHE-123.456.789 MWST', $fresh->vat_number);
+    }
+
+    #[Test]
+    public function user_phone_is_encrypted_at_rest(): void
+    {
+        $tenant = Tenant::factory()->create();
+        app(TenantContext::class)->set($tenant);
+
+        $user = \App\Models\User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'phone' => '+41 79 555 12 34',
+        ]);
+
+        $raw = DB::table('users')->where('id', $user->id)->first();
+
+        $this->assertNotSame('+41 79 555 12 34', $raw->phone);
+        $this->assertStringStartsWith('eyJ', $raw->phone);
+
+        $fresh = \App\Models\User::find($user->id);
+        $this->assertSame('+41 79 555 12 34', $fresh->phone);
+    }
 }

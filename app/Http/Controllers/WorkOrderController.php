@@ -227,6 +227,12 @@ class WorkOrderController extends Controller
 
     public function edit(WorkOrder $workOrder)
     {
+        // Audit-C-9: TenantScope keeps cross-tenant work orders out, but a
+        // technician can otherwise hit /work-orders/{otherTechId}/edit and
+        // read another technician's notes/parts. Funnel through the policy
+        // so the same rules `index` enforces apply to deep links too.
+        $this->authorize('update', $workOrder);
+
         $workOrder->load(['checkin', 'customer', 'vehicle', 'technician']);
 
         $technicians = User::with([
@@ -240,6 +246,8 @@ class WorkOrderController extends Controller
 
     public function show(WorkOrder $workOrder)
     {
+        $this->authorize('view', $workOrder);
+
         $workOrder->load(['checkin', 'customer', 'vehicle', 'technician', 'photos']);
         $technicians = User::where('is_active', true)->get();
 
@@ -342,6 +350,15 @@ class WorkOrderController extends Controller
         ]);
 
         $workOrders = WorkOrder::whereIn('id', $validated['work_order_ids'])->get();
+
+        // Audit-C-10: enforce per-WO authorize so a technician can't
+        // bulk-flip every WO in the tenant by hitting this endpoint.
+        // The route only had the module middleware before; the policy
+        // gates ownership scoping (e.g. technicians can only update
+        // their own WOs) which the bulk path was bypassing.
+        foreach ($workOrders as $wo) {
+            $this->authorize('update', $wo);
+        }
 
         $updated = 0;
         $skipped = 0;

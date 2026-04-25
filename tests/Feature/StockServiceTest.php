@@ -117,4 +117,19 @@ class StockServiceTest extends TestCase
         $this->assertSame(1, StockMovement::where('type', 'sale')->count());
         $this->assertSame(1, StockMovement::where('type', 'void_reversal')->count());
     }
+
+    public function test_reversal_is_idempotent(): void
+    {
+        // Audit-S-7: a retried void task or a second click must not
+        // double-increment stock. Lock in the new probe behavior.
+        $svc = app(StockService::class);
+        DB::transaction(fn () => $svc->deductForWorkOrder($this->workOrder));
+
+        DB::transaction(fn () => $svc->reverseForWorkOrder($this->workOrder));
+        $afterFirst = $this->product->fresh()->stock_quantity;
+
+        DB::transaction(fn () => $svc->reverseForWorkOrder($this->workOrder));
+        $this->assertSame($afterFirst, $this->product->fresh()->stock_quantity);
+        $this->assertSame(1, StockMovement::where('type', 'void_reversal')->count());
+    }
 }

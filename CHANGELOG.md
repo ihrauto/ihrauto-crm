@@ -2,6 +2,136 @@
 
 All notable changes to IHRAUTO CRM are documented here.
 
+## [Unreleased] - 2026-04-26 — Audit follow-up (deferred items)
+
+Follow-up to the same-day audit pass: closes the four items the previous
+batch deferred as too invasive for an unsupervised run.
+
+### Authorization
+
+- New `PaymentPolicy`: payments are append-only — `update` / `delete` / `forceDelete` return `false` for everyone (the void flow uses reversing negative payments instead). `view` / `viewAny` require `access finance` and tenant membership.
+- New `UserPolicy`: super-admin sees everything via `before()`. Tenant scope on view / update; **self-delete is refused** (a misclick used to lock an admin out of their own session, and if last-admin, the tenant). Delete additionally requires `delete records`.
+- New `TenantPolicy`: super-admin via `before()`. Tenant admins can view + update (`manage settings`) only their own tenant. Lifecycle transitions (delete, suspend, forceDelete, create) return `false` even for in-tenant admins — those are super-admin / billing-flow only.
+- All three policies registered in `AppServiceProvider::boot`.
+
+### PII encryption (DATA-03 follow-up)
+
+- `Tenant.phone`, `Tenant.address`, `Tenant.vat_number` and `User.phone` are now encrypted at rest (Laravel `encrypted` cast). New migration `2026_04_26_000000_extend_pii_encryption.php` widens those columns to TEXT on Postgres and re-encrypts existing rows in place.
+- `Tenant.email` intentionally left cleartext — signup uniqueness check needs equality lookup which can't operate on encrypted ciphertext (different IV per write). A `tenant.email_hash` column + custom validator is the proper extension; queued separately because it touches every signup-related test.
+
+### Mass-assignment hardening
+
+- `BelongsToTenant` trait now enforces a runtime cross-tenant write guard. On `creating` in an HTTP context, refuses if the supplied `tenant_id` differs from the bound tenant context. On `updating`, treats `tenant_id` as immutable. Console / queue / test contexts are exempt — those are seeders and provisioning paths, not the attack surface. Closes the residual mass-assignment risk that the previous batch left open by deferring the fillable removal.
+
+### CSP nonce infrastructure (ENG-008 step 1)
+
+- `SecurityHeaders` middleware now generates a per-request CSP nonce (random_bytes + base64). The nonce is bound to the container as `csp.nonce` and injected into `script-src` / `style-src` directives. The previous `'unsafe-inline'` allowance is preserved for now so unmigrated inline scripts keep working — the nonce is **additive**.
+- New `csp_nonce()` Blade helper exposes the value to templates. Applied to the Dashboard Studio panel inline script and to the layout's SweetAlert flash block as the migration template.
+- Engineering board updated: ENG-008 step 1 marked done with the explicit migration roadmap for the remaining steps (nonce ~22 inline scripts, convert ~76 inline event handlers to Alpine, switch Alpine build to `@alpinejs/csp`, finally drop `'unsafe-inline'` and add `'strict-dynamic'`).
+
+### Tests
+
+- Added `NewPoliciesTest` (8 cases): payment update/delete blocked for everyone, payment view tenant-scoped, user policy denies self-delete, user policy tenant-scoped + permission-gated, tenant policy view self-only, tenant update requires `manage settings`, tenant lifecycle transitions blocked for in-tenant admin.
+- Added `PiiEncryptionAtRestTest::tenant_top_level_contact_pii_is_encrypted_at_rest` and `user_phone_is_encrypted_at_rest`.
+- Added `CrossTenantWriteGuardTest`: HTTP-context create with mismatched `tenant_id` throws, HTTP-context `tenant_id` reassignment throws.
+- Added `CspNonceTest`: every HTML response carries a nonce in `script-src` / `style-src`, and the Studio panel's inline script carries the response nonce.
+
+### Verification
+
+- `php artisan test`: 519 passing (1728 assertions), all green.
+- Pint clean on every changed file.
+
+---
+
+## [Unreleased] - 2026-04-26 — Whole-app audit remediation
+
+Multi-agent code review covered models, controllers, middleware, services,
+console commands, and frontend Blade/JS. The verified, low-risk findings
+were fixed in this pass; the more invasive items (encrypt extra PII columns,
+add missing policies for Payment/User/Tenant, drop CSP `unsafe-inline`,
+migrate inline event handlers) are queued separately.
+
+### Security
+
+- **API error leakage**: `Api\Concerns\ApiResponse::apiError` previously emitted `details.exception` (raw `$e->getMessage()`) on every error response — leaking SQL fragments, file paths, and model-not-found IDs in production. `details` now only ships in debug builds.
+- **WorkOrder access control**: `WorkOrderController::edit/show/bulkStatus` now run `$this->authorize(...)` so technicians can no longer read another technician's WO via deep-link or bulk-flip every WO in the tenant by hitting `/work-orders/bulk-status`.
+- **Throttling**: added throttle middleware to previously-unthrottled mutation endpoints — `POST /work-orders/{wo}/photos` (20/min, was unlimited 5MB-read), `POST /tires-hotel` + `PUT/DELETE/{tire}` (30/min), `/tires-hotel/{tire}/generate-work-order` (10/min), `POST /auth/create-company` (5 / 30min — stops a hostile signed-in actor spawning unlimited tenants from the OAuth flow).
+- **Subscription mock endpoint**: `SubscriptionController::process` now `abort_unless(app()->environment('local'))` defensively, in addition to the route-level local-only registration.
+- **Tour-complete tenant write**: `/subscription/tour-complete` mutates `tenants.settings.has_seen_tour` for the whole tenant — added `permission:manage settings` middleware so a technician can no longer flip it.
+- **Frontend XSS**: replaced six unsafe interpolation patterns in `finance/index.blade.php` (3×), `products-services/parts/table.blade.php`, `products-services/services/table.blade.php`, `layouts/app.blade.php` (SweetAlert flash) with `data-*` attributes / `@json` so customer names containing apostrophes or `</script>` no longer break the JS or create reflected-XSS sinks. Replaced two `innerHTML` template literals in `checkin.blade.php` and `tires-hotel.blade.php` with DOM-API construction so AJAX-search results from `/ajax/customers/search` and `/ajax/tires/search-by-registration` cannot execute injected markup.
+- **Audit log redaction**: `Auditable` trait now scrubs every key in the model's `$hidden` array (`password`, `remember_token`, `invite_token`, etc.) from the `before/after` audit payload — bcrypt hashes no longer round-trip into `audit_logs.changes`.
+- **Destructive console commands**: `crm:clean-demo-data` and `crm:purge-users` now refuse to run in production unless `APP_ALLOW_DESTRUCTIVE=1` is explicitly set — guard against ops typos that would otherwise wipe live data.
+
+### Dashboard Studio (ENG-009 follow-up)
+
+- **Toggle race**: `toggleWidget` now ignores clicks while a save is in flight. Two quick toggles used to capture inconsistent rollback snapshots, letting a transient server failure silently revert the user's most recent click.
+- **SortableJS leak**: `initDashboardSortable` now destroys the previous Sortable instance before re-binding. Each fragment swap was orphaning instances that retained document/window listeners.
+- **Mobile drag**: SortableJS now uses `delay: 200, delayOnTouchOnly: true, touchStartThreshold: 5` so a touch that starts on a widget can still scroll the page instead of immediately entering drag mode.
+- **Concurrent-tab race**: `setEnabled` and `setOrder` now `refresh()` the user model and reload the tenant relation before mutating, so two tabs racing different writes don't trample each other's `enabled` / `order` state.
+- **Plan-downgrade preservation**: `setEnabled` now merges previously-stored, currently-plan-locked keys back into the saved list so a re-save during a feature-flag downtime doesn't silently wipe them. Re-upgrading restores the user's original choice.
+- **Order/enabled drift**: `setEnabled` prunes disabled keys from the saved drag-order, and `setOrder` intersects against the currently-enabled set. Stops the JSON column from accumulating stale keys forever.
+- **Reset-then-reorder freeze**: `setOrder` no longer materializes role-default-derived `enabled` into stored on a no-preference user. Previously a single drag converted "no preference, use defaults" into "preference: this exact set", breaking future catalog additions for that user.
+- **Recent-customers null safety**: defensive null-coalesce on `email`/`phone`/`name` so a row missing one of those keys doesn't trigger a Blade warning.
+- **All-work-orders DB-in-view**: moved `WorkOrder::count()` from the Blade template into `DashboardService::getStats()` so the count flows through the same provider system + cache layer as every other widget.
+- **9 new widgets shipped**: long-running jobs, total customers (with growth), today's check-ins, pending check-ins, monthly revenue (CHF), outstanding balance, overdue invoices, tires in storage, plus three list-style widgets (recent payments, recent invoices, recent customers).
+
+### Business logic
+
+- **Stock void idempotency**: `StockService::reverseForWorkOrder` is now idempotent. A retried void task or a second click no longer double-increments stock — a probe checks for an existing `void_reversal` movement and short-circuits.
+- **Invoice rounding tolerance**: `InvoiceService::syncPaymentState` now uses a half-cent epsilon when comparing paid_amount to total. A 0.5-rappen arithmetic remainder no longer demotes a fully-paid invoice to PARTIAL.
+- **Quote sequence transaction guard**: `QuoteService::generateQuoteNumber` now throws if called outside a transaction, mirroring the existing `InvoiceService` guard. `lockForUpdate` is a no-op without an enclosing transaction; the guard prevents future callers from accidentally racing on a non-transactional path.
+- **Cross-tenant service lookup**: `InvoiceService::buildInvoiceItems` now scopes the service-name lookup by `$workOrder->tenant_id`. The TenantScope normally handles this, but in console / queue contexts it's silent — and across tenants two services may share a name, causing the wrong price to be billed.
+- **Tire-storage tenant assertions**: `TireStorageService::getStatistics` and `calculateStorageUtilization` now refuse to run without a resolved tenant context. `createCustomer` and `createVehicle` now stamp `tenant_id` explicitly rather than relying on the BelongsToTenant trait's null-fallback.
+- **Quote tenant cross-check**: `QuoteService::create` now refuses a customer whose tenant doesn't match the current tenant context.
+- **Cache invalidation on payment**: `PaymentObserver::updateInvoiceBalance` now flushes the tenant-scoped `dashboard_stats_*` and `finance_*_*` caches so revenue / outstanding tiles refresh immediately instead of staying stale for the cache TTL.
+
+### Tests
+
+- Added `set_enabled_preserves_plan_locked_keys_across_redowngrade_resave`, `set_enabled_prunes_disabled_keys_from_saved_order`, `set_order_intersects_with_currently_enabled_keys`, `set_order_does_not_freeze_role_defaults_into_enabled` to lock in the Studio service fixes.
+- Added `every_data_provider_resolves_to_a_real_method_on_dashboard_service` and `every_widget_module_is_in_the_known_module_set` to catch catalog typos at CI time.
+- Added `dashboard_renders_with_every_widget_enabled_for_an_admin` smoke test.
+- Added `user_cannot_mutate_another_users_dashboard_widgets` to lock in the studio's per-user write contract.
+- Added `widgets_fragment_returns_only_the_grid_html`, `widgets_fragment_requires_authentication`, `widgets_fragment_renders_empty_state_when_nothing_enabled`.
+- Added `test_reversal_is_idempotent` for `StockService`.
+- Added `test_almost_paid_within_half_cent_is_treated_as_paid` for the invoice rounding fix.
+
+### Verification
+
+- `php artisan test`: 502 → 505 passing (1681 → 1686 assertions), all green.
+- `./vendor/bin/pint --test`: clean on every changed file.
+
+---
+
+## [Unreleased] - 2026-04-25 — Dashboard Studio (per-user widget toggles)
+
+### Features
+
+- **ENG-009**: Dashboard Studio. New header-mounted "Customize" pill on `/dashboard` opens a per-user widget panel. Each row toggles a widget on/off; the dashboard re-renders with only the enabled widgets. Plan-locked widgets (e.g. Tire Hotel for tenants without the feature flag) appear with 🔒 and cannot be enabled. Widgets the user lacks role permission for are hidden entirely. Defaults are role-based (admin/manager/technician/receptionist); users who never open the panel see the role default. Once any toggle flips, the user's stored list takes over.
+
+### Architecture
+
+- New `App\Support\DashboardWidgetCatalog` is the single source of truth for widget identity, gating, defaults, partial path, and size. Adding a future widget = 1 catalog entry + 1 partial; controller, service, and routes don't change.
+- New `App\Services\DashboardStudioService` filters the catalog by what the user can actually see (Spatie permission + module access + tenant feature flag), persists changes, and serves the renderer. Stale enabled keys (e.g. tenant downgraded) are silently filtered at render time without losing the preference, so re-upgrading restores them.
+- `DashboardController` now computes data only for enabled widgets. Two widgets sharing a data provider trigger only one query.
+- The 12 dashboard sections were extracted into `resources/views/dashboard/widgets/*.blade.php` partials with no visual change.
+
+### Database
+
+- New migration `2026_04_25_000000_add_dashboard_widgets_to_users.php` adds nullable JSON column `users.dashboard_widgets`. Mass-assignment is intentionally NOT enabled — writes go through `DashboardStudioService::setEnabled()` which validates against the catalog and caps the list at 50 keys.
+
+### HTTP
+
+- New routes under `/dashboard/studio`:
+  - `GET /dashboard/studio` — JSON catalog + enabled keys.
+  - `POST /dashboard/studio` — persist a list (throttle 30/min). Validates payload shape; silently drops unknown / disallowed keys.
+  - `POST /dashboard/studio/reset` — clears stored preference, falls back to role defaults (throttle 10/min).
+
+### Tests
+
+- Added `DashboardWidgetCatalogTest`, `DashboardStudioServiceTest`, `DashboardStudioControllerTest`, `DashboardRenderTest`.
+
+---
+
 ## [Unreleased] - 2026-04-24 — Security review remediation sprint
 
 ### Security fixes (Critical)

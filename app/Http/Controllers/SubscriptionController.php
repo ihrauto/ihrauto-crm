@@ -64,6 +64,12 @@ class SubscriptionController extends Controller
      */
     public function process(Request $request, $tenantId)
     {
+        // Audit-C-27: defense-in-depth — even if the route registration
+        // ever escapes the local-only block in routes/web.php, refuse to
+        // run outside local. This endpoint flips a tenant's plan with no
+        // policy check; the local-only contract is load-bearing.
+        abort_unless(app()->environment('local'), 404);
+
         // Simulate backend processing
         $tenant = Tenant::findOrFail($tenantId);
         $plan = $request->input('plan', $tenant->plan);

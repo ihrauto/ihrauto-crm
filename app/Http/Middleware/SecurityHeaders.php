@@ -36,6 +36,16 @@ class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Generate a per-request CSP nonce. Bound to the container before
+        // the response is built so views can read it via the `csp_nonce()`
+        // helper. Used by inline <script>/<style> blocks that opt in.
+        // Once enough of the codebase has migrated, we can drop
+        // `'unsafe-inline'` entirely and rely on `'strict-dynamic'` + nonce.
+        if (! app()->bound('csp.nonce')) {
+            app()->instance('csp.nonce', base64_encode(random_bytes(18)));
+        }
+        $nonce = app('csp.nonce');
+
         $response = $next($request);
 
         // HSTS: production only (localhost has no TLS cert)
@@ -101,10 +111,17 @@ class SecurityHeaders
             $unsafeEval = app()->environment('local') ? " 'unsafe-eval'" : '';
             $csp = [
                 "default-src 'self'",
-                // Scripts: self + inline (Alpine). Vite-built bundles are same-origin.
+                // Scripts: self + inline (Alpine). Vite-built bundles are
+                // same-origin. The per-request nonce is generated and
+                // exposed via csp_nonce() so views can opt in, but it is
+                // intentionally NOT added to the directive yet — per CSP
+                // Level 3, adding a nonce DISABLES 'unsafe-inline', which
+                // would block every unmigrated inline <script>/<style>
+                // (including the layout's own .main-content margin rule,
+                // breaking the page layout). The nonce only enters the
+                // directive once every inline block in the codebase
+                // carries it. See ENG-008 step-by-step roadmap.
                 "script-src 'self' 'unsafe-inline'".$unsafeEval.$viteSources,
-                // Styles: self + inline (Tailwind JIT sometimes inlines) +
-                // Google Fonts stylesheet origin.
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com".$viteSources,
                 // Images: self + data: (icons, SweetAlert2) + https: for Gravatar etc.
                 "img-src 'self' data: https:",

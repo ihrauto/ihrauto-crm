@@ -362,7 +362,11 @@ class InvoiceService
             $locked->paid_amount = $paidAmount;
 
             if ($locked->status !== Invoice::STATUS_DRAFT) {
-                if ($paidAmount >= (float) $locked->total) {
+                // Audit-S-4: float-tolerant fully-paid check. A 0.5-rappen
+                // arithmetic remainder (e.g. 99.999 vs 100.00) used to
+                // demote the invoice to PARTIAL even when the rounded
+                // amounts match. Compare with a half-cent epsilon.
+                if ($paidAmount >= (float) $locked->total - 0.005) {
                     // Bug review DATA-22: flag overpayment when paid_amount
                     // clearly exceeds total. A ~1-rappen overage can come
                     // from rounding and is fine; anything bigger is a
@@ -422,9 +426,15 @@ class InvoiceService
             foreach ($workOrder->service_tasks as $task) {
                 $price = $task['price'] ?? 0;
 
-                // Look up service price if not explicitly set
+                // Look up service price if not explicitly set.
+                // Audit-S-2: scope by the WO's tenant. The TenantScope
+                // global scope normally handles this, but in console /
+                // queue contexts it is silent — and across tenants two
+                // services may share a name, so we'd grab the wrong price.
                 if ($price == 0 && ! empty($task['name'])) {
-                    $service = \App\Models\Service::where('name', $task['name'])->first();
+                    $service = \App\Models\Service::where('name', $task['name'])
+                        ->where('tenant_id', $workOrder->tenant_id)
+                        ->first();
                     if ($service) {
                         $price = $service->price;
                     }

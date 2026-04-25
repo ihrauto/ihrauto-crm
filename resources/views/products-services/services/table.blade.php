@@ -37,7 +37,9 @@
                         </td>
                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
                             <div class="flex items-center justify-end gap-3 text-gray-400">
-                                <button type="button" onclick="openEditServiceModal({{ $service->toJson() }})"
+                                <button type="button"
+                                    data-service='@json($service)'
+                                    onclick="openEditServiceModal(JSON.parse(this.dataset.service))"
                                     class="hover:text-gray-600 transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
                                         class="w-5 h-5">

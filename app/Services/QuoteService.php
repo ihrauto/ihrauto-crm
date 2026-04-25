@@ -32,6 +32,17 @@ class QuoteService
      */
     public function generateQuoteNumber(int $tenantId): string
     {
+        // Audit-S-5: lockForUpdate has no effect outside a transaction —
+        // PG and MySQL both treat it as a no-op when there is no enclosing
+        // tx. The InvoiceService equivalent enforces this; mirror it here
+        // so callers can't accidentally race on a non-transactional path.
+        if (DB::transactionLevel() === 0) {
+            throw new \LogicException(
+                'QuoteService::generateQuoteNumber() must be called inside a database transaction '
+                .'so the sequence row lock is honored. Wrap the call in DB::transaction(...).'
+            );
+        }
+
         $prefix = config('crm.quote.prefix', 'QT');
         $padding = (int) config('crm.quote.number_padding', 4);
         $year = now()->year;
@@ -68,6 +79,16 @@ class QuoteService
 
     public function create(array $data, Customer $customer): Quote
     {
+        // Audit-S-47: confirm the caller hasn't injected a customer from
+        // a different tenant. TenantScope normally prevents loading such
+        // a customer, but defense in depth here means the quote can never
+        // inherit a foreign tenant_id even if a future bug bypasses scope.
+        if (tenant_id() !== null && (int) $customer->tenant_id !== (int) tenant_id()) {
+            throw new \InvalidArgumentException(
+                'QuoteService::create called with a customer from a different tenant.'
+            );
+        }
+
         return DB::transaction(function () use ($data, $customer) {
             $tenantId = $customer->tenant_id;
             $taxRate = $customer->tenant?->taxRate() ?? (float) config('crm.tax_rate', 8.1);

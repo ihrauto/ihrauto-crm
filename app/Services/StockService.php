@@ -123,12 +123,25 @@ class StockService
 
     /**
      * Reverse the deductions — used when voiding an invoice backed by a
-     * work order. Not idempotent on its own; the caller (void flow) is
-     * expected to run exactly once.
+     * work order. Idempotent: a second invocation is a no-op because
+     * the prior void_reversal StockMovement is detected and short-circuits.
+     * Audit-S-7: previously this was documented as non-idempotent which
+     * meant a retried void task or a second click double-incremented stock.
      */
     public function reverseForWorkOrder(WorkOrder $workOrder): void
     {
         if (! $workOrder->parts_used) {
+            return;
+        }
+
+        // Probe: if a void_reversal already exists for this WO, the void
+        // workflow already ran — skip the increment so we don't double up.
+        $alreadyReversed = StockMovement::where('tenant_id', $workOrder->tenant_id)
+            ->where('reference_type', WorkOrder::class)
+            ->where('reference_id', $workOrder->id)
+            ->where('type', 'void_reversal')
+            ->exists();
+        if ($alreadyReversed) {
             return;
         }
 

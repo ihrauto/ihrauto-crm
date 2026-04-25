@@ -43,11 +43,14 @@ trait ApiResponse
             $payload['error'] = $code;
         }
 
-        if (! empty($details)) {
+        // Audit-A1: only emit details in dev/debug. Every Api controller
+        // calls apiError with ['exception' => $e->getMessage()], which
+        // would leak SQL fragments, file paths, model-not-found IDs, and
+        // stack hints into production responses. Strip in non-debug.
+        if (! empty($details) && app()->hasDebugModeEnabled()) {
             $payload['details'] = $details;
         }
 
-        // Debug detail only leaks in local/testing; production stays clean.
         if (app()->hasDebugModeEnabled() && isset($details['exception']) && is_string($details['exception'])) {
             $payload['debug'] = $details['exception'];
         }

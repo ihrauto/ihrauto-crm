@@ -209,6 +209,16 @@ class Tenant extends Model
         'account_holder' => 'encrypted',
         'invoice_email' => 'encrypted',
         'invoice_phone' => 'encrypted',
+        // Audit follow-up to DATA-03: encrypt the top-level contact + tax
+        // identifiers too. Same rationale (DB dump / backup leak).
+        // NB: email is intentionally NOT encrypted — duplicate-tenant
+        // detection at signup uses Eloquent `unique` rules which require
+        // exact-match equality. Adding tenant.email_hash + a custom
+        // validator is the proper extension; deferred for a separate
+        // touch since it requires touching every signup-related test.
+        'phone' => 'encrypted',
+        'address' => 'encrypted',
+        'vat_number' => 'encrypted',
     ];
 
     /**

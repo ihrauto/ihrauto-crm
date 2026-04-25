@@ -266,7 +266,12 @@
                                             <td class="whitespace-nowrap px-3 py-4 text-sm font-bold text-red-600">CHF
                                                 {{ number_format($inv->balance, 2) }}</td>
                                             <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                                <button type="button" onclick="openPaymentModal({{ $inv->id }}, {{ $inv->balance }}, '{{ $inv->invoice_number }} - {{ $inv->customer->name }}')" class="text-indigo-600 hover:text-indigo-900">Pay</button>
+                                                <button type="button"
+                                                    data-invoice-id="{{ $inv->id }}"
+                                                    data-invoice-balance="{{ $inv->balance }}"
+                                                    data-invoice-text="{{ $inv->invoice_number }} - {{ $inv->customer->name }}"
+                                                    onclick="openPaymentModal(this.dataset.invoiceId, this.dataset.invoiceBalance, this.dataset.invoiceText)"
+                                                    class="text-indigo-600 hover:text-indigo-900">Pay</button>
                                             </td>
                                         </tr>
                                     @empty
@@ -456,7 +461,12 @@
                                                 </form>
                                                 <a href="{{ route('invoices.edit', $invoice) }}" class="text-gray-600 hover:text-gray-900">Edit</a>
                                             @elseif($invoice->balance > 0 && ! $invoice->isVoid())
-                                                <button type="button" onclick="openPaymentModal({{ $invoice->id }}, {{ $invoice->balance }}, '{{ $invoice->invoice_number }} - {{ $invoice->customer->name }}')" class="text-indigo-600 hover:text-indigo-900">Pay</button>
+                                                <button type="button"
+                                                    data-invoice-id="{{ $invoice->id }}"
+                                                    data-invoice-balance="{{ $invoice->balance }}"
+                                                    data-invoice-text="{{ $invoice->invoice_number }} - {{ $invoice->customer->name }}"
+                                                    onclick="openPaymentModal(this.dataset.invoiceId, this.dataset.invoiceBalance, this.dataset.invoiceText)"
+                                                    class="text-indigo-600 hover:text-indigo-900">Pay</button>
                                             @endif
                                             <a href="{{ route('invoices.show', $invoice) }}" class="text-gray-600 hover:text-gray-900">View</a>
                                         </td>
@@ -500,7 +510,12 @@
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ $invoice->due_date ? $invoice->due_date->format('d M Y') : 'N/A' }}</td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">CHF {{ number_format($invoice->total, 2) }}</td>
                                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                            <button type="button" onclick="openPaymentModal({{ $invoice->id }}, {{ $invoice->balance }}, '{{ $invoice->invoice_number }} - {{ $invoice->customer->name ?? 'Unknown' }}')" class="text-indigo-600 hover:text-indigo-900 mr-2">Pay</button>
+                                            <button type="button"
+                                                data-invoice-id="{{ $invoice->id }}"
+                                                data-invoice-balance="{{ $invoice->balance }}"
+                                                data-invoice-text="{{ $invoice->invoice_number }} - {{ $invoice->customer->name ?? 'Unknown' }}"
+                                                onclick="openPaymentModal(this.dataset.invoiceId, this.dataset.invoiceBalance, this.dataset.invoiceText)"
+                                                class="text-indigo-600 hover:text-indigo-900 mr-2">Pay</button>
                                             <a href="{{ route('invoices.show', $invoice) }}" class="text-gray-600 hover:text-gray-900">View</a>
                                         </td>
                                     </tr>

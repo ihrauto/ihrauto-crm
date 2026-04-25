@@ -41,7 +41,9 @@
                 <!-- Actions -->
                 <div class="col-span-1 md:col-span-2 flex justify-end pr-2">
                     <div class="flex items-center gap-2">
-                        <button type="button" onclick="openEditProductModal({{ $product->toJson() }})"
+                        <button type="button"
+                            data-product='@json($product)'
+                            onclick="openEditProductModal(JSON.parse(this.dataset.product))"
                             class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
                                 <path

@@ -925,17 +925,27 @@
                             ul.className = 'bg-white border border-indigo-200 rounded-lg shadow-lg max-h-60 overflow-y-auto divide-y divide-indigo-50';
 
                             data.forEach(customer => {
+                                // Audit-F-4: build with DOM API + textContent so a
+                                // customer name containing HTML can't execute JS.
                                 const li = document.createElement('li');
                                 li.className = 'p-3 hover:bg-indigo-50 cursor-pointer transition-colors';
-                                li.innerHTML = `
-                                                            <div class="flex justify-between items-center">
-                                                                <div>
-                                                                    <p class="font-bold text-indigo-900 text-sm">${customer.name}</p>
-                                                                    <p class="text-xs text-indigo-500">${customer.phone || 'No phone'}</p>
-                                                                </div>
-                                                                <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">Select</span>
-                                                            </div>
-                                                        `;
+                                const wrap = document.createElement('div');
+                                wrap.className = 'flex justify-between items-center';
+                                const meta = document.createElement('div');
+                                const name = document.createElement('p');
+                                name.className = 'font-bold text-indigo-900 text-sm';
+                                name.textContent = customer.name || '';
+                                const phone = document.createElement('p');
+                                phone.className = 'text-xs text-indigo-500';
+                                phone.textContent = customer.phone || 'No phone';
+                                meta.appendChild(name);
+                                meta.appendChild(phone);
+                                const badge = document.createElement('span');
+                                badge.className = 'text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full';
+                                badge.textContent = 'Select';
+                                wrap.appendChild(meta);
+                                wrap.appendChild(badge);
+                                li.appendChild(wrap);
                                 li.addEventListener('click', () => selectCustomer(customer));
                                 ul.appendChild(li);
                             });
@@ -979,14 +989,22 @@
                 // Populate selected customer info
                 const display = document.getElementById('customer-display');
                 if (display) {
-                    display.innerHTML = `
-                                <div class="flex justify-between items-center">
-                                    <div>
-                                        <span class="font-bold block text-lg">${customer.name}</span>
-                                        <span class="text-xs text-indigo-500">${customer.email || ''} • ${customer.phone || ''}</span>
-                                    </div>
-                                </div>
-                            `;
+                    // Audit-F-4: DOM-API build so attacker-controlled customer
+                    // fields can't break out of the wrapper string.
+                    display.textContent = '';
+                    const wrap = document.createElement('div');
+                    wrap.className = 'flex justify-between items-center';
+                    const meta = document.createElement('div');
+                    const name = document.createElement('span');
+                    name.className = 'font-bold block text-lg';
+                    name.textContent = customer.name || '';
+                    const sub = document.createElement('span');
+                    sub.className = 'text-xs text-indigo-500';
+                    sub.textContent = `${customer.email || ''} • ${customer.phone || ''}`;
+                    meta.appendChild(name);
+                    meta.appendChild(sub);
+                    wrap.appendChild(meta);
+                    display.appendChild(wrap);
                 }
 
                 // Set the hidden customer_id field

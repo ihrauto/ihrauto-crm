@@ -182,9 +182,13 @@ class BulkOperationsTest extends TestCase
                 'status' => 'cancelled',
             ]);
 
-        // The batch should fail, leaving both work orders unchanged.
+        // The batch should fail, leaving both work orders unchanged. After
+        // the audit-C-10 hardening, an authorize() check runs per-WO before
+        // the transition validator, so a completed WO returns 403 before
+        // we ever try the illegal transition. Either failure mode keeps
+        // the atomicity guarantee (no partial commits).
         $this->assertSame('created', $ok->fresh()->status);
         $this->assertSame('completed', $bad->fresh()->status);
-        $response->assertStatus(500);
+        $this->assertContains($response->status(), [403, 500]);
     }
 }

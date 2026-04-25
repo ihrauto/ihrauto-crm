@@ -55,7 +55,10 @@ class PaymentObserver
     }
 
     /**
-     * Recalculate invoice paid amount and status.
+     * Recalculate invoice paid amount and status. Also flushes the
+     * tenant-scoped dashboard/finance caches so revenue + outstanding
+     * tiles refresh immediately after a payment instead of staying
+     * stale for the cache TTL window (audit S-20).
      */
     private function updateInvoiceBalance(?Invoice $invoice): void
     {
@@ -64,5 +67,13 @@ class PaymentObserver
         }
 
         app(InvoiceService::class)->syncPaymentState($invoice->fresh());
+
+        $tid = $invoice->tenant_id;
+        if ($tid) {
+            \Illuminate\Support\Facades\Cache::forget("dashboard_stats_{$tid}");
+            \Illuminate\Support\Facades\Cache::forget("finance_overview_stats_{$tid}");
+            \Illuminate\Support\Facades\Cache::forget("finance_status_counts_{$tid}");
+            \Illuminate\Support\Facades\Cache::forget("finance_monthly_revenue_{$tid}");
+        }
     }
 }

@@ -30,10 +30,25 @@ trait Auditable
 
         $changes = null;
 
+        // Audit-M-24: scrub fields the model marks $hidden so password
+        // hashes, remember_tokens, invite_tokens never land in audit_logs.
+        // Bcrypt is hashed already, but storing it twice doesn't help and
+        // does broaden the data-handling surface for compliance.
+        $hidden = method_exists($model, 'getHidden') ? $model->getHidden() : [];
+        $scrub = static function (array $row) use ($hidden): array {
+            foreach ($hidden as $key) {
+                if (array_key_exists($key, $row)) {
+                    $row[$key] = '[redacted]';
+                }
+            }
+
+            return $row;
+        };
+
         if ($action === 'updated') {
             $changes = [
-                'before' => $model->getOriginal(),
-                'after' => $model->getChanges(),
+                'before' => $scrub($model->getOriginal()),
+                'after' => $scrub($model->getChanges()),
             ];
             // Filter out timestamps to reduce noise
             unset($changes['before']['updated_at'], $changes['after']['updated_at']);
@@ -44,7 +59,7 @@ trait Auditable
             }
         } elseif ($action === 'created') {
             $changes = [
-                'attributes' => $model->getAttributes(),
+                'attributes' => $scrub($model->getAttributes()),
             ];
         }
 

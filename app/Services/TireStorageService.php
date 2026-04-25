@@ -10,10 +10,16 @@ use Illuminate\Support\Collection;
 class TireStorageService
 {
     /**
-     * Get statistics for the dashboard
+     * Get statistics for the dashboard.
+     *
+     * Audit-S-25: assert tenant context. TenantScope silently returns
+     * data across all tenants when no tenant is bound, so this would
+     * return cross-tenant aggregates from console / queued contexts.
      */
     public function getStatistics(): array
     {
+        $this->assertTenantContext(__METHOD__);
+
         return [
             'total_sets' => Tire::stored()->count(),
             'total_tires' => Tire::stored()->sum('quantity'),
@@ -30,6 +36,8 @@ class TireStorageService
      */
     public function calculateStorageUtilization(): int
     {
+        $this->assertTenantContext(__METHOD__);
+
         $total_capacity = \App\Models\StorageSection::sum('capacity_slots');
         $used_slots = Tire::stored()->sum('quantity');
 
@@ -38,6 +46,22 @@ class TireStorageService
         }
 
         return round(($used_slots / $total_capacity) * 100);
+    }
+
+    /**
+     * Audit-S-25: fail-loud guard against running tire-storage queries
+     * outside a tenant context. TenantScope silently strips the filter
+     * when tenant_id() is null, so without this assertion a CLI/job
+     * would aggregate across every tenant.
+     */
+    private function assertTenantContext(string $method): void
+    {
+        if (tenant_id() === null) {
+            throw new \LogicException(
+                "{$method}() requires a resolved tenant context. ".
+                'TenantScope returns cross-tenant data when no tenant is bound.'
+            );
+        }
     }
 
     /**
@@ -203,7 +227,14 @@ class TireStorageService
 
         \App\Support\PlanQuota::assertCanAddCustomer();
 
+        // Audit-S-27/28: explicitly stamp tenant_id rather than relying
+        // on the BelongsToTenant trait's creating hook — that hook only
+        // fills if tenant_id() is set, and from a job/CLI context it
+        // may be null, producing tenant-less rows.
+        $this->assertTenantContext(__METHOD__);
+
         return Customer::create([
+            'tenant_id' => tenant_id(),
             'name' => $data['name'],
             'phone' => $data['phone'],
         ]);
@@ -212,6 +243,7 @@ class TireStorageService
     private function createVehicle(Customer $customer, array $data)
     {
         \App\Support\PlanQuota::assertCanAddVehicle();
+        $this->assertTenantContext(__METHOD__);
 
         // Parse vehicle info similar to original controller logic
         $vehicleParts = array_map('trim', explode(',', $data['vehicle_info']));
@@ -223,6 +255,7 @@ class TireStorageService
         $actualModel = isset($modelParts[1]) ? implode(' ', array_slice($modelParts, 1)) : $model;
 
         return Vehicle::create([
+            'tenant_id' => $customer->tenant_id,
             'customer_id' => $customer->id,
             'license_plate' => \App\Support\LicensePlate::normalize($data['registration']),
             'make' => $make,

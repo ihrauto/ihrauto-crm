@@ -17,10 +17,62 @@ trait BelongsToTenant
         // Add global scope to automatically filter by tenant
         static::addGlobalScope(new TenantScope);
 
-        // Automatically set tenant_id when creating new records
+        // Automatically set tenant_id when creating new records.
+        // Audit follow-up: even though `tenant_id` is in `$fillable` on
+        // every model that uses this trait, no controller passes raw
+        // user input to mass-assignment (every form-request has an
+        // explicit rule list that omits tenant_id). The runtime guards
+        // below close the residual mass-assignment risk so a future
+        // `Model::create($request->all())` cannot quietly cross-assign:
+        //
+        //   1. On create: if a tenant_id is supplied AND a tenant context
+        //      is bound AND they don't match, refuse. CLI / queued
+        //      contexts (no tenant context) are exempt because seeders
+        //      and tenant provisioning legitimately set tenant_id directly.
+        //   2. On update: tenant_id is treated as immutable. Reassignment
+        //      across tenants must use a deliberate raw-DB path.
         static::creating(function ($model) {
-            if (! $model->tenant_id && tenant_id()) {
-                $model->tenant_id = tenant_id();
+            $current = tenant_id();
+            if (! $model->tenant_id && $current) {
+                $model->tenant_id = $current;
+
+                return;
+            }
+
+            // Only enforce the cross-tenant write guard when the request
+            // is HTTP-driven (web or API). Console / queue / test contexts
+            // legitimately seed rows across tenants — they're not the
+            // attack surface (no untrusted input). The HTTP guard catches
+            // the realistic scenario: a future `Model::create($request->all())`
+            // pulls tenant_id from request input while the authenticated
+            // user belongs to a different tenant.
+            if (app()->runningInConsole()) {
+                return;
+            }
+
+            if ($model->tenant_id && $current && (int) $model->tenant_id !== (int) $current) {
+                throw new \LogicException(sprintf(
+                    'Refusing to create %s with tenant_id=%s while tenant context is %s. '
+                    .'Cross-tenant writes must go through a deliberate raw-DB path.',
+                    static::class, $model->tenant_id, $current
+                ));
+            }
+        });
+
+        static::updating(function ($model) {
+            if (app()->runningInConsole()) {
+                return;
+            }
+
+            if ($model->isDirty('tenant_id')) {
+                $original = $model->getOriginal('tenant_id');
+                $new = $model->tenant_id;
+                if ($original !== null && (int) $original !== (int) $new) {
+                    throw new \LogicException(sprintf(
+                        'Refusing to reassign %s#%s tenant_id from %s to %s. tenant_id is immutable.',
+                        static::class, $model->getKey() ?? '?', $original, $new
+                    ));
+                }
             }
         });
     }

@@ -24,6 +24,15 @@ class PurgeUsersCommand extends Command
         $dryRun = $this->option('dry-run');
         $force = $this->option('force');
 
+        // Audit-S-35: production guard. With --tenant=all --force, a
+        // single typo would soft-delete every non-superadmin user across
+        // every tenant in production. Require explicit env opt-in.
+        if (app()->environment('production') && env('APP_ALLOW_DESTRUCTIVE') !== '1') {
+            $this->error('crm:purge-users is blocked in production. Set APP_ALLOW_DESTRUCTIVE=1 to override.');
+
+            return Command::FAILURE;
+        }
+
         if ($dryRun) {
             $this->warn('🔍 DRY RUN MODE - No changes will be made');
         }

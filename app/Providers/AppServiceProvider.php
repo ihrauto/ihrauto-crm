@@ -177,6 +177,9 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Service::class, \App\Policies\ServicePolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\WorkOrderPhoto::class, \App\Policies\WorkOrderPhotoPolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Quote::class, \App\Policies\QuotePolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\Payment::class, \App\Policies\PaymentPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\User::class, \App\Policies\UserPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\Tenant::class, \App\Policies\TenantPolicy::class);
 
         // D-07: any backup failure also lands in Sentry (on top of the
         // e-mail notification already wired in config/backup.php).

@@ -23,6 +23,15 @@ class CleanDemoDataCommand extends Command
         $keepProducts = $this->option('keep-products');
         $force = $this->option('force');
 
+        // Audit-S-37: refuse to run in production unless ops opts in
+        // explicitly via env. The other safety knobs here are --force /
+        // --dry-run; neither is a hard production guard.
+        if (app()->environment('production') && env('APP_ALLOW_DESTRUCTIVE') !== '1') {
+            $this->error('crm:clean-demo-data is blocked in production. Set APP_ALLOW_DESTRUCTIVE=1 to override.');
+
+            return Command::FAILURE;
+        }
+
         if ($dryRun) {
             $this->warn('🔍 DRY RUN MODE - No changes will be made');
         }

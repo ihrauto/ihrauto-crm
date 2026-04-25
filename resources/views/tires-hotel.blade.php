@@ -774,30 +774,52 @@
                                         else { section = tire.storage_location; }
                                     }
 
+                                    // Audit-F-5: build with DOM API + textContent so a tire/customer/vehicle field
+                                    // containing HTML can't execute. Tire ID is encoded for the URL too.
                                     const tireRow = document.createElement('div');
                                     tireRow.className = 'bg-indigo-50/50 rounded-lg p-4 border border-indigo-100 text-sm mb-4';
-                                    tireRow.innerHTML = `
-                                                                    <div class="space-y-1">
-                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Name:</span> <span>${customerName}</span></div>
-                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Vehicle:</span> <span>${data.vehicle.make} ${data.vehicle.model}</span></div>
-                                                                        <div class="h-px bg-indigo-100 my-2"></div>
-                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Brand:</span> <span>${tire.brand}</span></div>
-                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Size:</span> <span>${tire.size}</span></div>
-                                                                        <div class="flex"><span class="font-bold w-20 text-indigo-900 inline-block">Season:</span> <span>${tire.season}</span></div>
-                                                                        <div class="h-px bg-indigo-100 my-2"></div>
-                                                                        <div class="flex items-center justify-between">
-                                                                            <div class="font-mono text-indigo-700 font-bold">
-                                                                                Loc: ${section}-${row}-${slot}
-                                                                            </div>
-                                                                            <div class="flex space-x-2">
-                                                                            <a href="/tires-hotel/${tire.id}" 
-                                                                                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded hover:bg-indigo-700 transition-colors shadow-sm">
-                                                                                View
-                                                                            </a>
-                                                                        </div>
-                                                                        </div>
-                                                                    </div>
-                                                                `;
+                                    const space = document.createElement('div');
+                                    space.className = 'space-y-1';
+                                    const addRow = (label, value) => {
+                                        const row = document.createElement('div');
+                                        row.className = 'flex';
+                                        const lab = document.createElement('span');
+                                        lab.className = 'font-bold w-20 text-indigo-900 inline-block';
+                                        lab.textContent = label + ':';
+                                        const val = document.createElement('span');
+                                        val.textContent = ' ' + (value ?? '');
+                                        row.appendChild(lab);
+                                        row.appendChild(val);
+                                        space.appendChild(row);
+                                    };
+                                    const addSep = () => {
+                                        const s = document.createElement('div');
+                                        s.className = 'h-px bg-indigo-100 my-2';
+                                        space.appendChild(s);
+                                    };
+                                    addRow('Name', customerName);
+                                    addRow('Vehicle', `${data.vehicle?.make ?? ''} ${data.vehicle?.model ?? ''}`.trim());
+                                    addSep();
+                                    addRow('Brand', tire.brand);
+                                    addRow('Size', tire.size);
+                                    addRow('Season', tire.season);
+                                    addSep();
+                                    const footer = document.createElement('div');
+                                    footer.className = 'flex items-center justify-between';
+                                    const loc = document.createElement('div');
+                                    loc.className = 'font-mono text-indigo-700 font-bold';
+                                    loc.textContent = `Loc: ${section}-${row}-${slot}`;
+                                    const actions = document.createElement('div');
+                                    actions.className = 'flex space-x-2';
+                                    const viewLink = document.createElement('a');
+                                    viewLink.href = `/tires-hotel/${encodeURIComponent(tire.id)}`;
+                                    viewLink.className = 'inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded hover:bg-indigo-700 transition-colors shadow-sm';
+                                    viewLink.textContent = 'View';
+                                    actions.appendChild(viewLink);
+                                    footer.appendChild(loc);
+                                    footer.appendChild(actions);
+                                    space.appendChild(footer);
+                                    tireRow.appendChild(space);
                                     resultsContainer.appendChild(tireRow);
                                 });
                             } else {

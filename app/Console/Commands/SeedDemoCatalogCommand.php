@@ -146,7 +146,7 @@ class SeedDemoCatalogCommand extends Command
                     ->delete();
             }
 
-            Product::create(array_merge($productData, ['tenant_id' => $tenant->id]));
+            Product::forceCreate(array_merge($productData, ['tenant_id' => $tenant->id]));
             $this->line("   ✅ Product created: {$productData['name']}");
             $productsCreated++;
         }
@@ -169,7 +169,7 @@ class SeedDemoCatalogCommand extends Command
                     ->delete();
             }
 
-            Service::create(array_merge($serviceData, ['tenant_id' => $tenant->id]));
+            Service::forceCreate(array_merge($serviceData, ['tenant_id' => $tenant->id]));
             $this->line("   ✅ Service created: {$serviceData['name']}");
             $servicesCreated++;
         }

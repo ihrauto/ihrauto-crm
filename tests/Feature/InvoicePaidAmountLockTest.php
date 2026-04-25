@@ -134,6 +134,30 @@ class InvoicePaidAmountLockTest extends TestCase
         $this->assertSame('500.00', (string) $synced->paid_amount);
     }
 
+    public function test_almost_paid_within_half_cent_is_treated_as_paid(): void
+    {
+        // Audit-S-4: a 0.5-rappen rounding remainder used to demote a
+        // fully-paid invoice to STATUS_PARTIAL silently. Lock the
+        // tolerant comparison.
+        $invoice = $this->makeIssuedInvoice(total: 100.00);
+
+        Payment::create([
+            'tenant_id' => $this->tenant->id,
+            'invoice_id' => $invoice->id,
+            'amount' => 99.998, // rounds to 100.00
+            'method' => 'cash',
+            'payment_date' => now(),
+        ]);
+
+        $synced = $this->service->syncPaymentState($invoice->fresh());
+
+        $this->assertSame(
+            Invoice::STATUS_PAID,
+            $synced->status,
+            'A half-cent arithmetic remainder must not demote a paid invoice to PARTIAL.'
+        );
+    }
+
     public function test_void_invoice_is_never_resynced(): void
     {
         $invoice = $this->makeIssuedInvoice(total: 500);
