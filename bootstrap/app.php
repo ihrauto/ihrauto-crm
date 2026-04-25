@@ -24,6 +24,13 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\TenantMiddleware::class,
         ]);
 
+        // ENG-010: Stripe webhook is signature-verified, not CSRF-verified.
+        // Stripe's POST has no session/cookie context — exempt the path
+        // from CSRF and the controller verifies via Stripe-Signature header.
+        $middleware->validateCsrfTokens(except: [
+            'stripe/webhook',
+        ]);
+
         // Resolve tenant context for machine-to-machine API access before route binding
         $middleware->api(prepend: [
             \App\Http\Middleware\AuthenticateTenantApiToken::class,

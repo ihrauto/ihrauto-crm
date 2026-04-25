@@ -25,6 +25,12 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::defaultView('vendor.pagination.smooth');
 
+        // ENG-010: Cashier billable is the Tenant, not the User. There's
+        // one paying customer per tenant; users are operators on that
+        // tenant's account. The subscriptions table uses tenant_id as
+        // the owner FK to match (see migration 2026_04_25_205410).
+        \Laravel\Cashier\Cashier::useCustomerModel(\App\Models\Tenant::class);
+
         // C2 (sprint 2026-04-24): register the hashed user provider so
         // `remember_token` stored in the DB is SHA-256 of the cookie
         // value. See app/Auth/HashedEloquentUserProvider.php. config/auth.php

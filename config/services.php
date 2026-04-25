@@ -41,4 +41,32 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Stripe Billing
+    |--------------------------------------------------------------------------
+    |
+    | Maps each tenant plan key (Tenant::PLAN_BASIC / PLAN_STANDARD /
+    | PLAN_CUSTOM) to a Stripe Price ID. Set per-environment in .env so
+    | local/test/prod can each point at their own Stripe products. The
+    | "custom" plan has no Stripe price because it's manual sales contact.
+    |
+    | Trial days come from the Tenant::PLAN_DEFAULTS or fall back to 14.
+    | Webhook secret protects /stripe/webhook from forgery — get it from
+    | Stripe CLI (`stripe listen`) for local, or the dashboard webhook
+    | endpoint config in production.
+    */
+    'stripe' => [
+        'webhook' => [
+            'secret' => env('STRIPE_WEBHOOK_SECRET'),
+            'tolerance' => env('STRIPE_WEBHOOK_TOLERANCE', 300),
+        ],
+        'prices' => [
+            'basic' => env('STRIPE_PRICE_BASIC'),
+            'standard' => env('STRIPE_PRICE_STANDARD'),
+            // 'custom' — no Stripe price; sales-led contract.
+        ],
+        'trial_days' => (int) env('STRIPE_TRIAL_DAYS', 14),
+    ],
+
 ];

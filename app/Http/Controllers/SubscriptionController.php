@@ -64,29 +64,30 @@ class SubscriptionController extends Controller
      */
     public function process(Request $request, $tenantId)
     {
-        // Audit-C-27: defense-in-depth — even if the route registration
-        // ever escapes the local-only block in routes/web.php, refuse to
-        // run outside local. This endpoint flips a tenant's plan with no
-        // policy check; the local-only contract is load-bearing.
-        abort_unless(app()->environment('local'), 404);
+        // ENG-010 (replaces the previous local-only mock): real billing
+        // now flows through BillingController + Stripe Cashier. We keep
+        // this endpoint as a local-only convenience that flips the
+        // tenant onto a paid plan without contacting Stripe — useful
+        // for QA-ing the post-checkout app behavior without burning
+        // through Stripe test sessions. In any other environment we
+        // redirect to the real Stripe Checkout flow.
+        if (! app()->environment('local')) {
+            $plan = $request->input('plan', 'standard');
 
-        // Simulate backend processing
+            return redirect()->route('billing.checkout', ['plan' => $plan]);
+        }
+
         $tenant = Tenant::findOrFail($tenantId);
         $plan = $request->input('plan', $tenant->plan);
-
-        // 1. Simulate "Charge" (Mock)
-        // In real app: actual Stripe/Gateway call
-
-        // 2. Switch Context & Update Plan
 
         $tenant->convertToSubscription($plan, now()->addMonth()->endOfDay());
 
         session(['tenant_id' => $tenant->id]);
 
-        // 3. Redirect to Onboarding
         return response()->json([
             'success' => true,
             'redirect_url' => route('subscription.onboarding'),
+            'mock' => true,
         ]);
     }
 

@@ -39,8 +39,29 @@ if (app()->environment('local')) {
     Route::post('/subscription/process/{tenant}', [\App\Http\Controllers\SubscriptionController::class, 'process'])->name('subscription.process');
 }
 
+// ENG-010: Stripe webhook — public route, no auth, no CSRF, no tenant.
+// Verified by signature in the controller. Excluded from VerifyCsrfToken
+// in bootstrap/app.php and from TenantMiddleware here because Stripe
+// has no session / cookie / tenant context.
+Route::post('/stripe/webhook', [\App\Http\Controllers\StripeWebhookController::class, 'handleWebhook'])
+    ->withoutMiddleware([
+        \App\Http\Middleware\TenantMiddleware::class,
+        \App\Http\Middleware\UpdateTenantLastSeen::class,
+    ])
+    ->middleware('throttle:120,1')
+    ->name('cashier.webhook');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/billing/plans', [BillingController::class, 'index'])->name('billing.pricing');
+    // ENG-010: Stripe Checkout / Portal entry points.
+    Route::get('/billing/checkout/{plan}', [BillingController::class, 'checkout'])
+        ->middleware('throttle:10,1')
+        ->name('billing.checkout');
+    Route::get('/billing/success', [BillingController::class, 'success'])->name('billing.success');
+    Route::get('/billing/cancel', [BillingController::class, 'cancel'])->name('billing.cancel');
+    Route::get('/billing/portal', [BillingController::class, 'portal'])
+        ->middleware(['permission:manage settings', 'throttle:10,1'])
+        ->name('billing.portal');
     Route::get('/subscription/onboarding', [\App\Http\Controllers\SubscriptionController::class, 'onboarding'])->name('subscription.onboarding');
 
     // SECURITY: storeSetup mutates tenant-wide settings (IBAN, bank, email,

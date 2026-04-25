@@ -2,6 +2,101 @@
 
 All notable changes to IHRAUTO CRM are documented here.
 
+## [Unreleased] - 2026-04-26 — Stripe billing (ENG-010)
+
+Replaces the local-only mock subscription flow with real Stripe Checkout +
+Customer Portal via Laravel Cashier. Plan changes, card updates,
+cancellations, and dunning self-recovery now happen on Stripe's hosted UI;
+the platform reacts via webhook.
+
+### Architecture
+
+- New dependency: `laravel/cashier` (^16.5).
+- Tenant is the Cashier Billable (one paying customer per tenant; users
+  are operators on that tenant's account). `Cashier::useCustomerModel(Tenant::class)`
+  set in `AppServiceProvider::boot`.
+- Subscriptions table uses `tenant_id` instead of Cashier's default
+  `user_id` — published migration patched accordingly.
+- Cashier's customer-columns migration repointed at `tenants` table and
+  drops the `trial_ends_at` collision (we already own that column for
+  the app-level trial used by `EnsureTenantTrialActive`).
+- Plan → Stripe Price ID mapping in `config/services.php`
+  (`services.stripe.prices.basic` / `.standard`). `custom` plan stays
+  sales-led (no Stripe price).
+
+### HTTP
+
+- `BillingController`:
+  - `index` — pricing page (existed; now reflects subscription state).
+  - `checkout($plan)` — creates Stripe Checkout session via Cashier with
+    success/cancel callbacks and `tenant_id`/`plan_key` metadata.
+  - `success` — post-checkout placeholder; we don't trust the redirect
+    as proof of payment, the webhook is authoritative.
+  - `cancel` — friendly redirect back to pricing.
+  - `portal` — `redirectToBillingPortal` so the tenant admin manages
+    plan, card, invoices, cancellation in Stripe's hosted UI.
+- `StripeWebhookController` (extends `Cashier\WebhookController`):
+  - **Signature verification** via `Stripe\Webhook::constructEvent` —
+    invalid sig → 403.
+  - **503 if webhook secret missing** — refuse to silently process
+    forged events when env was misconfigured.
+  - **Idempotency** keyed on `event.id` in cache for 24h — Stripe
+    redeliveries are no-ops.
+  - Lifecycle handlers wire local Tenant state on top of Cashier's
+    own subscription-row updates: `subscription.created/updated`
+    set plan + is_active + subscription_ends_at; `.deleted` flips
+    is_active off; `invoice.payment_failed` sets
+    `tenant.settings.billing_status = past_due`;
+    `invoice.payment_succeeded` clears the flag.
+- `SubscriptionController::process` no longer a hard-coded mock — local
+  env still flips a tenant onto a paid plan without contacting Stripe
+  (so QA can test post-checkout app behavior without burning Stripe
+  test sessions); every other env redirects to `BillingController::checkout`.
+
+### Routes
+
+- `POST /stripe/webhook` — public, no auth, no CSRF, no tenant middleware
+  (verified by signature). Throttle 120/min for retry envelope. CSRF
+  exemption added in `bootstrap/app.php`; tenant middleware exempted via
+  `withoutMiddleware()` on the route.
+- `GET /billing/checkout/{plan}` — auth + throttle 10/min.
+- `GET /billing/success` — auth.
+- `GET /billing/cancel` — auth.
+- `GET /billing/portal` — auth + `permission:manage settings` + throttle 10/min.
+
+### UI
+
+- Past-due dunning banner in the layout (visible whenever
+  `tenant.settings.billing_status === 'past_due'`). Inline rose-colored
+  alert with single-click "Update billing" button that goes to the
+  Customer Portal. Permission-gated to admins.
+- Post-checkout success page with reassurance message ("we're
+  confirming the payment") since the webhook is what authoritatively
+  activates the account.
+
+### Configuration
+
+- New env vars in `.env.example`: `STRIPE_KEY`, `STRIPE_SECRET`,
+  `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_BASIC`, `STRIPE_PRICE_STANDARD`,
+  `STRIPE_TRIAL_DAYS`, `CASHIER_CURRENCY`, `CASHIER_CURRENCY_LOCALE`.
+
+### Tests
+
+- `StripeWebhookTest` (6): no signature → 403, invalid signature → 403,
+  503 when secret missing, idempotency cache contract,
+  `invoice.payment_failed` flips tenant to past_due,
+  `invoice.payment_succeeded` clears the flag.
+- `BillingControllerTest` (6): unauth redirect, sales-led plan
+  redirect with banner, cancel redirect, portal-without-stripe-id
+  redirect, manage-settings permission gate, throttle.
+
+### Verification
+
+- `php artisan test`: 530 passing (1759 assertions), all green.
+- `./vendor/bin/pint --test`: clean on every changed file.
+
+---
+
 ## [Unreleased] - 2026-04-26 — Audit follow-up (deferred items)
 
 Follow-up to the same-day audit pass: closes the four items the previous

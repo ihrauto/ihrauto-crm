@@ -512,6 +512,31 @@
             @endif
 
             <div class="{{ request()->is('admin*') ? 'p-4 lg:p-6' : 'p-4 lg:p-10 mt-16 lg:mt-20' }}">
+                {{-- ENG-010: dunning banner. Shown when Stripe has flagged
+                     the tenant past_due (invoice.payment_failed webhook).
+                     Stripe is still retrying the card; the banner gives the
+                     admin a single-click escape to the customer portal to
+                     update billing details. --}}
+                @if(! request()->is('admin*') && tenant() && (tenant()->settings['billing_status'] ?? null) === 'past_due')
+                    <div class="mb-6 rounded-xl border-l-4 border-rose-500 bg-rose-50 px-5 py-4 flex items-center justify-between">
+                        <div class="flex items-start gap-3">
+                            <svg class="h-5 w-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                            </svg>
+                            <div>
+                                <p class="text-sm font-bold text-rose-900">Payment failed</p>
+                                <p class="text-sm text-rose-800 mt-0.5">Your last subscription charge couldn't be processed. Stripe will retry automatically — update your payment method to keep your account active.</p>
+                            </div>
+                        </div>
+                        @can('manage settings')
+                            <a href="{{ route('billing.portal') }}"
+                                class="ml-4 inline-flex items-center rounded-lg bg-rose-600 hover:bg-rose-700 px-3 py-2 text-sm font-semibold text-white whitespace-nowrap">
+                                Update billing
+                            </a>
+                        @endcan
+                    </div>
+                @endif
+
                  @if(isset($breadcrumbs))
                     <nav class="flex mb-6 lg:mb-8 text-sm text-indigo-400" aria-label="Breadcrumb">
                         <ol class="flex items-center space-x-2 lg:space-x-3 overflow-x-auto">

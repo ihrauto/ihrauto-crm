@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use Laravel\Cashier\Billable;
 
 class Tenant extends Model
 {
-    use HasFactory, SoftDeletes;
+    use Billable, HasFactory, SoftDeletes;
 
     /**
      * Plan constants
