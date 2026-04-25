@@ -409,7 +409,12 @@
                     @endif
                      
                     <div class="hidden sm:block h-8 w-px bg-indigo-100 mx-2"></div>
-                     
+
+                    {{-- ENG-009: Dashboard Studio trigger — only on /dashboard. --}}
+                    @if (request()->routeIs('dashboard'))
+                        @include('dashboard.studio.trigger')
+                    @endif
+
                     <!-- Notifications -->
                     <div class="relative" x-data="{ notifOpen: false }">
                         <button type="button" @click="notifOpen = !notifOpen" aria-label="Notifications" aria-haspopup="true" :aria-expanded="notifOpen ? 'true' : 'false'" class="relative p-2 text-indigo-300 hover:text-indigo-600 transition-colors rounded-full hover:bg-indigo-50">
@@ -532,13 +537,17 @@
             </div>
         </main>
     </div>
-    <script>
+    {{-- Audit-F-6: use @json so the flash text round-trips through a
+         safely-encoded JS literal. Plain Blade interpolation only
+         HTML-escapes; an apostrophe or backslash in the message
+         would break the script and create an XSS sink. --}}
+    <script nonce="{{ csp_nonce() }}">
         document.addEventListener('DOMContentLoaded', function() {
             @if(session('success'))
                 Swal.fire({
                     icon: 'success',
                     title: 'Success!',
-                    text: "{{ session('success') }}",
+                    text: @json(session('success')),
                     confirmButtonColor: '#4F46E5',
                     timer: 3000,
                     timerProgressBar: true
@@ -549,7 +558,7 @@
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
-                    text: "{{ session('error') }}",
+                    text: @json(session('error')),
                     confirmButtonColor: '#4F46E5'
                 });
             @endif

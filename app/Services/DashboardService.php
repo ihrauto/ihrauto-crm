@@ -97,12 +97,15 @@ class DashboardService
             ? round((($currentMonthRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 1)
             : ($currentMonthRevenue > 0 ? 100 : 0);
 
-        // 3. Work-order buckets (already a single query).
+        // 3. Work-order buckets (already a single query). Includes the
+        // lifetime total so the all-work-orders widget doesn't have to
+        // run its own query inside the Blade view (audit F-15).
         $woCounts = \App\Models\WorkOrder::selectRaw(
             "SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as active_jobs,
              SUM(CASE WHEN status = 'created' THEN 1 ELSE 0 END) as pending_jobs,
              SUM(CASE WHEN status = 'completed' AND DATE(updated_at) = ? THEN 1 ELSE 0 END) as completed_today,
-             SUM(CASE WHEN status = 'in_progress' AND started_at < ? THEN 1 ELSE 0 END) as long_running",
+             SUM(CASE WHEN status = 'in_progress' AND started_at < ? THEN 1 ELSE 0 END) as long_running,
+             COUNT(*) as total",
             [$today, now()->subHours(4)]
         )->first();
 
@@ -154,6 +157,7 @@ class DashboardService
             'pending_jobs' => (int) $woCounts->pending_jobs,
             'completed_today' => (int) $woCounts->completed_today,
             'long_running_jobs' => (int) $woCounts->long_running,
+            'all_work_orders' => (int) $woCounts->total,
 
             'appointments_today' => $appointmentsThisWeek,
             'low_stock_count' => $lowStockCount,
@@ -172,6 +176,62 @@ class DashboardService
             'customer_growth' => $customerGrowth,
             'revenue_growth' => $revenueGrowth,
         ];
+    }
+
+    /**
+     * Recent customer payments for the dashboard list widget.
+     */
+    public function getRecentPayments(): \Illuminate\Support\Collection
+    {
+        return \App\Models\Payment::with(['invoice.customer'])
+            ->latest('payment_date')
+            ->take(5)
+            ->get()
+            ->map(fn ($p) => [
+                'amount' => (float) $p->amount,
+                'method' => $p->method,
+                'customer' => $p->invoice?->customer?->name ?? 'Unknown',
+                'invoice_id' => $p->invoice_id,
+                'date' => $p->payment_date?->format('M j'),
+            ]);
+    }
+
+    /**
+     * Recent issued invoices for the dashboard list widget.
+     */
+    public function getRecentInvoices(): \Illuminate\Support\Collection
+    {
+        return \App\Models\Invoice::with('customer')
+            ->where('status', '!=', 'draft')
+            ->latest('issued_at')
+            ->take(5)
+            ->get()
+            ->map(fn ($inv) => [
+                'id' => $inv->id,
+                'number' => $inv->invoice_number ?? '#'.$inv->id,
+                'customer' => $inv->customer?->name ?? 'Unknown',
+                'total' => (float) $inv->total,
+                'balance' => (float) $inv->total - (float) $inv->paid_amount,
+                'status' => $inv->status,
+                'issued_at' => $inv->issued_at?->format('M j'),
+            ]);
+    }
+
+    /**
+     * Recent customers for the dashboard list widget.
+     */
+    public function getRecentCustomers(): \Illuminate\Support\Collection
+    {
+        return Customer::latest()
+            ->take(5)
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'email' => $c->email,
+                'phone' => $c->phone,
+                'created_at' => $c->created_at,
+            ]);
     }
 
     /**

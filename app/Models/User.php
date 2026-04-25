@@ -91,6 +91,10 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
+            'dashboard_widgets' => 'array',
+            // Audit follow-up to DATA-03: staff phone is PII under the
+            // same threat model as customer phone (DB dump / backup leak).
+            'phone' => 'encrypted',
         ];
     }
 

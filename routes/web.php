@@ -19,7 +19,10 @@ Route::get('/auth/google/callback', [SocialAuthController::class, 'handleGoogleC
 Route::middleware(['auth'])->group(function () {
     Route::get('/auth/create-company', [SocialAuthController::class, 'showCreateCompany'])
         ->name('auth.create-company');
+    // Audit-C-24: throttle tenant provisioning from the OAuth flow so a
+    // hostile signed-in actor cannot spawn arbitrary tenants in a loop.
     Route::post('/auth/create-company', [SocialAuthController::class, 'storeCompany'])
+        ->middleware('throttle:5,30')
         ->name('auth.create-company.store');
 });
 
@@ -50,7 +53,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/subscription/setup', [\App\Http\Controllers\SubscriptionController::class, 'storeSetup'])
         ->middleware('permission:manage settings')
         ->name('subscription.setup');
-    Route::post('/subscription/tour-complete', [\App\Http\Controllers\SubscriptionController::class, 'markTourComplete'])->name('subscription.tour-complete');
+        // Audit-C-15: tour completion mutates tenant-wide settings.json,
+        // not per-user state, so it needs the same gate as other tenant
+        // settings writes.
+        Route::post('/subscription/tour-complete', [\App\Http\Controllers\SubscriptionController::class, 'markTourComplete'])
+            ->middleware('permission:manage settings')
+            ->name('subscription.tour-complete');
 });
 
 Route::view('/', 'pricing')->name('home');
@@ -65,6 +73,28 @@ Route::get('/i/{token}/{invoice}', [\App\Http\Controllers\InvoiceController::cla
 Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(function () {
     Route::middleware('module:access dashboard')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+        // ENG-009 in-place swap endpoint: Studio panel calls this after a
+        // save to refresh just the widget grid, so the panel stays open.
+        Route::get('/dashboard/widgets-fragment', [DashboardController::class, 'widgetsFragment'])
+            ->name('dashboard.widgets-fragment');
+
+        // Dashboard Studio (ENG-009): per-user widget toggle persistence.
+        // No module gate beyond `access dashboard` since the Studio panel
+        // is itself part of the dashboard surface; service-side filters
+        // already drop widgets the user can't see / can't unlock.
+        Route::prefix('dashboard/studio')->name('dashboard.studio.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\DashboardStudioController::class, 'index'])->name('index');
+            Route::post('/', [\App\Http\Controllers\DashboardStudioController::class, 'store'])
+                ->middleware('throttle:30,1')
+                ->name('store');
+            Route::post('/reset', [\App\Http\Controllers\DashboardStudioController::class, 'reset'])
+                ->middleware('throttle:10,1')
+                ->name('reset');
+            Route::post('/reorder', [\App\Http\Controllers\DashboardStudioController::class, 'reorder'])
+                ->middleware('throttle:60,1')
+                ->name('reorder');
+        });
     });
 
     Route::middleware('module:access check-in')->group(function () {
@@ -76,11 +106,13 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
 
     Route::middleware(['module:access tire-hotel', 'tire-hotel'])->group(function () {
         Route::get('/tires-hotel', [TireHotelController::class, 'index'])->name('tires-hotel');
-        Route::post('/tires-hotel', [TireHotelController::class, 'store'])->name('tires-hotel.store');
+        // Audit-C-18: tire-hotel mutations were unthrottled. Each tire intake
+        // can trigger a WO+photos write — match the checkin/invoice cadence.
+        Route::post('/tires-hotel', [TireHotelController::class, 'store'])->middleware('throttle:30,1')->name('tires-hotel.store');
         Route::get('/tires-hotel/{tire}', [TireHotelController::class, 'show'])->name('tires-hotel.show');
-        Route::put('/tires-hotel/{tire}', [TireHotelController::class, 'update'])->name('tires-hotel.update');
-        Route::delete('/tires-hotel/{tire}', [TireHotelController::class, 'destroy'])->name('tires-hotel.destroy');
-        Route::post('/tires-hotel/{tire}/generate-work-order', [TireHotelController::class, 'generateWorkOrder'])->name('tires-hotel.generate-work-order');
+        Route::put('/tires-hotel/{tire}', [TireHotelController::class, 'update'])->middleware('throttle:30,1')->name('tires-hotel.update');
+        Route::delete('/tires-hotel/{tire}', [TireHotelController::class, 'destroy'])->middleware('throttle:30,1')->name('tires-hotel.destroy');
+        Route::post('/tires-hotel/{tire}/generate-work-order', [TireHotelController::class, 'generateWorkOrder'])->middleware('throttle:10,1')->name('tires-hotel.generate-work-order');
         Route::get('/ajax/tires/search-by-registration', [TireHotelController::class, 'searchByRegistration'])->name('tenant.ajax.tires.search-by-registration');
         Route::get('/ajax/tires/storage/check-availability', [TireHotelController::class, 'checkAvailability'])->name('tenant.ajax.tires.storage.check');
         Route::get('/ajax/tires/{tire}', [TireHotelController::class, 'apiShow'])->name('tenant.ajax.tires.show');
@@ -133,7 +165,11 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
         Route::post('/checkin/{checkin}/generate-wo', [\App\Http\Controllers\WorkOrderController::class, 'generate'])->name('work-orders.generate');
         Route::post('/work-orders/{workOrder}/generate-invoice', [\App\Http\Controllers\WorkOrderController::class, 'generateInvoice'])->name('work-orders.generate-invoice');
         Route::get('/work-orders/{workOrder}/details', [\App\Http\Controllers\WorkOrderController::class, 'jobDetails'])->name('work-orders.details');
-        Route::post('/work-orders/{workOrder}/photos', [\App\Http\Controllers\WorkOrderPhotoController::class, 'store'])->name('work-orders.photos.store');
+        // Audit-C-19: photo upload was unthrottled. The hardened controller
+        // reads up to 5 MB into memory + sniffs MIME — cheap to abuse otherwise.
+        Route::post('/work-orders/{workOrder}/photos', [\App\Http\Controllers\WorkOrderPhotoController::class, 'store'])
+            ->middleware('throttle:20,1')
+            ->name('work-orders.photos.store');
         Route::delete('/work-orders/{workOrder}/photos/{photo}', [\App\Http\Controllers\WorkOrderPhotoController::class, 'destroy'])
             ->middleware('permission:delete records')
             ->name('work-orders.photos.destroy');
