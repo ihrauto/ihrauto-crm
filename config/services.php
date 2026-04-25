@@ -69,4 +69,25 @@ return [
         'trial_days' => (int) env('STRIPE_TRIAL_DAYS', 14),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Twilio (SMS notifications)
+    |--------------------------------------------------------------------------
+    |
+    | Sending lives in App\Services\SmsService — wraps Twilio\Rest\Client
+    | with E.164 normalization (Swiss formats), customer opt-out enforcement,
+    | and a CommunicationLog row per attempt for an audit trail.
+    |
+    | Tenant-level toggle (tenants.settings.sms.enabled) takes precedence
+    | over the global keys here — a tenant must explicitly opt in.
+    | Default region is CH because the customer base is DACH/Switzerland;
+    | flip via SMS_DEFAULT_REGION when expanding.
+    */
+    'twilio' => [
+        'sid' => env('TWILIO_ACCOUNT_SID'),
+        'token' => env('TWILIO_AUTH_TOKEN'),
+        'from' => env('TWILIO_FROM_NUMBER'),
+        'default_region' => env('SMS_DEFAULT_REGION', 'CH'),
+    ],
+
 ];

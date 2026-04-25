@@ -185,6 +185,12 @@ Route::middleware(['auth', 'verified', 'trial', 'tenant-activity'])->group(funct
         Route::resource('work-orders', \App\Http\Controllers\WorkOrderController::class);
         Route::post('/checkin/{checkin}/generate-wo', [\App\Http\Controllers\WorkOrderController::class, 'generate'])->name('work-orders.generate');
         Route::post('/work-orders/{workOrder}/generate-invoice', [\App\Http\Controllers\WorkOrderController::class, 'generateInvoice'])->name('work-orders.generate-invoice');
+        // ENG-011: SMS "your car is ready" — throttled per-tenant via
+        // route limiter, plus per-customer rate-limit logic in the
+        // service to prevent accidental double-sends.
+        Route::post('/work-orders/{workOrder}/notify', [\App\Http\Controllers\WorkOrderController::class, 'notifyCustomer'])
+            ->middleware('throttle:30,1')
+            ->name('work-orders.notify');
         Route::get('/work-orders/{workOrder}/details', [\App\Http\Controllers\WorkOrderController::class, 'jobDetails'])->name('work-orders.details');
         // Audit-C-19: photo upload was unthrottled. The hardened controller
         // reads up to 5 MB into memory + sniffs MIME — cheap to abuse otherwise.

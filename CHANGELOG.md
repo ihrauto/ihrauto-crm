@@ -2,6 +2,80 @@
 
 All notable changes to IHRAUTO CRM are documented here.
 
+## [Unreleased] - 2026-04-26 — SMS notifications (ENG-011)
+
+"Your car is ready" SMS to the customer, sent from the work-order page
+with one click. Audit-first: every send attempt — successful, failed, or
+skipped — produces an immutable CommunicationLog row before any side
+effect. Foundation for appointment reminders, TÜV alerts, and dunning
+SMS in later sprints.
+
+### Architecture
+
+- New dependency: `twilio/sdk` (^8.11).
+- `App\Services\SmsService` wraps `Twilio\Rest\Client` with: tenant /
+  customer opt-in checks, E.164 phone normalization (Swiss / German /
+  Austrian formats), audit-row-on-every-attempt.
+- `App\Models\CommunicationLog` — append-only model. `deleting` /
+  `updating` boot hooks throw to prevent silent scrub of the audit trail.
+- New `communication_logs` table tracks tenant, customer, work-order,
+  channel, template, body, status, provider id (Twilio SID), error code
+  + message. Status lifecycle: `queued` / `delivered` / `failed` /
+  `skipped` (with explanatory error code).
+- Forward-compat for WhatsApp + email channels (the channel column +
+  service interface allow it; only SMS implemented today).
+
+### Configuration
+
+- New env vars: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+  `TWILIO_FROM_NUMBER`, `SMS_DEFAULT_REGION` (default `CH`).
+- Tenant must opt in: `tenants.settings.sms.enabled = true`. Optional
+  `tenants.settings.sms.from_number` overrides the global From.
+- Customer can opt out: `customers.sms_opt_out = true` is honored before
+  any send attempt; opt-out logs a skipped row with `error_code = opt_out`.
+
+### HTTP
+
+- `WorkOrderController::notifyCustomer` (POST `/work-orders/{wo}/notify`,
+  throttle 30/min, auth required, view-policy authorized): sends the
+  "your car is ready" template, returns the resulting log status as a
+  flash message (`success` for queued, `error` for failed, `info` for
+  skipped). Cross-tenant work orders return 404 via TenantScope.
+
+### UI
+
+- Work-order show page: green "Notify customer (SMS)" button rendered
+  when (a) tenant has SMS enabled, (b) customer has a phone, (c) customer
+  hasn't opted out. Renders as a disabled grey state (with explanatory
+  tooltip) when the customer has opted out.
+
+### Tests
+
+- `SmsServiceTest` (17): E.164 normalization across 10 phone formats
+  (CH/DE/AT, leading-0, +, 00, edge cases), guards (tenant disabled,
+  customer opted out, no phone, missing creds), success/failure paths
+  with mocked Twilio client, append-only contract on CommunicationLog.
+- `WorkOrderNotifyCustomerTest` (5): happy-path log creation, skipped
+  log on disabled tenant, auth required, cross-tenant 404, route throttle.
+
+### Verification
+
+- `php artisan test`: 552 passing (1824 assertions), all green.
+- `./vendor/bin/pint --test`: clean on every changed file.
+
+### Future work
+
+- Twilio status webhooks → flip CommunicationLog from `queued` to
+  `delivered` / `undelivered` based on real carrier delivery.
+- WhatsApp Business API channel (next sprint — needs Twilio approval
+  + sender registration).
+- Auto-fire on work-order completion (currently manual only — admin
+  clicks the button — to avoid surprise spam during integration testing).
+- Per-tenant SMS settings UI (enable/disable, from-number) under
+  Management → Settings.
+
+---
+
 ## [Unreleased] - 2026-04-26 — Stripe billing (ENG-010)
 
 Replaces the local-only mock subscription flow with real Stripe Checkout +

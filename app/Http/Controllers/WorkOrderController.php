@@ -8,6 +8,7 @@ use App\Models\Checkin;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Services\InvoiceService;
+use App\Services\SmsService;
 use App\Services\WorkOrderService;
 use App\Traits\ChecksTechnicianAvailability;
 use Illuminate\Http\Request;
@@ -21,6 +22,27 @@ class WorkOrderController extends Controller
         protected InvoiceService $invoiceService,
         protected WorkOrderService $workOrderService,
     ) {}
+
+    /**
+     * ENG-011: send the "your car is ready" SMS to the customer.
+     * Returns the CommunicationLog row's status so the UI can show a
+     * specific outcome — queued / failed / skipped (with the reason).
+     */
+    public function notifyCustomer(WorkOrder $workOrder, SmsService $sms)
+    {
+        $this->authorize('view', $workOrder);
+
+        $log = $sms->sendWorkOrderReady($workOrder, auth()->id());
+
+        $messages = [
+            \App\Models\CommunicationLog::STATUS_QUEUED => ['success', 'SMS queued for delivery to '.$log->to],
+            \App\Models\CommunicationLog::STATUS_FAILED => ['error', 'SMS failed: '.$log->error_message],
+            \App\Models\CommunicationLog::STATUS_SKIPPED => ['info', 'SMS not sent: '.$log->error_message],
+        ];
+        [$type, $message] = $messages[$log->status] ?? ['info', 'SMS attempt logged.'];
+
+        return back()->with($type, $message);
+    }
 
     /**
      * Generate an invoice from a Work Order (Manual Action).

@@ -94,6 +94,7 @@ class Customer extends Model
         'name',
         'email',
         'phone',
+        'sms_opt_out',
         'address',
         'city',
         'postal_code',
@@ -111,6 +112,7 @@ class Customer extends Model
     protected $casts = [
         'date_of_birth' => 'date',
         'is_active' => 'boolean',
+        'sms_opt_out' => 'boolean',
         'email' => 'encrypted',
         'phone' => 'encrypted',
         'address' => 'encrypted',

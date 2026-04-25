@@ -126,6 +126,32 @@
                             <span class="text-gray-700 font-medium font-mono">{{ $workOrder->vehicle->vin ?? 'N/A' }}</span>
                         </div>
                     </div>
+
+                    {{-- ENG-011: "your car is ready" SMS. Visible only when
+                         the customer has a phone, hasn't opted out, and the
+                         tenant has SMS enabled. The button always submits —
+                         the SmsService gates again server-side and produces
+                         a CommunicationLog row either way (queued / failed
+                         / skipped) so the audit trail is complete. --}}
+                    @php
+                        $smsEnabled = (tenant()?->settings['sms']['enabled'] ?? false) === true;
+                        $hasPhone = ! empty($workOrder->customer->phone ?? null);
+                        $optedOut = (bool) ($workOrder->customer->sms_opt_out ?? false);
+                    @endphp
+                    @if($smsEnabled && $hasPhone)
+                        <form action="{{ route('work-orders.notify', $workOrder) }}" method="POST" class="mt-4">
+                            @csrf
+                            <button type="submit"
+                                @if($optedOut) disabled @endif
+                                class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-white {{ $optedOut ? 'bg-gray-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700' }}"
+                                title="{{ $optedOut ? 'Customer opted out of SMS' : 'Send the customer a "your car is ready" SMS' }}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                </svg>
+                                {{ $optedOut ? 'Customer opted out of SMS' : 'Notify customer (SMS)' }}
+                            </button>
+                        </form>
+                    @endif
                 </div>
 
                 <!-- Scope Checklist moved to Job Sheet -->
