@@ -120,34 +120,38 @@
 
         <!-- Sidebar -->
         @if(!request()->is('admin*'))
+        {{-- Theme pass 2026-04-26: sidebar uses brand-500 (#3E9786) directly,
+             not brand-950, so the user's primary teal is the dominant
+             surface across the app. Drop shadow-xl too — clean & flat per
+             the brief. --}}
         <nav :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
              aria-label="Main navigation"
-             class="sidebar-nav bg-brand-950 flex-shrink-0 flex flex-col fixed inset-y-0 z-50 shadow-xl lg:translate-x-0">
+             class="sidebar-nav bg-brand-500 flex-shrink-0 flex flex-col fixed inset-y-0 z-50 lg:translate-x-0">
             
             <!-- Close button (mobile only) -->
-            <button type="button" @click="sidebarOpen = false" aria-label="Close navigation menu" class="absolute top-5 right-4 p-2 text-indigo-300 hover:text-white lg:hidden">
+            <button type="button" @click="sidebarOpen = false" aria-label="Close navigation menu" class="absolute top-5 right-4 p-2 text-white/70 hover:text-white lg:hidden">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
             
             <!-- Logo Section -->
-            <div class="logo-section h-20 flex items-center px-6 border-b border-indigo-900/50 relative">
+            <div class="logo-section h-20 flex items-center px-6 border-b border-white/10 relative">
                 <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20 flex-shrink-0">
-                        <svg class="w-5 h-5 text-indigo-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-brand-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
                     </div>
                     <div class="logo-text">
                         <span class="text-lg font-bold tracking-tight text-white">IHRAUTO</span>
-                        <span class="text-xs text-indigo-200 font-medium ml-1">CRM</span>
+                        <span class="text-xs text-white/70 font-medium ml-1">CRM</span>
                     </div>
                 </div>
-                
+
                 <!-- Collapse Toggle Button (Desktop only) -->
                 <button type="button" @click="toggleCollapse()"
-                        class="toggle-btn hidden lg:flex absolute -right-4 top-6 w-8 h-8 bg-indigo-600 hover:bg-indigo-500 rounded-full items-center justify-center text-white shadow-lg hover:scale-110 border-2 border-brand-950"
+                        class="toggle-btn hidden lg:flex absolute -right-4 top-6 w-8 h-8 bg-brand-700 hover:bg-brand-800 rounded-full items-center justify-center text-white hover:scale-110 border-2 border-white"
                         :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
                         :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
                         aria-controls="nav-container">
@@ -161,14 +165,14 @@
             <div class="nav-container flex-1 overflow-y-auto py-8 px-4 space-y-6">
                 <!-- MAIN Section -->
                 <div>
-                    <h3 class="nav-section-title px-3 text-[10px] font-extrabold text-indigo-300/50 uppercase tracking-[0.2em] mb-4">Overview</h3>
+                    <h3 class="nav-section-title px-3 text-[10px] font-extrabold text-white/60 uppercase tracking-[0.2em] mb-4">Overview</h3>
                     <div class="space-y-1">
                         @can('access dashboard')
                         <a href="{{ route('dashboard') }}" id="nav-dashboard"
                            @click="sidebarOpen = false"
                            title="Dashboard"
-                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('dashboard') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('dashboard') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 {{ request()->routeIs('dashboard') ? 'bg-brand-700 text-white' : 'text-white/80 hover:bg-brand-600 hover:text-white' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('dashboard') ? 'text-white' : 'text-white/70 group-hover:text-white' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
                             </svg>
                             <span class="nav-label">Dashboard</span>
@@ -179,8 +183,8 @@
                         <a href="{{ route('checkin') }}" id="nav-checkin"
                            @click="sidebarOpen = false"
                            title="Check-in"
-                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('checkin*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('checkin*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 {{ request()->routeIs('checkin*') ? 'bg-brand-700 text-white' : 'text-white/80 hover:bg-brand-600 hover:text-white' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('checkin*') ? 'text-white' : 'text-white/70 group-hover:text-white' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                             </svg>
                             <span class="nav-label">Check-in</span>
@@ -195,20 +199,20 @@
                                 <a href="{{ route('tires-hotel') }}" id="nav-tire-hotel"
                                    @click="sidebarOpen = false"
                                    title="Tire Hotel"
-                                   class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('tires-hotel*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
-                                    <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('tires-hotel*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 {{ request()->routeIs('tires-hotel*') ? 'bg-brand-700 text-white' : 'text-white/80 hover:bg-brand-600 hover:text-white' }}">
+                                    <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('tires-hotel*') ? 'text-white' : 'text-white/70 group-hover:text-white' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                                     </svg>
                                     <span class="nav-label">Tire Hotel</span>
                                 </a>
                             @else
                                 {{-- Show locked/upgrade indicator for BASIC plan --}}
-                                <div class="nav-link group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg text-indigo-100/30 cursor-not-allowed" title="Upgrade to Standard to unlock Tire Hotel">
-                                    <svg class="flex-shrink-0 w-5 h-5 mr-3 text-indigo-400/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div class="nav-link group flex items-center px-3 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg text-white/40 cursor-not-allowed" title="Upgrade to Standard to unlock Tire Hotel">
+                                    <svg class="flex-shrink-0 w-5 h-5 mr-3 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                                     </svg>
                                     <span class="nav-label">Tire Hotel</span>
-                                    <span class="nav-label ml-auto px-1.5 py-0.5 text-[9px] bg-amber-500/20 text-amber-300 rounded font-semibold">PRO</span>
+                                    <span class="nav-label ml-auto px-1.5 py-0.5 text-[9px] bg-accent-500 text-white rounded font-semibold">PRO</span>
                                 </div>
                             @endif
                         @endcan
@@ -217,8 +221,8 @@
                         <a href="{{ route('work-orders.index') }}" id="nav-work-orders"
                            @click="sidebarOpen = false"
                            title="Work Orders"
-                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('work-orders*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('work-orders*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 {{ request()->routeIs('work-orders*') ? 'bg-brand-700 text-white' : 'text-white/80 hover:bg-brand-600 hover:text-white' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('work-orders*') ? 'text-white' : 'text-white/70 group-hover:text-white' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
                             <span class="nav-label">Work Orders</span>
@@ -229,8 +233,8 @@
                         <a href="{{ route('appointments.index') }}" id="nav-appointments"
                            @click="sidebarOpen = false"
                            title="Appointments"
-                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('appointments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('appointments*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 {{ request()->routeIs('appointments*') ? 'bg-brand-700 text-white' : 'text-white/80 hover:bg-brand-600 hover:text-white' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('appointments*') ? 'text-white' : 'text-white/70 group-hover:text-white' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
                             <span class="nav-label">Appointments</span>
@@ -241,8 +245,8 @@
                         <a href="{{ route('finance.index') }}" id="nav-finance"
                            @click="sidebarOpen = false"
                            title="Finance"
-                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('finance*', 'payments*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('finance*', 'payments*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 {{ request()->routeIs('finance*', 'payments*') ? 'bg-brand-700 text-white' : 'text-white/80 hover:bg-brand-600 hover:text-white' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('finance*', 'payments*') ? 'text-white' : 'text-white/70 group-hover:text-white' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                             <span class="nav-label">Finance</span>
@@ -253,14 +257,14 @@
 
                 <!-- MANAGEMENT Section -->
                 <div>
-                   <h3 class="nav-section-title px-3 text-[10px] font-extrabold text-indigo-300/50 uppercase tracking-[0.2em] mb-4">Management</h3>
+                   <h3 class="nav-section-title px-3 text-[10px] font-extrabold text-white/60 uppercase tracking-[0.2em] mb-4">Management</h3>
                     <div class="space-y-1">
                         @can('access inventory')
                         <a href="{{ route('products-services.index') }}" 
                            @click="sidebarOpen = false"
                            title="Inventory & Services"
-                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('products-services*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('products-services*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 {{ request()->routeIs('products-services*') ? 'bg-brand-700 text-white' : 'text-white/80 hover:bg-brand-600 hover:text-white' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('products-services*') ? 'text-white' : 'text-white/70 group-hover:text-white' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
                             <span class="nav-label">Inventory & Services</span>
@@ -271,8 +275,8 @@
                         <a href="{{ route('customers.index') }}" 
                            @click="sidebarOpen = false"
                            title="Customers"
-                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('customers*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('customers*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 {{ request()->routeIs('customers*') ? 'bg-brand-700 text-white' : 'text-white/80 hover:bg-brand-600 hover:text-white' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('customers*') ? 'text-white' : 'text-white/70 group-hover:text-white' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>
                             <span class="nav-label">Customers</span>
@@ -283,8 +287,8 @@
                         <a href="{{ route('management') }}" 
                            @click="sidebarOpen = false"
                            title="Management"
-                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border {{ request()->routeIs('management*') ? 'bg-indigo-600 shadow-lg shadow-indigo-900/50 text-white border-indigo-500/30' : 'text-indigo-100/80 border-indigo-500/20 hover:bg-white/5 hover:text-white hover:border-indigo-400/40' }}">
-                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('management*') ? 'text-white' : 'text-indigo-300 group-hover:text-indigo-200' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="nav-link group flex items-center px-3 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 {{ request()->routeIs('management*') ? 'bg-brand-700 text-white' : 'text-white/80 hover:bg-brand-600 hover:text-white' }}">
+                            <svg class="flex-shrink-0 w-5 h-5 mr-3 {{ request()->routeIs('management*') ? 'text-white' : 'text-white/70 group-hover:text-white' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             </svg>
@@ -297,14 +301,14 @@
 
 
             <!-- User Profile / Footer -->
-            <div class="footer-section border-t border-indigo-900/50 p-4 bg-black/20">
+            <div class="footer-section border-t border-white/10 p-4 bg-brand-700/40">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white border border-indigo-400 flex-shrink-0">
+                    <div class="w-10 h-10 rounded-full bg-brand-700 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                         IA
                     </div>
                     <div class="footer-text">
                         <p class="text-sm font-bold text-white">System Admin</p>
-                        <p class="text-xs text-indigo-300">v{{ app_version() }}</p>
+                        <p class="text-xs text-white/70">v{{ app_version() }}</p>
                     </div>
                 </div>
             </div>
