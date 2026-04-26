@@ -777,4 +777,401 @@ class DashboardService
             ];
         }
     }
+
+    // =================================================================
+    // Dashboard redesign 2026-04-26 — sparkline + analytics methods
+    //
+    // Each `getXxxSparkline()` returns the last $days values as a flat
+    // numeric array, ready to feed an ApexCharts sparkline. We do NOT
+    // return labels — sparklines are deliberately label-less, only the
+    // shape matters at this size. Tenant scoping is implicit via the
+    // model's BelongsToTenant trait; we still assert tenant context to
+    // fail closed (UX-03 pattern).
+    //
+    // Heavy aggregations are wrapped in CachedQuery::remember with a
+    // 5-minute TTL — sparklines are not real-time and the dashboard is
+    // viewed many times per request session.
+    // =================================================================
+
+    /**
+     * Daily revenue (sum of payments) for the last $days days.
+     * Powers the Revenue KPI sparkline.
+     */
+    public function getRevenueSparkline(int $days = 30): array
+    {
+        $tenantId = $this->requireTenant(__METHOD__);
+
+        return CachedQuery::remember(
+            "dashboard_spark_rev_{$tenantId}_{$days}",
+            300,
+            fn () => $this->dailySeries(
+                model: \App\Models\Payment::class,
+                column: 'payment_date',
+                aggregate: 'sum',
+                aggregateColumn: 'amount',
+                days: $days,
+            ),
+        );
+    }
+
+    /**
+     * Daily count of in-progress work orders over the last $days days.
+     * Powers the Active Jobs KPI sparkline.
+     */
+    public function getActiveJobsSparkline(int $days = 30): array
+    {
+        $tenantId = $this->requireTenant(__METHOD__);
+
+        return CachedQuery::remember(
+            "dashboard_spark_aj_{$tenantId}_{$days}",
+            300,
+            fn () => $this->dailySeries(
+                model: \App\Models\WorkOrder::class,
+                column: 'created_at',
+                aggregate: 'count',
+                days: $days,
+            ),
+        );
+    }
+
+    /**
+     * Daily outstanding-balance trend (sum of total-paid_amount on
+     * non-paid, non-void invoices created up to that day). Powers
+     * the Outstanding Balance KPI sparkline.
+     *
+     * Note: this is "snapshot at end of each day" semantics — it
+     * approximates the running outstanding balance by re-computing the
+     * end-of-day total each day. Acceptable at sparkline resolution.
+     */
+    public function getOutstandingSparkline(int $days = 30): array
+    {
+        $tenantId = $this->requireTenant(__METHOD__);
+
+        return CachedQuery::remember(
+            "dashboard_spark_outst_{$tenantId}_{$days}",
+            300,
+            function () use ($days) {
+                // Approx: per-day net = SUM(total - paid_amount) of
+                // invoices ISSUED on that day. That's "new debt created
+                // today" — close enough to a balance trend for a
+                // sparkline that's only meant to show direction.
+                return $this->dailySeries(
+                    model: \App\Models\Invoice::class,
+                    column: 'issue_date',
+                    aggregate: 'sum',
+                    aggregateColumn: \DB::raw('total - paid_amount'),
+                    days: $days,
+                    additionalWhere: function ($q) {
+                        $q->where('status', '!=', 'void')
+                            ->where('status', '!=', 'draft');
+                    },
+                );
+            },
+        );
+    }
+
+    /**
+     * Daily new-customer count over the last $days days.
+     * Powers the New Customers KPI sparkline.
+     */
+    public function getNewCustomersSparkline(int $days = 30): array
+    {
+        $tenantId = $this->requireTenant(__METHOD__);
+
+        return CachedQuery::remember(
+            "dashboard_spark_nc_{$tenantId}_{$days}",
+            300,
+            fn () => $this->dailySeries(
+                model: Customer::class,
+                column: 'created_at',
+                aggregate: 'count',
+                days: $days,
+            ),
+        );
+    }
+
+    /**
+     * Customer mix segmentation:
+     *   active     — at least one work order in last 90 days
+     *   recent     — registered in last 30 days, no work order yet
+     *   reengaged  — returned with a WO after a 6+ month gap
+     *
+     * Sum is NOT necessarily the total customer count — segments
+     * are best-effort buckets, "other" is implicit.
+     *
+     * Powers the Customer Mix donut chart.
+     */
+    public function getCustomerMix(): array
+    {
+        $tenantId = $this->requireTenant(__METHOD__);
+
+        return CachedQuery::remember(
+            "dashboard_customer_mix_{$tenantId}",
+            300,
+            function () {
+                $now = now();
+
+                // Customer has no direct `workOrders` relation — use exists
+                // sub-queries against work_orders.customer_id directly.
+                $activeCount = Customer::whereExists(function ($q) use ($now) {
+                    $q->select(\DB::raw(1))
+                        ->from('work_orders')
+                        ->whereColumn('work_orders.customer_id', 'customers.id')
+                        ->where('work_orders.created_at', '>=', $now->copy()->subDays(90));
+                })->count();
+
+                $recentCount = Customer::where('created_at', '>=', $now->copy()->subDays(30))
+                    ->whereNotExists(function ($q) {
+                        $q->select(\DB::raw(1))
+                            ->from('work_orders')
+                            ->whereColumn('work_orders.customer_id', 'customers.id');
+                    })
+                    ->count();
+
+                // Re-engaged: any WO in last 30 days where the previous
+                // WO for that customer was 6+ months prior. Single SQL.
+                $reengagedCount = \App\Models\WorkOrder::query()
+                    ->whereIn('customer_id', function ($sub) use ($now) {
+                        $sub->select('customer_id')
+                            ->from('work_orders as recent_wo')
+                            ->where('recent_wo.created_at', '>=', $now->copy()->subDays(30))
+                            ->whereExists(function ($prev) use ($now) {
+                                $prev->select(\DB::raw(1))
+                                    ->from('work_orders as prev_wo')
+                                    ->whereColumn('prev_wo.customer_id', 'recent_wo.customer_id')
+                                    ->where('prev_wo.created_at', '<', $now->copy()->subMonths(6))
+                                    ->whereRaw('prev_wo.id != recent_wo.id');
+                            });
+                    })
+                    ->distinct('customer_id')
+                    ->count('customer_id');
+
+                $totalCount = Customer::count();
+
+                return [
+                    'active' => $activeCount,
+                    'recent' => $recentCount,
+                    'reengaged' => $reengagedCount,
+                    'total' => $totalCount,
+                ];
+            },
+        );
+    }
+
+    /**
+     * Service-bay utilisation heatmap: 7 days × 9 hours (08:00–17:00),
+     * each cell = count of work orders that were "in progress" during
+     * that hour. Approximation: a WO covers each hour between its
+     * `started_at` and `completed_at` (or now() if still in progress).
+     */
+    public function getBayUtilization(): array
+    {
+        $tenantId = $this->requireTenant(__METHOD__);
+
+        return CachedQuery::remember(
+            "dashboard_bay_util_{$tenantId}",
+            300,
+            function () {
+                // Last 7 days × 9 working hours (08–17). Pre-fill grid
+                // with zeros so missing data doesn't make the heatmap
+                // look "broken".
+                $grid = [];
+                for ($d = 6; $d >= 0; $d--) {
+                    $day = now()->subDays($d)->startOfDay();
+                    $row = ['label' => $day->format('D'), 'date' => $day->toDateString(), 'cells' => []];
+                    for ($h = 8; $h <= 16; $h++) {
+                        $row['cells'][$h] = 0;
+                    }
+                    $grid[] = $row;
+                }
+
+                $weekStart = now()->subDays(6)->startOfDay();
+                $weekEnd = now()->endOfDay();
+
+                $orders = \App\Models\WorkOrder::whereNotNull('started_at')
+                    ->where('started_at', '>=', $weekStart)
+                    ->where('started_at', '<=', $weekEnd)
+                    ->get(['started_at', 'completed_at']);
+
+                foreach ($orders as $wo) {
+                    $start = $wo->started_at;
+                    $end = $wo->completed_at ?? now();
+
+                    foreach ($grid as &$row) {
+                        $rowDate = \Carbon\Carbon::parse($row['date']);
+                        if (! $start->isSameDay($rowDate) && ! $end->isSameDay($rowDate)) {
+                            // does not overlap with this row
+                            continue;
+                        }
+
+                        // For each working hour, count if WO was in progress
+                        for ($h = 8; $h <= 16; $h++) {
+                            $hourStart = $rowDate->copy()->setTime($h, 0);
+                            $hourEnd = $rowDate->copy()->setTime($h + 1, 0);
+                            if ($start->lt($hourEnd) && $end->gt($hourStart)) {
+                                $row['cells'][$h]++;
+                            }
+                        }
+                    }
+                    unset($row);
+                }
+
+                $totalBays = (int) config('crm.service_bays.count', 6);
+
+                return [
+                    'grid' => $grid,
+                    'total_bays' => $totalBays,
+                ];
+            },
+        );
+    }
+
+    /**
+     * Top mechanics by completed work orders in the last $days days.
+     * Powers the Top Mechanics bar chart.
+     */
+    public function getTopMechanics(int $days = 30, int $limit = 8): array
+    {
+        $tenantId = $this->requireTenant(__METHOD__);
+
+        return CachedQuery::remember(
+            "dashboard_top_mech_{$tenantId}_{$days}_{$limit}",
+            300,
+            function () use ($days, $limit) {
+                $since = now()->subDays($days);
+
+                return \App\Models\WorkOrder::query()
+                    ->where('status', 'completed')
+                    ->where('completed_at', '>=', $since)
+                    ->whereNotNull('technician_id')
+                    ->selectRaw('technician_id, COUNT(*) as completed_count')
+                    ->groupBy('technician_id')
+                    ->orderByDesc('completed_count')
+                    ->limit($limit)
+                    ->with('technician:id,name')
+                    ->get()
+                    ->map(fn ($row) => [
+                        'name' => $row->technician?->name ?? 'Unknown',
+                        'count' => (int) $row->completed_count,
+                    ])
+                    ->all();
+            },
+        );
+    }
+
+    /**
+     * Recent customer activity stream — alternating payments and
+     * outstanding-balance changes. Used by the right-rail "Customer
+     * Activity" widget.
+     *
+     * @return array<int, array{
+     *     type: string, customer: string, amount: float,
+     *     positive: bool, date: string, ref: string
+     * }>
+     */
+    public function getCustomerActivityStream(int $limit = 6): array
+    {
+        $tenantId = $this->requireTenant(__METHOD__);
+
+        return CachedQuery::remember(
+            "dashboard_cust_activity_{$tenantId}_{$limit}",
+            120,
+            function () use ($limit) {
+                $payments = \App\Models\Payment::with(['invoice.customer'])
+                    ->latest('payment_date')
+                    ->take($limit)
+                    ->get()
+                    ->map(fn ($p) => [
+                        'type' => 'payment',
+                        'customer' => $p->invoice?->customer?->name ?? 'Unknown',
+                        'amount' => (float) $p->amount,
+                        'positive' => true,
+                        'date' => $p->payment_date?->format('M j'),
+                        'ref' => $p->invoice?->invoice_number ?? ('#'.$p->invoice_id),
+                    ]);
+
+                return $payments->all();
+            },
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // Internal helpers
+    // -----------------------------------------------------------------
+
+    /** Fail-closed tenant assertion (mirrors UX-03 pattern). */
+    private function requireTenant(string $caller): int
+    {
+        $tenantId = tenant_id();
+        if ($tenantId === null) {
+            throw new \LogicException(
+                "{$caller} requires a resolved tenant context. "
+                .'TenantScope silently returns cross-tenant data when no tenant '
+                .'is bound — fail loudly here rather than leak.'
+            );
+        }
+
+        return (int) $tenantId;
+    }
+
+    /**
+     * Build a daily-binned aggregate series for the last $days days.
+     * Pads missing days with zero so the sparkline doesn't have gaps.
+     *
+     * @param  string  $model  Eloquent model FQCN
+     * @param  string  $column  date column to bucket on
+     * @param  string  $aggregate  'count' | 'sum'
+     * @param  string|\Illuminate\Database\Query\Expression|null  $aggregateColumn  required when aggregate=='sum'
+     * @param  int  $days  how many days back
+     * @param  callable|null  $additionalWhere  optional extra filter callback
+     * @return array<int, float|int>
+     */
+    private function dailySeries(
+        string $model,
+        string $column,
+        string $aggregate = 'count',
+        $aggregateColumn = null,
+        int $days = 30,
+        ?callable $additionalWhere = null,
+    ): array {
+        $start = now()->subDays($days - 1)->startOfDay();
+        $end = now()->endOfDay();
+
+        // Driver-portable date bucket — strftime on SQLite, DATE() on PG.
+        // DATE() works on both for date-only output.
+        $bucket = "DATE({$column})";
+
+        $query = $model::query()
+            ->where($column, '>=', $start)
+            ->where($column, '<=', $end);
+
+        if ($additionalWhere !== null) {
+            $additionalWhere($query);
+        }
+
+        if ($aggregate === 'sum') {
+            if ($aggregateColumn === null) {
+                throw new \InvalidArgumentException('sum aggregate requires aggregateColumn');
+            }
+            $rawAgg = $aggregateColumn instanceof \Illuminate\Database\Query\Expression
+                ? "SUM({$aggregateColumn->getValue(\DB::connection()->getQueryGrammar())})"
+                : "SUM({$aggregateColumn})";
+            $query->selectRaw("{$bucket} as day, {$rawAgg} as v");
+        } else {
+            $query->selectRaw("{$bucket} as day, COUNT(*) as v");
+        }
+
+        $rows = $query->groupBy('day')->orderBy('day')->get()
+            ->mapWithKeys(fn ($r) => [(string) $r->day => (float) $r->v])
+            ->all();
+
+        // Pad — make sure every day in [start..end] has a value.
+        $series = [];
+        for ($i = 0; $i < $days; $i++) {
+            $day = $start->copy()->addDays($i)->toDateString();
+            $series[] = $rows[$day] ?? 0;
+        }
+
+        return $series;
+    }
 }

@@ -3,10 +3,51 @@ import "./bootstrap";
 import Alpine from "alpinejs";
 import Swal from "sweetalert2";
 import Sortable from "sortablejs";
+import ApexCharts from "apexcharts";
 
 window.Alpine = Alpine;
 window.Swal = Swal;
 window.Sortable = Sortable;
+
+/*
+ * Dashboard redesign 2026-04-26: ApexCharts is the single charting
+ * library for the new dashboard widgets. Exposed on window so each
+ * inline widget script can do
+ *
+ *   new ApexCharts(el, config).render()
+ *
+ * without re-importing. We also publish a default theme palette so
+ * every chart pulls colours from one place — no per-widget hex
+ * inlining. The values match the brand / accent / neutral tokens in
+ * tailwind.config.js so the chart strokes & fills sit naturally on
+ * the dashboard surface.
+ */
+window.ApexCharts = ApexCharts;
+window.dashboardChartTheme = Object.freeze({
+    brand: {
+        50: "#E5F2EC",
+        100: "#D6ECE5",
+        200: "#B7DDD0",
+        400: "#5BAE9D",
+        500: "#3E9786", // primary teal
+        600: "#347D6F",
+        700: "#2A6358",
+    },
+    accent: {
+        100: "#FFE0D4",
+        300: "#FF9D78",
+        500: "#FE7551", // primary coral
+        600: "#E55D38",
+    },
+    neutral: {
+        100: "#EFEFF0",
+        300: "#C4C5C6",
+        500: "#7A7C7B",
+        700: "#44464A",
+        900: "#26282C",
+    },
+    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+});
 
 /**
  * ENG-009: Dashboard drag-reorder bootstrap.

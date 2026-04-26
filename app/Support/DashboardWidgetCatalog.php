@@ -45,6 +45,56 @@ class DashboardWidgetCatalog
     public static function all(): array
     {
         return [
+            // ---------- KPI hero row (dashboard redesign 2026-04-26) ----------
+            // Modern small-card KPIs with sparklines. Each one replaces an
+            // older single-number widget; the legacy versions are kept in
+            // the catalog (further down) but disabled by default so power
+            // users can re-enable them via the Studio panel.
+            'kpi_revenue' => [
+                'label' => 'Revenue (KPI)',
+                'description' => 'Revenue this month + 30-day sparkline.',
+                'category' => 'kpi',
+                'module' => 'finance',
+                'permission' => null,
+                'default_for_roles' => ['admin', 'manager'],
+                'partial' => 'dashboard.widgets.kpi-revenue',
+                'size' => 'small',
+                'data_provider' => 'getRevenueSparkline',
+            ],
+            'kpi_active_jobs' => [
+                'label' => 'Active Jobs (KPI)',
+                'description' => 'In-progress count + bay capacity context.',
+                'category' => 'kpi',
+                'module' => 'work-orders',
+                'permission' => null,
+                'default_for_roles' => ['admin', 'manager', 'technician'],
+                'partial' => 'dashboard.widgets.kpi-active-jobs',
+                'size' => 'small',
+                'data_provider' => 'getActiveJobsSparkline',
+            ],
+            'kpi_outstanding' => [
+                'label' => 'Outstanding (KPI)',
+                'description' => 'Unpaid invoice total + 30-day trend.',
+                'category' => 'kpi',
+                'module' => 'finance',
+                'permission' => null,
+                'default_for_roles' => ['admin', 'manager'],
+                'partial' => 'dashboard.widgets.kpi-outstanding',
+                'size' => 'small',
+                'data_provider' => 'getOutstandingSparkline',
+            ],
+            'kpi_new_customers' => [
+                'label' => 'New Customers (KPI)',
+                'description' => 'Last 30 days of new customer registrations.',
+                'category' => 'kpi',
+                'module' => 'customers',
+                'permission' => null,
+                'default_for_roles' => ['admin', 'manager'],
+                'partial' => 'dashboard.widgets.kpi-new-customers',
+                'size' => 'small',
+                'data_provider' => 'getNewCustomersSparkline',
+            ],
+
             // ---------- Operations ----------
             'active_jobs' => [
                 'label' => 'Active Jobs',
@@ -208,23 +258,23 @@ class DashboardWidgetCatalog
 
             // ---------- Finance ----------
             'monthly_revenue' => [
-                'label' => 'Monthly Revenue',
-                'description' => 'Total payments received this month.',
+                'label' => 'Monthly Revenue (legacy)',
+                'description' => 'Total payments received this month. Replaced by Revenue (KPI) — opt-in via the Studio panel if you prefer the legacy single-number tile.',
                 'category' => 'finance',
                 'module' => 'finance',
                 'permission' => null,
-                'default_for_roles' => ['admin', 'manager'],
+                'default_for_roles' => [], // dashboard redesign 2026-04-26 — superseded by kpi_revenue
                 'partial' => 'dashboard.widgets.monthly-revenue',
                 'size' => 'small',
                 'data_provider' => 'getStats',
             ],
             'outstanding_balance' => [
-                'label' => 'Outstanding Balance',
-                'description' => 'Total invoiced minus paid across all invoices.',
+                'label' => 'Outstanding Balance (legacy)',
+                'description' => 'Replaced by Outstanding (KPI) with sparkline trend. Available as opt-in.',
                 'category' => 'finance',
                 'module' => 'finance',
                 'permission' => null,
-                'default_for_roles' => ['admin', 'manager'],
+                'default_for_roles' => [], // dashboard redesign 2026-04-26 — superseded by kpi_outstanding
                 'partial' => 'dashboard.widgets.outstanding-balance',
                 'size' => 'small',
                 'data_provider' => 'getStats',
@@ -337,6 +387,7 @@ class DashboardWidgetCatalog
     public static function categories(): array
     {
         return [
+            'kpi' => 'Headline KPIs',
             'operations' => 'Operations',
             'customer' => 'Customer',
             'finance' => 'Finance',
