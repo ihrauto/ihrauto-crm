@@ -76,7 +76,7 @@
                         Cancel
                     </a>
                     <button type="submit"
-                        class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors shadow-md">
+                        class="px-5 py-2.5 bg-accent-500 text-white rounded-lg font-semibold hover:bg-accent-600 focus:outline-none focus:ring-4 focus:ring-accent-300 transition-colors shadow-md">
                         Add Mechanic
                     </button>
                 </div>

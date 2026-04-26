@@ -195,7 +195,7 @@
 
             <!-- Right: New Appointment -->
             <button type="button" @click="openNewAppointmentModal()"
-                class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition-colors text-sm flex items-center justify-center gap-2">
+                class="px-5 py-2.5 bg-accent-500 text-white rounded-lg hover:bg-accent-600 font-bold shadow-sm transition-colors text-sm flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
@@ -476,7 +476,7 @@
                                 Cancel
                             </button>
                             <button type="submit"
-                                class="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors">
+                                class="flex-1 px-4 py-2.5 bg-accent-500 text-white rounded-lg text-sm font-medium hover:bg-accent-600 shadow-sm transition-colors">
                                 <span x-text="isEditing ? 'Update' : 'Book Appointment'"></span>
                             </button>
                         </div>

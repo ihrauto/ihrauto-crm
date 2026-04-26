@@ -38,7 +38,7 @@
                 <!-- Plan Options -->
                 <div class="space-y-3 mb-6">
                     <a href="{{ route('billing.pricing') }}"
-                        class="block w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors">
+                        class="block w-full px-6 py-3 bg-accent-500 hover:bg-accent-600 text-white font-medium rounded-lg transition-colors">
                         View Plans & Subscribe
                     </a>
                 </div>

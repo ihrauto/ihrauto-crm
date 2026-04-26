@@ -44,7 +44,7 @@
                 <button type="button" onclick="document.getElementById('createServiceModal').close()"
                     class="rounded-lg px-5 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
                 <button type="submit"
-                    class="rounded-lg bg-indigo-600 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-500 transition-colors">Save</button>
+                    class="rounded-lg bg-accent-500 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-accent-500 transition-colors">Save</button>
             </div>
         </form>
     </div>
@@ -100,7 +100,7 @@
                 <button type="button" onclick="document.getElementById('editServiceModal').close()"
                     class="rounded-lg border border-indigo-200 px-5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors">Cancel</button>
                 <button type="submit"
-                    class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">Update
+                    class="rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-500 transition-colors">Update
                     Service</button>
             </div>
         </form>

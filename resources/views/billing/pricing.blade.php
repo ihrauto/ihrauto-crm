@@ -90,7 +90,7 @@
 
                         <div class="mt-8 flex flex-col gap-3">
                             <a href="mailto:{{ $supportEmail }}?subject={{ $emailSubject }}&body={{ $emailBody }}"
-                                class="inline-flex w-full items-center justify-center rounded-xl px-6 py-3.5 text-sm font-bold uppercase tracking-[0.14em] transition {{ $isCurrent ? 'bg-white text-indigo-950 hover:bg-indigo-50' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200' }}">
+                                class="inline-flex w-full items-center justify-center rounded-xl px-6 py-3.5 text-sm font-bold uppercase tracking-[0.14em] transition {{ $isCurrent ? 'bg-white text-indigo-950 hover:bg-indigo-50' : 'bg-accent-500 text-white hover:bg-accent-600 shadow-md shadow-indigo-200' }}">
                                 {{ $isCurrent ? 'Email Billing Team' : 'Request This Plan' }}
                             </a>
 

@@ -24,7 +24,7 @@
                     </a>
                 @endif
                 <button type="button" onclick="window.print()"
-                    class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                    class="rounded-md bg-accent-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
                     Print / PDF
                 </button>
             </div>
@@ -41,7 +41,7 @@
                         <!-- Logo / Company Name -->
                         <div class="flex items-center gap-2">
                             <div
-                                class="h-10 w-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                                class="h-10 w-10 bg-accent-500 rounded-lg flex items-center justify-center text-white font-bold text-xl">
                                 {{ substr(auth()->user()->tenant->name ?? 'I', 0, 1) }}
                             </div>
                             <span

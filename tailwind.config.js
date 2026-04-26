@@ -172,19 +172,72 @@ export default {
                 stone:    { ...neutral },
                 neutral:  { ...neutral },
             },
-            boxShadow: {
-                // Bug review / theme-pass 2026-04-26: cards should have NO
-                // shadow per the user's brief. We keep these tokens around
-                // so existing `shadow-card` / `shadow-modal` classes don't
-                // 404 in the build, but the visual weight is dialled down
-                // so even where the class is still present the surface
-                // reads as flat. Modal keeps a soft elevation because it
-                // genuinely needs to break z-order on top of page content.
-                'card':       'none',
-                'card-hover': 'none',
-                'modal':      '0 12px 24px -6px rgb(0 0 0 / 0.08), 0 4px 8px -2px rgb(0 0 0 / 0.04)',
-            },
+            // ---------------------------------------------------------
+            // Theme pass 2026-04-26: every shadow utility nuked to
+            // `none`. The user wants a flat, professional surface — no
+            // visual weight from elevation. Modals get a single soft
+            // shadow because they genuinely need to break z-order
+            // (otherwise content beneath shows through visually).
+            //
+            // We override `boxShadow` rather than `extend.boxShadow` so
+            // Tailwind's defaults (sm/md/lg/xl/2xl/inner) all flatten
+            // to `none`, killing every existing `shadow-*` class in the
+            // codebase without touching a Blade file.
+            // ---------------------------------------------------------
         },
+        boxShadow: {
+            none:        'none',
+            sm:          'none',
+            DEFAULT:     'none',
+            md:          'none',
+            lg:          'none',
+            xl:          'none',
+            '2xl':       'none',
+            inner:       'none',
+            card:        'none',
+            'card-hover':'none',
+            // The ONLY shadow we keep — only modals/dropdowns need it
+            // to break z-order. Used as `shadow-modal`.
+            modal:       '0 12px 24px -6px rgb(0 0 0 / 0.08), 0 4px 8px -2px rgb(0 0 0 / 0.04)',
+        },
+
+        // ---------------------------------------------------------
+        // Theme pass 2026-04-26: corner radius unified to 10px.
+        // Every `rounded`, `rounded-sm/md/lg/xl/2xl/3xl` resolves
+        // to 10px so the app reads with consistent corner geometry.
+        // `rounded-full` stays at 9999px so circles (avatars,
+        // status dots) keep their shape. `rounded-none` = 0 so
+        // square corners can still be opted into explicitly.
+        // ---------------------------------------------------------
+        borderRadius: {
+            none:    '0',
+            sm:      '10px',
+            DEFAULT: '10px',
+            md:      '10px',
+            lg:      '10px',
+            xl:      '10px',
+            '2xl':   '10px',
+            '3xl':   '10px',
+            full:    '9999px',
+        },
+
+        // ---------------------------------------------------------
+        // Theme pass 2026-04-26: bare `border` produces a
+        // TRANSPARENT line so cards that currently say `border` (no
+        // colour shade) lose their outline globally. Explicit
+        // `border-{color}-{shade}` still works — we want input
+        // fields to stay outlined so users can see them on a white
+        // card. The transparent default just kills the silent
+        // hairline borders on every panel.
+        //
+        // Tailwind merges this with the colors object, so
+        // `border-brand-500`, `border-accent-500`, etc. continue
+        // to resolve to their hex values.
+        // ---------------------------------------------------------
+        borderColor: ({ theme }) => ({
+            DEFAULT: 'transparent',
+            ...theme('colors'),
+        }),
     },
 
     plugins: [forms],

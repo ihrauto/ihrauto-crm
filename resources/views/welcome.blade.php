@@ -23,7 +23,7 @@
     </style>
 </head>
 
-<body class="h-full antialiased bg-brand-tint selection:bg-indigo-500 selection:text-white">
+<body class="h-full antialiased bg-brand-tint selection:bg-accent-500 selection:text-white">
 
     <!-- Navbar -->
     <nav class="fixed w-full z-50 top-0 start-0 border-b border-indigo-200/50 bg-white/80 backdrop-blur-md">
@@ -43,10 +43,10 @@
                 @if (Route::has('login'))
                     @auth
                         <a href="{{ url('/dashboard') }}"
-                            class="text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:outline-none focus:ring-indigo-300 font-bold rounded-lg text-sm px-6 py-2.5 text-center shadow-lg shadow-indigo-500/30 transition-all transform hover:scale-105">Dashboard</a>
+                            class="text-white bg-accent-500 hover:bg-accent-600 focus:ring-4 focus:outline-none focus:ring-accent-300 font-bold rounded-lg text-sm px-6 py-2.5 text-center shadow-lg shadow-indigo-500/30 transition-all transform hover:scale-105">Dashboard</a>
                     @else
                         <a href="{{ route('login') }}"
-                            class="text-white bg-indigo-900 hover:bg-indigo-800 focus:ring-4 focus:outline-none focus:ring-indigo-300 font-bold rounded-lg text-sm px-6 py-2.5 text-center shadow-md transition-all">Log
+                            class="text-white bg-accent-500 hover:bg-accent-600 focus:ring-4 focus:outline-none focus:ring-accent-300 font-bold rounded-lg text-sm px-6 py-2.5 text-center shadow-md transition-all">Log
                             in</a>
 
                         @if (Route::has('register'))
@@ -94,7 +94,7 @@
             <div class="flex flex-col space-y-4 sm:flex-row sm:justify-center sm:space-y-0 sm:space-x-4">
                 @auth
                     <a href="{{ url('/dashboard') }}"
-                        class="inline-flex justify-center items-center py-4 px-8 text-base font-bold text-center text-white rounded-xl bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300 shadow-xl shadow-indigo-500/30 transition-all transform hover:-translate-y-1">
+                        class="inline-flex justify-center items-center py-4 px-8 text-base font-bold text-center text-white rounded-xl bg-accent-500 hover:bg-accent-600 focus:ring-4 focus:ring-accent-300 shadow-xl shadow-indigo-500/30 transition-all transform hover:-translate-y-1">
                         Access Dashboard
                         <svg class="w-3.5 h-3.5 ms-2 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                             fill="none" viewBox="0 0 14 10">
@@ -104,7 +104,7 @@
                     </a>
                 @else
                     <a href="{{ route('login') }}"
-                        class="inline-flex justify-center items-center py-4 px-8 text-base font-bold text-center text-white rounded-xl bg-indigo-900 hover:bg-brand-950 focus:ring-4 focus:ring-indigo-300 shadow-xl shadow-indigo-900/20 transition-all transform hover:-translate-y-1">
+                        class="inline-flex justify-center items-center py-4 px-8 text-base font-bold text-center text-white rounded-xl bg-accent-600 hover:bg-brand-950 focus:ring-4 focus:ring-accent-300 shadow-xl shadow-indigo-900/20 transition-all transform hover:-translate-y-1">
                         Employee Login
                         <svg class="w-3.5 h-3.5 ms-2 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                             fill="none" viewBox="0 0 14 10">

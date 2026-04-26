@@ -53,7 +53,7 @@
                             style="display: none;">
                             <template x-for="option in ['Units', 'Pieces', 'Liters', 'Sets']">
                                 <div @click="selected = option; open = false"
-                                    class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white cursor-pointer">
+                                    class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-accent-500 hover:text-white cursor-pointer">
                                     <span class="block truncate"
                                         :class="{ 'font-semibold': selected === option, 'font-normal': selected !== option }"
                                         x-text="option"></span>
@@ -139,7 +139,7 @@
                             style="display: none;">
                             <template x-for="option in options" :key="option.value">
                                 <div @click="selected = option.value; open = false"
-                                    class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white cursor-pointer">
+                                    class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-accent-500 hover:text-white cursor-pointer">
                                     <span class="block truncate"
                                         :class="{ 'font-semibold': selected === option.value, 'font-normal': selected !== option.value }"
                                         x-text="option.label"></span>
@@ -169,7 +169,7 @@
                 <button type="button" onclick="document.getElementById('createProductModal').close()"
                     class="rounded-lg px-5 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
                 <button type="submit"
-                    class="rounded-lg bg-indigo-600 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-500 transition-colors">Save</button>
+                    class="rounded-lg bg-accent-500 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-accent-500 transition-colors">Save</button>
             </div>
         </form>
     </div>
@@ -277,7 +277,7 @@
                 <button type="button" onclick="document.getElementById('editProductModal').close()"
                     class="rounded-lg px-5 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
                 <button type="submit"
-                    class="rounded-lg bg-indigo-600 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-500 transition-colors">Save</button>
+                    class="rounded-lg bg-accent-500 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-accent-500 transition-colors">Save</button>
             </div>
         </form>
     </div>
@@ -361,7 +361,7 @@
                 <button type="button" onclick="document.getElementById('importPartsModal').close()"
                     class="rounded-lg px-5 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
                 <button type="submit"
-                    class="rounded-lg bg-indigo-600 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-500 transition-colors">Import
+                    class="rounded-lg bg-accent-500 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-accent-500 transition-colors">Import
                     Parts</button>
             </div>
         </form>
@@ -423,7 +423,7 @@
                 <button type="button" onclick="document.getElementById('supplierPartsModal').close()"
                     class="rounded-lg px-5 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
                 <button type="submit"
-                    class="rounded-lg bg-indigo-600 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-500 transition-colors">Connect
+                    class="rounded-lg bg-accent-500 px-8 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-accent-500 transition-colors">Connect
                     & Search</button>
             </div>
         </form>

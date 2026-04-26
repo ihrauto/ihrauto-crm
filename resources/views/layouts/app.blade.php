@@ -100,7 +100,7 @@
           }
       }">
     <!-- Skip to main content link for keyboard users -->
-    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:bg-indigo-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:bg-accent-500 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg">
         Skip to main content
     </a>
 
@@ -534,7 +534,7 @@
                         </div>
                         @can('manage settings')
                             <a href="{{ route('billing.portal') }}"
-                                class="ml-4 inline-flex items-center rounded-lg bg-rose-600 hover:bg-rose-700 px-3 py-2 text-sm font-semibold text-white whitespace-nowrap">
+                                class="ml-4 inline-flex items-center rounded-lg bg-accent-500 hover:bg-accent-600 px-3 py-2 text-sm font-semibold text-white whitespace-nowrap">
                                 Update billing
                             </a>
                         @endcan

@@ -157,7 +157,7 @@
                 <div class="relative group h-full">
                     @if($isPopular)
                         <div class="absolute -top-3 left-0 right-0 flex justify-center z-10">
-                            <span class="bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-md ring-4 ring-white">
+                            <span class="bg-accent-500 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-md ring-4 ring-white">
                                 Most Popular
                             </span>
                         </div>
@@ -204,12 +204,12 @@
                                 </a>
                             @elseif($currentTenant)
                                 <a href="{{ route('subscription.checkout', ['tenant' => $currentTenant->id, 'plan' => $plan['id']]) }}"
-                                    class="block w-full text-center py-2 px-4 rounded-lg font-bold text-sm transition-all duration-200 {{ $isPopular ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg' : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-indigo-600 hover:text-indigo-600' }}">
+                                    class="block w-full text-center py-2 px-4 rounded-lg font-bold text-sm transition-all duration-200 {{ $isPopular ? 'bg-accent-500 text-white hover:bg-accent-600 shadow-md hover:shadow-lg' : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-indigo-600 hover:text-indigo-600' }}">
                                     Switch to {{ $plan['name'] }}
                                 </a>
                             @else
                                 <a href="{{ route('register') }}?plan={{ $plan['id'] }}"
-                                    class="block w-full text-center py-2 px-4 rounded-lg font-bold text-sm transition-all duration-200 {{ $isPopular ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg' : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-indigo-600 hover:text-indigo-600' }}">
+                                    class="block w-full text-center py-2 px-4 rounded-lg font-bold text-sm transition-all duration-200 {{ $isPopular ? 'bg-accent-500 text-white hover:bg-accent-600 shadow-md hover:shadow-lg' : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-indigo-600 hover:text-indigo-600' }}">
                                     {{ $plan['cta'] }}
                                 </a>
                             @endif

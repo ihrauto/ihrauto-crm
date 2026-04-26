@@ -14,7 +14,7 @@
                 </nav>
                 <div class="flex items-center gap-4">
                     <div
-                        class="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-md">
+                        class="w-12 h-12 rounded-full bg-accent-500 text-white flex items-center justify-center font-bold text-xl shadow-md">
                         {{ substr($user->name, 0, 1) }}
                     </div>
                     <div>

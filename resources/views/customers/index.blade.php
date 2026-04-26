@@ -35,7 +35,7 @@
             </div>
 
             <a href="{{ route('customers.create') }}"
-                class="inline-flex items-center justify-center px-5 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                class="inline-flex items-center justify-center px-5 py-2 bg-accent-500 text-white rounded-lg font-semibold hover:bg-accent-600 focus:outline-none focus:ring-4 focus:ring-accent-300 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
                     </path>
@@ -66,7 +66,7 @@
 
                 <div class="flex items-center space-x-2 w-full sm:w-auto">
                     <button type="submit"
-                        class="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors shadow-sm">
+                        class="w-full sm:w-auto bg-accent-500 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-accent-600 focus:outline-none focus:ring-4 focus:ring-accent-300 transition-colors shadow-sm">
                         Search
                     </button>
 
@@ -224,7 +224,7 @@
                         </a>
                     @else
                         <a href="{{ route('customers.create') }}"
-                            class="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors shadow-md">
+                            class="inline-flex items-center justify-center px-5 py-2.5 bg-accent-500 text-white rounded-lg font-semibold hover:bg-accent-600 transition-colors shadow-md">
                             Add First Customer
                         </a>
                     @endif

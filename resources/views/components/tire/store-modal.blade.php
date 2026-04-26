@@ -17,13 +17,13 @@
 
             <!-- Step Indicator (Only for New Mode) -->
             <div id="wizard-steps" class="flex items-center space-x-2" x-show="mode === 'new'">
-                <span :class="{'bg-indigo-600 text-white': step >= 1, 'bg-gray-100 text-gray-500': step < 1}"
+                <span :class="{'bg-accent-500 text-white': step >= 1, 'bg-gray-100 text-gray-500': step < 1}"
                     class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors">1</span>
                 <div class="w-8 h-1 bg-gray-100">
                     <div class="h-full bg-indigo-600 transition-all duration-300"
                         :style="'width: ' + (step > 1 ? '100%' : '0%')"></div>
                 </div>
-                <span :class="{'bg-indigo-600 text-white': step >= 2, 'bg-gray-100 text-gray-500': step < 2}"
+                <span :class="{'bg-accent-500 text-white': step >= 2, 'bg-gray-100 text-gray-500': step < 2}"
                     class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors">2</span>
             </div>
 
@@ -73,7 +73,7 @@
                                 </div>
                             </div>
                             <button type="button" id="manual-search-btn"
-                                class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 shadow-sm transition-all duration-200">
+                                class="px-6 py-2 bg-accent-500 text-white rounded-lg font-semibold hover:bg-accent-600 shadow-sm transition-all duration-200">
                                 Search
                             </button>
                         </div>
@@ -275,7 +275,7 @@
 
                             <!-- Next Button (Step 1) -->
                             <button type="button" x-show="step === 1" @click="next()"
-                                class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-500 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 transition-all">
+                                class="px-6 py-2.5 bg-accent-500 text-white rounded-lg text-sm font-semibold hover:bg-accent-500 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 transition-all">
                                 Next &rarr;
                             </button>
 
@@ -283,7 +283,7 @@
                             <button type="submit" x-show="step === 2"
                                 :disabled="!storage.isAvailable || storage.isChecking"
                                 :class="{'opacity-50 cursor-not-allowed': !storage.isAvailable || storage.isChecking, 'hover:bg-indigo-500 hover:shadow-md': storage.isAvailable && !storage.isChecking}"
-                                class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 transition-all">
+                                class="px-6 py-2.5 bg-accent-500 text-white rounded-lg text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 transition-all">
                                 <span x-show="!storage.isChecking">Confirm & Create Work Order</span>
                                 <span x-show="storage.isChecking">Checking...</span>
                             </button>

@@ -11,7 +11,7 @@
             <!-- Left side buttons -->
             <div class="flex flex-col sm:flex-row gap-3">
                 @can('access management')
-                <a href="{{ route('work-orders.board') }}" class="px-4 py-3 sm:py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-sm min-h-[44px]">
+                <a href="{{ route('work-orders.board') }}" class="px-4 py-3 sm:py-2 bg-accent-500 text-white rounded-lg text-sm font-bold hover:bg-accent-600 transition-colors flex items-center justify-center gap-2 shadow-sm min-h-[44px]">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                     Technician Status
                 </a>
@@ -104,7 +104,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <a href="{{ route('work-orders.show', $order) }}"
-                                        class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors">Open</a>
+                                        class="px-3 py-1.5 bg-accent-500 text-white rounded-lg text-xs font-semibold hover:bg-accent-600 transition-colors">Open</a>
                                 </td>
                             </tr>
                         @empty

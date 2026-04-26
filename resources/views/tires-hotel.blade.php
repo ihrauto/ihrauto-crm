@@ -12,7 +12,7 @@
         <!-- Main Action Boxes -->
         <div id="action-boxes" class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 my-6 lg:my-8">
             <!-- IN HOTEL Box -->
-            <div class="group bg-white border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-indigo-900 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
+            <div class="group bg-white border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-accent-600 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
                 id="in-hotel-box">
                 <div class="text-center">
                     <div
@@ -30,7 +30,7 @@
             </div>
 
             <!-- ADD NEW Box -->
-            <div class="group bg-indigo-50 border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-indigo-900 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
+            <div class="group bg-indigo-50 border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-accent-600 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
                 id="add-new-box">
                 <div class="text-center">
                     <div
@@ -66,7 +66,7 @@
                 <div class="mb-6 mt-2">
                     <div class="flex items-center justify-center space-x-8">
                         <div class="flex flex-col items-center">
-                            <div :class="step >= 1 ? 'bg-indigo-900 text-white shadow-md' : 'bg-white text-indigo-300 ring-1 ring-indigo-200'"
+                            <div :class="step >= 1 ? 'bg-accent-600 text-white shadow-md' : 'bg-white text-indigo-300 ring-1 ring-indigo-200'"
                                 class="w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-all duration-300">
                                 <span class="text-lg font-bold">1</span>
                             </div>
@@ -80,7 +80,7 @@
                         </div>
 
                         <div class="flex flex-col items-center">
-                            <div :class="step >= 2 ? 'bg-indigo-900 text-white shadow-md' : 'bg-white text-indigo-300 ring-1 ring-indigo-200'"
+                            <div :class="step >= 2 ? 'bg-accent-600 text-white shadow-md' : 'bg-white text-indigo-300 ring-1 ring-indigo-200'"
                                 class="w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-all duration-300">
                                 <span class="text-lg font-bold">2</span>
                             </div>
@@ -270,7 +270,7 @@
 
                         <div>
                             <button type="button" x-show="step === 1" @click="goToStep2()"
-                                class="inline-flex items-center px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-500 shadow-sm hover:shadow-md transition-all">
+                                class="inline-flex items-center px-6 py-2.5 bg-accent-500 text-white rounded-lg text-sm font-semibold hover:bg-accent-500 shadow-sm hover:shadow-md transition-all">
                                 Next Step
                                 <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -280,7 +280,7 @@
 
                             <button type="submit" x-show="step === 2" :disabled="!storage.isAvailable || storage.isChecking"
                                 :class="{'opacity-50 cursor-not-allowed': !storage.isAvailable || storage.isChecking, 'hover:bg-indigo-500 hover:shadow-lg': storage.isAvailable && !storage.isChecking}"
-                                class="inline-flex items-center px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold shadow-sm transition-all">
+                                class="inline-flex items-center px-6 py-2.5 bg-accent-500 text-white rounded-lg text-sm font-semibold shadow-sm transition-all">
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M5 13l4 4L19 7"></path>
@@ -328,7 +328,7 @@
                             </div>
                         </div>
                         <button type="button" id="manual-search-btn-inline"
-                            class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 shadow-sm transition-all duration-200">
+                            class="px-6 py-2 bg-accent-500 text-white rounded-lg font-semibold hover:bg-accent-600 shadow-sm transition-all duration-200">
                             Search
                         </button>
                     </div>
@@ -459,7 +459,7 @@
                                         <td class="px-4 py-3 whitespace-nowrap text-center">
                                             <div class="flex items-center justify-center space-x-2">
                                                 <button type="button"
-                                                    class="group inline-flex items-center justify-center w-8 h-8 text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-600 hover:text-white transition-all duration-200 shadow-sm"
+                                                    class="group inline-flex items-center justify-center w-8 h-8 text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-accent-500 hover:text-white transition-all duration-200 shadow-sm"
                                                     data-action="edit-tire" data-tire-id="{{ $tire->id }}" title="Edit tire">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -813,7 +813,7 @@
                                     actions.className = 'flex space-x-2';
                                     const viewLink = document.createElement('a');
                                     viewLink.href = `/tires-hotel/${encodeURIComponent(tire.id)}`;
-                                    viewLink.className = 'inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wide rounded hover:bg-indigo-700 transition-colors shadow-sm';
+                                    viewLink.className = 'inline-flex items-center px-3 py-1.5 bg-accent-500 text-white text-xs font-bold uppercase tracking-wide rounded hover:bg-accent-600 transition-colors shadow-sm';
                                     viewLink.textContent = 'View';
                                     actions.appendChild(viewLink);
                                     footer.appendChild(loc);

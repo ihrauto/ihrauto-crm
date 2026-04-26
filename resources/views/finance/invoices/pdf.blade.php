@@ -107,7 +107,11 @@
         <div class="muted" style="white-space:pre-line">{{ $invoice->notes }}</div>
     @endif
 
-    @if ($invoice->tenant?->iban)
+    @if ($invoice->tenant?->iban && empty($qrBillHtml))
+        {{-- Plain payment details: fallback when the QR-bill block
+             can't be rendered (non-CH/LI IBAN, non-CHF/EUR currency,
+             missing tenant address). The QR block already carries
+             these fields when available. --}}
         <h2>Payment details</h2>
         <div class="muted">
             {{ $invoice->tenant->bank_name }}<br>
@@ -121,5 +125,16 @@
         <a href="{{ route('invoices.show', $invoice) }}">Back to invoice</a>
     </div>
 </div>
+
+@if (! empty($qrBillHtml))
+    {{-- ENG-013: Swiss QR-Bill payment part — bottom third of the page,
+         exactly as the spec requires. The library produces the perforated
+         block + dataMatrix QR code + Swiss Cross. Customer scans this
+         with their banking app and the payment is pre-filled. --}}
+    <div class="qr-bill-page" style="page-break-before: always;">
+        {!! $qrBillHtml !!}
+    </div>
+@endif
+
 </body>
 </html>

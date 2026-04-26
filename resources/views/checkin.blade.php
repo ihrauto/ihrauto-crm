@@ -12,7 +12,7 @@
             role="status"
             aria-live="polite"
             class="fixed top-0 left-0 right-0 z-[9999] transform -translate-y-full transition-transform duration-500 ease-in-out hidden">
-            <div class="bg-indigo-900 text-white shadow-2xl border-b border-indigo-700">
+            <div class="bg-accent-600 text-white shadow-2xl border-b border-indigo-700">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex items-center justify-between py-4">
                         <div class="flex items-center space-x-4">
@@ -46,7 +46,7 @@
         <!-- Main Action Boxes -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 my-6 lg:my-8">
             <!-- ACTIVE USER Box -->
-            <div class="group bg-white border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-indigo-900 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
+            <div class="group bg-white border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-accent-600 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
                 id="active-user-box">
                 <div class="text-center">
                     <div
@@ -63,7 +63,7 @@
             </div>
 
             <!-- ADD NEW Box -->
-            <div class="group bg-indigo-50 border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-indigo-900 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
+            <div class="group bg-indigo-50 border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-accent-600 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
                 id="add-new-box">
                 <div class="text-center">
                     <div
@@ -110,7 +110,7 @@
                             </div>
                         </div>
                         <button type="button" id="manual-search-btn"
-                            class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 hover:shadow-md shadow-sm transition-all duration-200">
+                            class="px-6 py-2 bg-accent-500 text-white rounded-lg font-semibold hover:bg-accent-600 hover:shadow-md shadow-sm transition-all duration-200">
                             Search
                         </button>
                     </div>
@@ -251,7 +251,7 @@
 
                             <!-- Start Service Button -->
                             <button type="submit"
-                                class="inline-flex items-center px-8 py-3 bg-indigo-900 text-white rounded-lg font-semibold hover:bg-indigo-800 hover:shadow-lg transition-all duration-200 shadow-sm">
+                                class="inline-flex items-center px-8 py-3 bg-accent-600 text-white rounded-lg font-semibold hover:bg-accent-600 hover:shadow-lg transition-all duration-200 shadow-sm">
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 4v16m8-8H4"></path>
@@ -269,7 +269,7 @@
     <div id="add-new-form" class="hidden">
         <!-- Success Notification Bar -->
         <div id="success-notification" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md">
-            <div class="bg-indigo-900 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3">
+            <div class="bg-accent-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -288,7 +288,7 @@
                     <!-- Step 1: Customer -->
                     <div class="flex flex-col items-center" id="step-1-indicator">
                         <div
-                            class="w-12 h-12 bg-indigo-900 text-white rounded-xl flex items-center justify-center mb-3 shadow-md">
+                            class="w-12 h-12 bg-accent-600 text-white rounded-xl flex items-center justify-center mb-3 shadow-md">
                             <span class="text-lg font-bold">1</span>
                         </div>
                         <span class="text-sm font-bold text-indigo-900">Customer</span>
@@ -692,7 +692,7 @@
                     <div>
                         <!-- Next Button -->
                         <button type="button"
-                            class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-900 hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-900"
+                            class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-accent-500 hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-900"
                             id="next-btn">
                             Next Step
                             <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
@@ -705,7 +705,7 @@
 
                         <!-- Submit Button -->
                         <button type="submit"
-                            class="hidden inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-900 hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-900"
+                            class="hidden inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-accent-500 hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-900"
                             id="submit-btn">
                             Complete Check-in
                         </button>
@@ -788,7 +788,7 @@
                                             <input type="hidden" name="status" value="done">
                                             <input type="hidden" name="checkout_time" value="{{ now() }}">
                                             <button type="submit"
-                                                class="inline-flex items-center px-4 py-2 bg-indigo-900 text-white rounded-lg text-sm font-medium hover:bg-indigo-800">
+                                                class="inline-flex items-center px-4 py-2 bg-accent-600 text-white rounded-lg text-sm font-medium hover:bg-accent-600">
                                                 Archive
                                             </button>
                                         </form>
@@ -1087,7 +1087,7 @@
 
                     // Proceed if valid
                     currentStepContainer.classList.add('hidden');
-                    document.getElementById(`step-${currentStep}-indicator`).querySelector('div').classList.remove('bg-indigo-900', 'text-white');
+                    document.getElementById(`step-${currentStep}-indicator`).querySelector('div').classList.remove('bg-accent-600', 'text-white');
                     document.getElementById(`step-${currentStep}-indicator`).querySelector('div').classList.add('bg-indigo-50', 'text-indigo-600');
 
                     currentStep++;
@@ -1096,7 +1096,7 @@
                     // Update indicator
                     const nextIndicator = document.getElementById(`step-${currentStep}-indicator`).querySelector('div');
                     nextIndicator.classList.remove('bg-white', 'text-indigo-300');
-                    nextIndicator.classList.add('bg-indigo-900', 'text-white');
+                    nextIndicator.classList.add('bg-accent-600', 'text-white');
 
                     if (currentStep > 1) prevBtn.classList.remove('hidden');
 
@@ -1113,7 +1113,7 @@
                 prevBtn.addEventListener('click', () => {
                     document.getElementById(`step-${currentStep}`).classList.add('hidden');
                     const currentIndicator = document.getElementById(`step-${currentStep}-indicator`).querySelector('div');
-                    currentIndicator.classList.remove('bg-indigo-900', 'text-white');
+                    currentIndicator.classList.remove('bg-accent-600', 'text-white');
                     currentIndicator.classList.add('bg-white', 'text-indigo-300');
 
                     currentStep--;
@@ -1122,7 +1122,7 @@
                     // Update indicator
                     const prevIndicator = document.getElementById(`step-${currentStep}-indicator`).querySelector('div');
                     prevIndicator.classList.remove('bg-indigo-50', 'text-indigo-600');
-                    prevIndicator.classList.add('bg-indigo-900', 'text-white');
+                    prevIndicator.classList.add('bg-accent-600', 'text-white');
 
                     if (currentStep === 1) prevBtn.classList.add('hidden');
 
@@ -1146,7 +1146,7 @@
                         arrow.style.transform = 'rotate(0deg)';
 
                         // Reset styles: remove active dark blue/white, add back original text color and hover effect
-                        header.classList.remove('bg-indigo-900', 'text-white');
+                        header.classList.remove('bg-accent-600', 'text-white');
                         header.classList.add('hover:bg-indigo-50');
 
                         header.querySelector('span').classList.remove('text-white');
@@ -1156,7 +1156,7 @@
                         document.querySelectorAll('.service-category-content').forEach(c => c.style.maxHeight = null);
                         document.querySelectorAll('.service-category-header').forEach(h => {
                             // Reset other headers
-                            h.classList.remove('bg-indigo-900', 'text-white');
+                            h.classList.remove('bg-accent-600', 'text-white');
                             h.classList.add('hover:bg-indigo-50'); // Ensure hover is back for others
 
                             h.querySelector('span').classList.remove('text-white');
@@ -1169,7 +1169,7 @@
                         arrow.style.transform = 'rotate(180deg)';
 
                         // Set active styles: Add dark blue/white, REMOVE hover light blue
-                        header.classList.add('bg-indigo-900', 'text-white');
+                        header.classList.add('bg-accent-600', 'text-white');
                         header.classList.remove('hover:bg-indigo-50'); // Remove hover to prevent flickering/invisible text
 
                         header.querySelector('span').classList.remove('text-indigo-900');

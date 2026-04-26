@@ -31,7 +31,7 @@
                     @if($workOrder->status === 'created')
                         <input type="hidden" name="status" value="in_progress">
                         <button type="submit"
-                            class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-sm transition-colors">
+                            class="px-6 py-2 bg-accent-500 text-white rounded-lg hover:bg-accent-600 font-medium shadow-sm transition-colors">
                             Start Job
                         </button>
                     @elseif($workOrder->status === 'in_progress')
@@ -462,7 +462,7 @@
                                     Cancel
                                 </button>
                                 <button type="submit"
-                                    class="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors shadow-indigo-200">
+                                    class="flex-1 px-4 py-2.5 bg-accent-500 text-white rounded-lg text-sm font-medium hover:bg-accent-600 shadow-sm transition-colors shadow-indigo-200">
                                     Upload Photo
                                 </button>
                             </div>
@@ -522,7 +522,7 @@
         @if($workOrder->status === 'completed' && !auth()->user()->hasRole(['admin', 'owner']))
             <div class="mt-6 flex justify-start">
                 <a href="{{ route('work-orders.details', $workOrder) }}"
-                    class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-6 rounded-lg text-sm font-bold shadow-sm transition-colors">
+                    class="inline-flex items-center bg-accent-500 hover:bg-accent-600 text-white py-2 px-6 rounded-lg text-sm font-bold shadow-sm transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">

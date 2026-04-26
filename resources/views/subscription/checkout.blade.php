@@ -142,7 +142,7 @@
                                         Cancel
                                     </a>
                                     <button type="submit" id="pay-button"
-                                        class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-base hover:bg-indigo-500 active:scale-[0.98] transition-all shadow-lg shadow-indigo-200 flex items-center justify-center relative overflow-hidden group">
+                                        class="w-full bg-accent-500 text-white py-3 rounded-xl font-bold text-base hover:bg-accent-500 active:scale-[0.98] transition-all shadow-lg shadow-indigo-200 flex items-center justify-center relative overflow-hidden group">
                                         <div
                                             class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                                         </div>
@@ -189,7 +189,7 @@
                                 <!-- Monthly / Yearly Toggle -->
                                 <div class="inline-flex bg-slate-800 p-1 rounded-lg mb-2">
                                     <button type="button" onclick="setBilling('monthly')" id="btn-monthly"
-                                        class="px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-indigo-500 text-white shadow-sm">
+                                        class="px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-accent-500 text-white shadow-sm">
                                         Monthly
                                     </button>
                                     <button type="button" onclick="setBilling('yearly')" id="btn-yearly"
@@ -264,10 +264,10 @@
             const payBtnText = document.getElementById('pay-btn-text');
 
             if (cycle === 'monthly') {
-                btnMonthly.classList.add('bg-indigo-500', 'text-white', 'shadow-sm');
+                btnMonthly.classList.add('bg-accent-500', 'text-white', 'shadow-sm');
                 btnMonthly.classList.remove('text-slate-400', 'hover:text-white');
 
-                btnYearly.classList.remove('bg-indigo-500', 'text-white', 'shadow-sm');
+                btnYearly.classList.remove('bg-accent-500', 'text-white', 'shadow-sm');
                 btnYearly.classList.add('text-slate-400', 'hover:text-white');
 
                 badge.textContent = 'MONTHLY';
@@ -275,10 +275,10 @@
                 total.textContent = pricing.monthly.total;
                 payBtnText.textContent = `Pay ${pricing.monthly.total}`;
             } else {
-                btnYearly.classList.add('bg-indigo-500', 'text-white', 'shadow-sm');
+                btnYearly.classList.add('bg-accent-500', 'text-white', 'shadow-sm');
                 btnYearly.classList.remove('text-slate-400', 'hover:text-white');
 
-                btnMonthly.classList.remove('bg-indigo-500', 'text-white', 'shadow-sm');
+                btnMonthly.classList.remove('bg-accent-500', 'text-white', 'shadow-sm');
                 btnMonthly.classList.add('text-slate-400', 'hover:text-white');
 
                 badge.textContent = 'YEARLY';

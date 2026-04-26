@@ -36,7 +36,7 @@
                         <button type="button" @click="skipTour" class="text-xs font-bold text-gray-400 hover:text-gray-600">Skip</button>
 
                         <button type="button" @click="nextStep"
-                            class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+                            class="bg-accent-500 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-accent-600 transition-colors shadow-lg shadow-indigo-200">
                             <span x-text="step === steps.length ? 'Get Started' : 'Next'"></span>
                         </button>
                     </div>

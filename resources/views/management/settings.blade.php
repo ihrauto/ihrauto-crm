@@ -296,7 +296,7 @@
                     <a href="{{ route('management') }}"
                         class="rounded-xl border border-gray-200 bg-white py-2.5 px-5 text-sm font-bold text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all mr-3 shadow-sm">Cancel</a>
                     <button type="submit"
-                        class="inline-flex justify-center rounded-xl border border-transparent bg-indigo-600 py-2.5 px-6 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-500 active:scale-95 transition-all">
+                        class="inline-flex justify-center rounded-xl border border-transparent bg-accent-500 py-2.5 px-6 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-accent-500 active:scale-95 transition-all">
                         Save Settings
                     </button>
                 </div>

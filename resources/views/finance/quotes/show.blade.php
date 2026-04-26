@@ -21,7 +21,7 @@
             @if (in_array($quote->status, ['draft','sent','accepted']) && ! $quote->invoice)
                 <form method="post" action="{{ route('quotes.convert-to-invoice', $quote) }}">
                     @csrf
-                    <button type="submit" class="px-3 py-2 rounded bg-indigo-600 text-white text-sm hover:bg-indigo-700">
+                    <button type="submit" class="px-3 py-2 rounded bg-accent-500 text-white text-sm hover:bg-accent-600">
                         {{ __('crm.quote.convert_to_invoice') }}
                     </button>
                 </form>

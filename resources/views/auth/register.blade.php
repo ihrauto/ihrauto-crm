@@ -173,7 +173,7 @@
 
         <!-- Submit Button -->
         <button type="submit"
-            class="w-full bg-indigo-600 text-white py-3 px-4 rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-all shadow-lg shadow-indigo-200 transform hover:-translate-y-0.5">
+            class="w-full bg-accent-500 text-white py-3 px-4 rounded-xl font-bold text-sm uppercase tracking-wide hover:bg-accent-600 focus:outline-none focus:ring-4 focus:ring-accent-300 transition-all shadow-lg shadow-indigo-200 transform hover:-translate-y-0.5">
             Start Free Trial
         </button>
     </form>

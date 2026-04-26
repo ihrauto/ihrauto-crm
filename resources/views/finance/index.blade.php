@@ -302,7 +302,7 @@
                                 <input type="hidden" name="invoice_ids[]" :value="id">
                             </template>
                             <button type="submit"
-                                    class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+                                    class="inline-flex items-center rounded-md bg-accent-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent-500"
                                     onclick="return confirm('Issue all selected drafts?')">
                                 Issue selected (<span x-text="selected.length"></span>)
                             </button>
@@ -630,7 +630,7 @@
                                 Cancel
                             </button>
                             <button type="button" onclick="goToStep2()" 
-                                class="inline-flex items-center px-6 py-2 bg-indigo-900 text-white rounded-lg text-sm font-semibold hover:bg-indigo-800 hover:shadow-lg transition-all duration-200 shadow-sm">
+                                class="inline-flex items-center px-6 py-2 bg-accent-600 text-white rounded-lg text-sm font-semibold hover:bg-accent-600 hover:shadow-lg transition-all duration-200 shadow-sm">
                                 Continue
                             </button>
                         </div>
@@ -694,7 +694,7 @@
                                 Back
                             </button>
                             <button type="submit" id="pay-button"
-                                class="inline-flex items-center px-6 py-2 bg-indigo-900 text-white rounded-lg text-sm font-semibold hover:bg-indigo-800 hover:shadow-lg transition-all duration-200 shadow-sm">
+                                class="inline-flex items-center px-6 py-2 bg-accent-600 text-white rounded-lg text-sm font-semibold hover:bg-accent-600 hover:shadow-lg transition-all duration-200 shadow-sm">
                                 Pay <span id="pay-amount-display" class="ml-1"></span>
                             </button>
                         </div>

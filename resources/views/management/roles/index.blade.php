@@ -115,7 +115,7 @@
 
                         <div class="mt-auto pt-4 border-t border-indigo-50">
                             <button type="submit"
-                                class="w-full bg-indigo-600 text-white px-3 py-2 rounded-lg font-bold text-xs uppercase tracking-wide hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition-all shadow-sm">
+                                class="w-full bg-accent-500 text-white px-3 py-2 rounded-lg font-bold text-xs uppercase tracking-wide hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-300 transition-all shadow-sm">
                                 Save Changes
                             </button>
                         </div>

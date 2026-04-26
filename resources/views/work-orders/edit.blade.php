@@ -76,7 +76,7 @@
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Technician Notes</h3>
                             <button type="submit"
-                                class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 transition-colors shadow-sm">
+                                class="px-4 py-2 bg-accent-500 text-white rounded-lg font-bold text-sm hover:bg-accent-600 transition-colors shadow-sm">
                                 Save Notes
                             </button>
                         </div>
@@ -89,7 +89,7 @@
                     <div class="bg-white rounded-xl shadow-sm border border-indigo-50 p-6">
                         <div class="flex items-center justify-between">
                             <a href="{{ route('work-orders.show', $workOrder) }}"
-                                class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-sm">
+                                class="px-6 py-3 bg-accent-500 text-white rounded-lg font-bold hover:bg-accent-600 transition-colors shadow-sm">
                                 Open Job Sheet
                             </a>
                             <a href="{{ route('work-orders.index') }}"

@@ -183,7 +183,7 @@
                                     </span>
                                     @if ($plan['featured'])
                                         <span
-                                            class="inline-flex rounded-full bg-indigo-500 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white">
+                                            class="inline-flex rounded-full bg-accent-500 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white">
                                             Popular
                                         </span>
                                     @endif
@@ -229,7 +229,7 @@
                                 </ul>
 
                                 <a href="{{ route('register', ['plan' => $plan['key']]) }}"
-                                    class="mt-8 inline-flex w-full items-center justify-center rounded-xl px-6 py-3.5 text-sm font-bold uppercase tracking-[0.14em] transition {{ $plan['featured'] ? 'bg-white text-indigo-950 hover:bg-indigo-50' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200' }}">
+                                    class="mt-8 inline-flex w-full items-center justify-center rounded-xl px-6 py-3.5 text-sm font-bold uppercase tracking-[0.14em] transition {{ $plan['featured'] ? 'bg-white text-indigo-950 hover:bg-indigo-50' : 'bg-accent-500 text-white hover:bg-accent-600 shadow-md shadow-indigo-200' }}">
                                     Start {{ $plan['name'] }}
                                 </a>
                             </div>

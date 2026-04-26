@@ -87,7 +87,7 @@
                         <button type="button" onclick="closeEditModal()"
                             class="px-6 py-2.5 border border-indigo-200 text-indigo-600 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition-colors">Cancel</button>
                         <button type="submit"
-                            class="px-6 py-2.5 bg-indigo-900 text-white rounded-lg text-sm font-semibold hover:bg-indigo-800 shadow-md hover:shadow-lg transition-all">Update
+                            class="px-6 py-2.5 bg-accent-600 text-white rounded-lg text-sm font-semibold hover:bg-accent-600 shadow-md hover:shadow-lg transition-all">Update
                             Tire</button>
                     </div>
                 </div>
