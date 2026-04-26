@@ -12,7 +12,7 @@
         <!-- Main Action Boxes -->
         <div id="action-boxes" class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 my-6 lg:my-8">
             <!-- IN HOTEL Box -->
-            <div class="group bg-white border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-accent-600 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
+            <div class="group bg-white border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-brand-700 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
                 id="in-hotel-box">
                 <div class="text-center">
                     <div
@@ -30,7 +30,7 @@
             </div>
 
             <!-- ADD NEW Box -->
-            <div class="group bg-indigo-50 border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-accent-600 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
+            <div class="group bg-indigo-50 border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-brand-700 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
                 id="add-new-box">
                 <div class="text-center">
                     <div
@@ -459,7 +459,7 @@
                                         <td class="px-4 py-3 whitespace-nowrap text-center">
                                             <div class="flex items-center justify-center space-x-2">
                                                 <button type="button"
-                                                    class="group inline-flex items-center justify-center w-8 h-8 text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-accent-500 hover:text-white transition-all duration-200 shadow-sm"
+                                                    class="group inline-flex items-center justify-center w-8 h-8 text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-brand-600 hover:text-white transition-all duration-200 shadow-sm"
                                                     data-action="edit-tire" data-tire-id="{{ $tire->id }}" title="Edit tire">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

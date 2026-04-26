@@ -45,12 +45,14 @@
 
         <!-- Main Action Boxes -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 my-6 lg:my-8">
-            <!-- ACTIVE USER Box -->
-            <div class="group bg-white border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-accent-600 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
+            <!-- ACTIVE USER Box — secondary "search/find existing"
+                 action; uses brand teal hover to match the brand colour
+                 family, distinguishing it from the New Customer (coral) box. -->
+            <div class="group bg-white rounded-xl p-6 cursor-pointer hover:bg-brand-500 hover:text-white transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900"
                 id="active-user-box">
                 <div class="text-center">
                     <div
-                        class="w-16 h-16 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-white/10 group-hover:text-white transition-all duration-300 ease-in-out">
+                        class="w-16 h-16 bg-brand-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-white/15 group-hover:text-white transition-all duration-300 ease-in-out">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                 d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
@@ -62,12 +64,14 @@
                 </div>
             </div>
 
-            <!-- ADD NEW Box -->
-            <div class="group bg-indigo-50 border border-indigo-100 rounded-xl p-6 cursor-pointer hover:bg-accent-600 hover:text-white hover:shadow-xl hover:border-indigo-900 transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900 shadow-sm"
+            <!-- ADD NEW Box — primary "create" action, distinguished from
+                 the Existing Customer card by a coral icon + coral hover so
+                 the user sees the brand accent #FE7551 here. -->
+            <div class="group bg-white rounded-xl p-6 cursor-pointer hover:bg-accent-500 hover:text-white transition-all duration-300 ease-in-out min-h-[160px] flex items-center justify-center text-indigo-900"
                 id="add-new-box">
                 <div class="text-center">
                     <div
-                        class="w-16 h-16 bg-white border border-indigo-200 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-white/10 group-hover:text-white transition-all duration-300 ease-in-out shadow-sm">
+                        class="w-16 h-16 bg-accent-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-white/15 group-hover:text-white transition-all duration-300 ease-in-out">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                 d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>

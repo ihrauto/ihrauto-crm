@@ -53,7 +53,7 @@
                             style="display: none;">
                             <template x-for="option in ['Units', 'Pieces', 'Liters', 'Sets']">
                                 <div @click="selected = option; open = false"
-                                    class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-accent-500 hover:text-white cursor-pointer">
+                                    class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-brand-600 hover:text-white cursor-pointer">
                                     <span class="block truncate"
                                         :class="{ 'font-semibold': selected === option, 'font-normal': selected !== option }"
                                         x-text="option"></span>
@@ -139,7 +139,7 @@
                             style="display: none;">
                             <template x-for="option in options" :key="option.value">
                                 <div @click="selected = option.value; open = false"
-                                    class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-accent-500 hover:text-white cursor-pointer">
+                                    class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-brand-600 hover:text-white cursor-pointer">
                                     <span class="block truncate"
                                         :class="{ 'font-semibold': selected === option.value, 'font-normal': selected !== option.value }"
                                         x-text="option.label"></span>

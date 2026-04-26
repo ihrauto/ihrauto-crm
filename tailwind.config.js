@@ -41,8 +41,13 @@ import forms from '@tailwindcss/forms';
 // ---------------------------------------------------------------------------
 
 const teal = {
-    50:  '#F0F8F5',  // page background — barely-there tint
-    100: '#DCEFE8',
+    // Note: scale-50 is for tinted card surfaces. Page background uses
+    // a SEPARATE token (`brand.tint`, set further down) that's even
+    // lighter than 50, so a `bg-indigo-50` card stands out subtly from
+    // the body. If we set both to the same hex, indigo-50 cards
+    // (Add New Customer, info panels, etc.) disappear into the page.
+    50:  '#E5F2EC',  // tinted-card surface — distinct from page bg
+    100: '#D6ECE5',
     200: '#B7DDD0',
     300: '#8AC6B5',
     400: '#5BAE9D',
@@ -111,7 +116,10 @@ export default {
                     'primary-hover': coral[600],
                     focus: teal[400],
                     'subtle-border': teal[200],
-                    tint: teal[50],
+                    // Page-body background — barely-there teal wash. Distinctly
+                    // LIGHTER than teal-50 so cards using bg-indigo-50 / bg-brand-50
+                    // stand out against it as a subtle tinted surface.
+                    tint: '#F4FAF7',
                     accent: coral[500],
                 },
 

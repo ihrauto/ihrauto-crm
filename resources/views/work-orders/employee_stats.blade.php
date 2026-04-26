@@ -31,7 +31,7 @@
             @foreach($users as $user)
                 <a href="{{ route('work-orders.employee-details', $user) }}" class="group flex items-center p-3 bg-white border border-indigo-50 rounded-lg hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer">
                     <!-- Compact Avatar -->
-                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm group-hover:bg-accent-500 group-hover:text-white transition-colors">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm group-hover:bg-brand-600 group-hover:text-white transition-colors">
                         {{ substr($user->name, 0, 1) }}
                     </div>
                     
